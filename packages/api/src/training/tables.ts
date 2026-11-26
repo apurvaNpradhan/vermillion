@@ -604,6 +604,8 @@ export const programRun = pgTable(
     continuedAt: timestamptz("continued_at"),
     /** Run weeks turned into Deload weeks by "Insert deload now", ascending; null is none. */
     insertedDeloads: jsonb("inserted_deloads").$type<number[]>(),
+    /** Server-only: legacy snapshots cannot reinsert a week taken back by an explicit undo. */
+    undoneDeloads: jsonb("undone_deloads").$type<number[]>(),
     pauses: jsonb("pauses").$type<import("@workspace/shared").RunPause[]>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

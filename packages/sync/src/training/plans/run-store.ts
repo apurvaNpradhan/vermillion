@@ -7,9 +7,10 @@ import {
   runPausesSchema,
   runPausedAt,
   TRAINING_LIMITS,
+  undoableDeloadWeek,
 } from "@workspace/shared";
 import { v7 as uuidv7 } from "uuid";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   assertProgramExists,
@@ -111,35 +112,44 @@ export function insertDeloadNow(
   week: number,
   scope?: string,
 ) {
-  return write(database, scope, async (tx) => {
-    const [run] = await tx.select().from(programRun).where(eq(programRun.id, id)).limit(1);
-    if (!run || run.finished_at !== null || runPausedAt(run.pauses ?? [], nowIso())) return false;
+  return write(database, scope, async (tx, run) => {
+    if (run?.id !== id || runPausedAt(run.pauses ?? [], nowIso())) return false;
     const current = insertedDeloadsSchema.catch([]).parse(run.inserted_deloads ?? []);
     const next = insertDeload(current, week);
-    if (next.length === current.length || next.length > TRAINING_LIMITS.insertedDeloadsMax)
-      return false;
-    await tx.update(programRun).set({ inserted_deloads: next }).where(eq(programRun.id, id));
+    const added = next.find((item) => !current.includes(item));
+    if (added === undefined || !insertedDeloadsSchema.safeParse(next).success) return false;
+    await tx.run(sql`UPDATE program_run SET inserted_deloads = ${JSON.stringify(next)},
+      _metadata = ${JSON.stringify({ action: "insert", week: added })}
+      WHERE id = ${id}`);
     return true;
   });
 }
-/**
- * "Undo deload": Run week `week` stops being an inserted Deload and the pattern is read as before.
- * False when the Run is gone or finished, or the week was not inserted. Whether a Session was
- * logged in the week is the caller's check (`undoableDeloadWeek`).
- */
+/** Take back the current Run week's inserted Deload until a counted Session is logged. */
 export function undoDeloadNow(
   database: TrainingDatabase,
   id: string,
   week: number,
+  timezone: string,
   scope?: string,
 ) {
-  return write(database, scope, async (tx) => {
-    const [run] = await tx.select().from(programRun).where(eq(programRun.id, id)).limit(1);
-    if (!run || run.finished_at !== null) return false;
+  return write(database, scope, async (tx, run) => {
+    if (run?.id !== id) return false;
     const current = insertedDeloadsSchema.catch([]).parse(run.inserted_deloads ?? []);
+    if (!current.includes(week)) return false;
+    const starts = await tx.all<{ started_at: string }>(sql`
+      SELECT started_at FROM training_session
+      WHERE run_id = ${id} AND finished_at IS NOT NULL AND ${sql.raw(hasCountedSetSql)}`);
+    const undoable = undoableDeloadWeek({
+      run: { ...run, inserted_deloads: current, pauses: run.pauses ?? [] },
+      now: new Date(),
+      timezone,
+      trainedAt: starts.map(({ started_at }) => started_at),
+    });
+    if (undoable !== week) return false;
     const next = removeInsertedDeload(current, week);
-    if (next.length === current.length) return false;
-    await tx.update(programRun).set({ inserted_deloads: next }).where(eq(programRun.id, id));
+    await tx.run(sql`UPDATE program_run SET inserted_deloads = ${JSON.stringify(next)},
+      _metadata = ${JSON.stringify({ action: "undo", week, timezone })}
+      WHERE id = ${id}`);
     return true;
   });
 }

@@ -1,6 +1,6 @@
 import type { PhaseNow } from "@workspace/shared";
 import { CaretDown } from "phosphor-react-native";
-import { Pressable, Text } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { usePhaseText } from "@/platform/phase-text";
@@ -39,14 +39,18 @@ export function PhaseChip({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
-      hitSlop={8}
       onPress={onPress}
-      className="min-h-8 flex-row items-center gap-1 self-start rounded-full bg-default px-2.5 py-0.5 active:opacity-70"
+      className="min-h-11 min-w-11 justify-center self-start active:opacity-70"
     >
-      <Text numberOfLines={1} className="font-medium text-caption tabular-nums text-foreground">
-        {label}
-      </Text>
-      <CaretDown size={12} color={subtle} />
+      <View className="min-h-8 flex-row items-center gap-1 rounded-full bg-default px-2.5 py-0.5">
+        <Text
+          numberOfLines={1}
+          className="shrink font-medium text-caption tabular-nums text-foreground"
+        >
+          {label}
+        </Text>
+        <CaretDown size={12} color={subtle} />
+      </View>
     </Pressable>
   );
 }

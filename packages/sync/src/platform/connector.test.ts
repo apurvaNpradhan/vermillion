@@ -66,6 +66,18 @@ it("uploads the completion state PowerSync recorded when a set was deleted", asy
   ]);
 });
 
+it("sends a deload's intent without the device's stale list", async () => {
+  const fake = setup();
+  await ready(fake);
+  const undo = crudEntry("PATCH", EXERCISE, { inserted_deloads: "[]" }, "program_run");
+  undo.metadata = '{"action":"undo","week":3,"timezone":"America/Los_Angeles"}';
+  fake.queue([undo]);
+  await fake.connector.uploadData();
+  expect(fake.uploads[0]?.ops).toEqual([
+    { op: "PATCH", table: "program_run", id: EXERCISE, opData: { deload_change: undo.metadata } },
+  ]);
+});
+
 it("uploads the equipment list a gym toggle started from", async () => {
   const fake = setup();
   await ready(fake);

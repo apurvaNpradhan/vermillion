@@ -6,6 +6,7 @@ import { PowerSyncDatabase } from "@powersync/node";
 import { exercisePinId, type CustomExerciseInput } from "@workspace/shared";
 import {
   DEFAULT_LIBRARY_FILTERS,
+  activateProgram,
   addExercises,
   addSlot,
   archiveExercise,
@@ -15,6 +16,7 @@ import {
   createWorkout,
   deleteProgram,
   ensureInstallId,
+  insertDeloadNow,
   libraryQuery,
   pauseSession,
   powerSyncSchema,
@@ -23,6 +25,7 @@ import {
   seedEquipment,
   setExercisePinned,
   startSession,
+  undoDeloadNow,
   updateCustomExercise,
   updateEquipment,
   updateWorkoutExercise,
@@ -86,6 +89,25 @@ describe("Drizzle writes reach the upload queue", () => {
       { table: "exercise", op: "PUT", id: exerciseId },
       { table: "exercise_pin", op: "PUT", id, opData: { exercise_id: exerciseId } },
       { table: "exercise_pin", op: "DELETE", id },
+    ]);
+  });
+
+  it("queues the specific week and local time zone for a deload undo", async () => {
+    const program = await createProgram(database, {
+      title: "Plan",
+      description: null,
+      planned_weeks: null,
+    });
+    const run = await activateProgram(database, program);
+    expect(await insertDeloadNow(database, run, 1)).toBe(true);
+    expect(await undoDeloadNow(database, run, 1, "America/Los_Angeles")).toBe(true);
+
+    const changes = (await database.getCrudBatch(10))?.crud.filter(
+      (entry) => entry.table === "program_run" && entry.op === "PATCH",
+    );
+    expect(changes?.map((entry) => JSON.parse(entry.metadata ?? "null"))).toEqual([
+      { action: "insert", week: 1 },
+      { action: "undo", week: 1, timezone: "America/Los_Angeles" },
     ]);
   });
 

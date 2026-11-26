@@ -1,10 +1,7 @@
 import {
-  activeLighterWeek,
-  endLighterWeek,
   offerLighterWeek,
   sessionsInRange,
   stalledExerciseIds,
-  undoableLighterWeek,
   weekRange,
 } from "@workspace/shared";
 import { useRouter } from "expo-router";
@@ -19,7 +16,6 @@ import {
 } from "@/exercise";
 import { useExerciseRules } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
-import { useAppToast } from "@/platform/ui/use-app-toast";
 import { Button } from "@/platform/ui/button";
 import { usePreferences } from "@/preferences";
 import { sessionRecords, usePreviousSets, useRecordHistory } from "@/session";
@@ -51,7 +47,6 @@ export function TrainingNudges({
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { preferences, setUi } = usePreferences();
-  const { toast } = useAppToast();
   useStallVersion();
   const run = program.run;
   const now = new Date();
@@ -59,7 +54,7 @@ export function TrainingNudges({
   const deload = useDeloadWeek({
     run,
     trainedAt: program.trainedAt,
-    sessionStarts: state.sessions.map((session) => session.started_at),
+    sessionStarts: state.finished?.map((session) => session.started_at),
   });
   const week = weekRange(now, state.timezone, state.weekStart);
   const thisWeek = sessionsInRange(state.sessions, week, state.timezone);
@@ -68,24 +63,18 @@ export function TrainingNudges({
   ];
   const histories = usePreviousSets(exerciseIds);
   const rules = useExerciseRules();
-  const active = activeLighterWeek(lighterWeeks, now);
-  const lighterUndoable =
-    undoableLighterWeek(
-      lighterWeeks,
-      now,
-      state.sessions.map((session) => session.started_at),
-    ) !== null;
+  const { lighter } = deload;
   const latest = state.recent[0];
   const showRecords =
     latest !== undefined && now.getTime() - Date.parse(latest.started_at) <= RECORDS_DAYS * DAY_MS;
   const records = showRecords ? <RecordsCard session={latest} /> : null;
-  if (active) {
+  if (lighter) {
     const date = new Intl.DateTimeFormat(i18n.language, {
       weekday: "short",
       day: "numeric",
       month: "short",
       timeZone: state.timezone,
-    }).format(new Date(active.until));
+    }).format(new Date(lighter.until));
     return (
       <>
         <View className="min-h-11 flex-row items-center justify-between gap-3 px-1">
@@ -95,14 +84,11 @@ export function TrainingNudges({
           <Pressable
             accessibilityRole="button"
             hitSlop={8}
-            onPress={() => {
-              setUi(endLighterWeek(lighterWeeks, new Date()));
-              if (lighterUndoable) toast.show({ label: t("deload__undone_toast") });
-            }}
+            onPress={deload.endLighter}
             className="min-h-11 justify-center"
           >
             <Text className="text-caption font-medium text-foreground">
-              {t(lighterUndoable ? "deload__undo" : "lighter__end")}
+              {t(deload.canUndoLighter ? "deload__undo" : "lighter__end")}
             </Text>
           </Pressable>
         </View>
@@ -147,7 +133,9 @@ export function TrainingNudges({
             <Text className="font-semibold text-body text-foreground">
               {t("deload__offer_title")}
             </Text>
-            <Text className="font-normal text-caption text-muted">{t("deload__offer_body")}</Text>
+            <Text className="font-normal text-caption text-muted">
+              {t(run ? "deload__offer_body_run" : "deload__offer_body")}
+            </Text>
           </View>
           <View className="flex-row gap-3">
             <Button className="flex-1" variant="secondary" onPress={deload.ask}>

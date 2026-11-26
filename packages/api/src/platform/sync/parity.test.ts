@@ -447,6 +447,7 @@ const expectation: Expectation = {
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
         inserted_deloads: { type: "jsonb", notNull: false, default: null },
+        undone_deloads: { type: "jsonb", notNull: false, default: null },
         pauses: { type: "jsonb", notNull: false, default: null },
       },
       indexes: {
