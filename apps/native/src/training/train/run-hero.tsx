@@ -7,6 +7,8 @@ import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
+import { Hint } from "@/platform/ui/hint";
+import { useHint } from "@/platform/ui/use-hint";
 import { PhaseChip } from "@/training/phases/phase-chip";
 import { ProgramTile } from "@/training/programs/program-row";
 import type { useActiveProgram } from "@/training/programs/use-active-program";
@@ -46,6 +48,8 @@ export function RunHero({
   const onAction = useThemeColor("accent-foreground");
   const { program, run, progress, week, totalWeeks, phase, paused } = state;
   const [weekOpen, setWeekOpen] = useState(false);
+  const hint = useHint("train-strip");
+  const { dismiss: dismissHint } = hint;
   const day = useSlotDay({
     runId: run?.id ?? null,
     progress,
@@ -85,7 +89,17 @@ export function RunHero({
         </View>
       </Pressable>
       {!paused ? (
-        <CycleStrip slots={program.slots} progress={progress} onSelect={day.open} />
+        <CycleStrip
+          slots={program.slots}
+          progress={progress}
+          onSelect={(slot) => {
+            dismissHint();
+            day.open(slot);
+          }}
+        />
+      ) : null}
+      {!paused && hint.visible ? (
+        <Hint text={t("hint__train_strip")} onDismiss={hint.dismiss} />
       ) : null}
       {next?.workoutId && nextTitle ? (
         <View className="gap-3">

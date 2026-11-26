@@ -28,6 +28,7 @@ import { SuggestionLedgerLine } from "./suggestion-ledger-line";
 import { ProgressionChip } from "./progression-chip";
 import { ExerciseRow } from "./exercise-row";
 import { SetGrid, type SetHandlers } from "./set-grid";
+import { HintedSetGrid } from "./hinted-set-grid";
 
 /** A ticked set that loads the stack the way training does: anything but a warm-up. */
 function isStepEvidence(kind: SessionExerciseDetail["sets"][number]["kind"]): boolean {
@@ -102,6 +103,7 @@ export const ExerciseItem = memo(function ExerciseItem({
         readOnly: state.ui.readOnly,
         effortScale: state.ui.effortScale,
         expanded: state.expanded.has(exerciseId),
+        first: state.exerciseIds[0] === exerciseId,
         done: allTicked(exercise?.sets ?? []),
       };
     }),
@@ -257,7 +259,8 @@ export const ExerciseItem = memo(function ExerciseItem({
                   unitLabel={data.unitLabel}
                 />
               ) : null}
-              <SetGrid
+              <GridOrHinted
+                hinted={data.first && data.activeSessionId !== null && !readOnly}
                 exerciseId={exerciseId}
                 handlers={handlers}
                 onAddSet={handlers.onAddSet}
@@ -365,3 +368,11 @@ const ExerciseBody = memo(function ExerciseBody({
     </View>
   );
 });
+
+/** The first exercise of an active Session carries the set-row hint; every other grid is plain. */
+function GridOrHinted({
+  hinted,
+  ...props
+}: { hinted: boolean } & React.ComponentProps<typeof SetGrid>) {
+  return hinted ? <HintedSetGrid {...props} /> : <SetGrid {...props} />;
+}

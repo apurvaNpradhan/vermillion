@@ -24,6 +24,8 @@ import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 import { useTranslation } from "@/platform/i18n";
 import { usePhaseText } from "@/platform/phase-text";
 import { EmptyState } from "@/platform/ui/empty-state";
+import { Hint } from "@/platform/ui/hint";
+import { useHint } from "@/platform/ui/use-hint";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
 import { ScrollPage } from "@/platform/ui/page";
@@ -88,7 +90,13 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [program.plannedWeeks]);
 
-  const save = (next: PhasePlan | null) => void actions.update(program.id, { phase_plan: next });
+  const hint = useHint("plan-weeks");
+  // Any edit on this page is the thing the hint describes: the first one closes it.
+  const { dismiss: dismissHint } = hint;
+  const save = (next: PhasePlan | null) => {
+    dismissHint();
+    void actions.update(program.id, { phase_plan: next });
+  };
   const blocks = stripBlocks({
     plan: shown,
     current: run
@@ -109,12 +117,14 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
         : weeks + direction < TRAINING_LIMITS.plannedWeeksMin
           ? null
           : Math.min(TRAINING_LIMITS.plannedWeeksMax, weeks + direction);
+    dismissHint();
     setWeeks(next);
     writer.queue({ planned_weeks: next });
   };
 
   return (
     <ScrollPage title={t("run__plan_weeks")} back backFallback="/train">
+      {hint.visible ? <Hint text={t("hint__plan_weeks")} onDismiss={hint.dismiss} /> : null}
       <View className="gap-1.5">
         <Text className="text-label font-medium text-foreground">
           {t("training__planned_length")}
