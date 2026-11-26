@@ -183,7 +183,6 @@ export const SetGrid = memo(function SetGrid({
         setIds: state.views.get(exerciseId)?.setIds,
         unit: resolveExerciseUnit(state.inputs.unit, exercise?.unit),
         display: state.inputs.display,
-        effortScale: state.ui.effortScale,
         readOnly: state.ui.readOnly,
         editingFinished: state.session.finishedAt !== null,
       };
@@ -215,7 +214,7 @@ export const SetGrid = memo(function SetGrid({
     },
     [grid, viewport],
   );
-  const { type, logEffort, setIds, unit, display, effortScale, readOnly, editingFinished } = layout;
+  const { type, logEffort, setIds, unit, display, readOnly, editingFinished } = layout;
   if (!type || !setIds) return null;
   const fields: readonly SetField[] = SET_FIELDS[type];
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
@@ -265,7 +264,7 @@ export const SetGrid = memo(function SetGrid({
               numberOfLines={1}
               className="font-normal w-11 text-center text-caption text-muted"
             >
-              {t(effortScale === "rpe" ? "training__effort_rpe" : "training__effort_rir")}
+              {t("session__col_effort")}
             </Text>
           ) : null}
           {editingFinished ? null : <View className="w-11" />}

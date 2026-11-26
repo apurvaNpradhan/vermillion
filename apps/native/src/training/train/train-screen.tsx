@@ -1,7 +1,7 @@
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import type { ProgramSummary, WorkoutSummary } from "@workspace/sync";
 import { useRouter } from "expo-router";
-import { Barbell, ListNumbers, Lightning, Plus } from "phosphor-react-native";
+import { Barbell, ListNumbers, Plus } from "phosphor-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 
@@ -47,12 +47,12 @@ const rowKey = (row: TrainRow) => row.key;
 const rowType = (row: TrainRow) => row.kind;
 
 /**
- * Train, top to bottom: the Resume card while a Session is in progress, the active Run (cover,
- * week, cycle strip, Start next), the Programs as a grid of cover cards, then the standalone
- * Workouts as a list that gains search and sort once there are more than eight. Create and Start
- * empty sit in the header. A Program's own Workouts are not listed here: they live in the Program.
+ * Train, top to bottom: the active program (cover, week chip, day strip, Start next), the
+ * Programs as a grid of cover cards, then the workouts of no program as a list that gains search
+ * and sort once there are more than eight. Create sits in the header; Resume lives in the bar
+ * above the tabs. A Program's own Workouts are not listed here: they live in the Program.
  */
-export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
+export function TrainScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const subtle = useSubtleColor();
@@ -282,14 +282,6 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
             >
               <Plus size={24} weight="regular" color={subtle} />
             </Button>
-            <Button
-              isIconOnly
-              variant="ghost"
-              accessibilityLabel={t("home__start_empty")}
-              onPress={onStartEmpty}
-            >
-              <Lightning size={24} weight="regular" color={subtle} />
-            </Button>
           </View>
         }
       >
@@ -309,26 +301,6 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
               <View className="gap-6 px-4 pb-1">
                 <View className="gap-4">
                   {header}
-                  {resume ? (
-                    <View className="flex-row flex-wrap items-center gap-3 rounded-xl bg-surface p-3.5">
-                      <View className="min-w-0 flex-1 gap-0.5">
-                        <Text className="text-title-md font-semibold text-foreground">
-                          {resume.title}
-                        </Text>
-                        <Text className="font-normal text-caption text-muted">
-                          {t("home__in_progress")}
-                        </Text>
-                      </View>
-                      <Button
-                        accessibilityLabel={t("session__resume_label", { title: resume.title })}
-                        onPress={() =>
-                          router.push({ pathname: "/session/[id]", params: { id: resume.id } })
-                        }
-                      >
-                        <Button.Label>{t("session__resume")}</Button.Label>
-                      </Button>
-                    </View>
-                  ) : null}
                   <SyncBanner />
                   <TrainingListState status={status} onRetry={retry} />
                   {ready ? (

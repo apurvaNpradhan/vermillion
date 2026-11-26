@@ -1,8 +1,8 @@
 import { SLOT_STATE_KEYS, stripState } from "@/training/train/strip-state";
-import { useRouter } from "expo-router";
 import { Check, Repeat } from "phosphor-react-native";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
+import { workoutNumber } from "@workspace/shared";
 import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
@@ -20,22 +20,17 @@ export function ActiveProgramCard({
   state: ReturnType<typeof useActiveProgram>;
 }) {
   const { t } = useTranslation();
-  const router = useRouter();
   const { program, run, progress, week, totalWeeks, paused } = state;
   const { startSlot, sheet } = useStartSession();
   if (!program || !run) return null;
   const next = program.slots.find((s) => s.id === progress.next?.id);
-  const position = next ? program.slots.findIndex((slot) => slot.id === next.id) + 1 : 0;
+  const position = workoutNumber(program.slots, next?.id);
   const progressText = totalWeeks
     ? t("run__progress_of", { week, total: totalWeeks, workout: position })
     : t("run__progress", { week, workout: position });
   return (
     <View className="gap-3">
-      <SectionHeader
-        title={t("run__active")}
-        actionLabel={t("run__change")}
-        onAction={() => router.push("/train/programs")}
-      />
+      <SectionHeader title={t("run__active")} />
       <View className="flex-row items-center gap-3">
         <ProgramTile title={program.title} size={40} coverMediaId={program.coverMediaId} />
         <View className="flex-1">
@@ -53,10 +48,7 @@ export function ActiveProgramCard({
           </Text>
         </View>
       </View>
-      <View
-        className="flex-row flex-wrap gap-2"
-        accessibilityLabel={t("run__cycle", { cycle: progress.cycle })}
-      >
+      <View className="flex-row flex-wrap gap-2">
         {program.slots.map((slot, index) => {
           const state = stripState(slot, progress);
           const trained = state === "done";

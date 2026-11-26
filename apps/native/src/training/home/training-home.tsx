@@ -12,6 +12,7 @@ import {
   historyForWorkout,
   sessionGoal,
   resolveExerciseUnit,
+  workoutNumber,
 } from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -88,27 +89,23 @@ export function TrainingHome() {
 
   // ---- Next workout ----
   const slots = programState.program?.slots ?? [];
-  const nextIndex = next ? slots.findIndex((slot) => slot.id === next.id) : -1;
   const exercises = workout.status === "ready" ? workout.workout.exercises : [];
-  const hasWorkout = resume !== undefined || (workoutId !== null && workout.status === "ready");
-  const title = resume?.title ?? (next ? slotTitle(next, t) : (recent?.title ?? null));
-  const meta = resume
-    ? t("home__in_progress")
-    : exercises.length === 0
+  const hasWorkout = workoutId !== null && workout.status === "ready";
+  const title = next ? slotTitle(next, t) : (recent?.title ?? null);
+  const meta =
+    exercises.length === 0
       ? t("training__workout_empty_meta")
       : t("training__workout_meta", {
           count: exercises.length,
           minutes: estimateMinutes(exercises),
         });
-  const eyebrow = resume
-    ? null
-    : next
-      ? t(programState.totalWeeks ? "home__position_of" : "home__position", {
-          week: programState.week,
-          total: programState.totalWeeks,
-          day: nextIndex + 1,
-        })
-      : t("home__next_workout");
+  const eyebrow = next
+    ? t(programState.totalWeeks ? "run__progress_of" : "run__progress", {
+        week: programState.week,
+        total: programState.totalWeeks,
+        workout: workoutNumber(slots, next.id),
+      })
+    : t("home__next_workout");
   const heroExercises: NextWorkoutExercise[] =
     workout.status === "ready"
       ? workout.workout.exercises.flatMap((entry) => {
@@ -204,25 +201,23 @@ export function TrainingHome() {
             ))
           )}
         </View>
-      ) : (
+      ) : resume !== undefined && !hasWorkout ? null : (
         <NextWorkoutCard
           eyebrow={eyebrow}
           title={hasWorkout ? title : null}
           meta={meta}
           exercises={heroExercises}
           lastDuration={lastDuration}
-          resuming={resume !== undefined}
+          workoutOpen={resume !== undefined}
           resumesRun={resume === undefined && programState.paused && Boolean(next?.workoutId)}
           onStart={() =>
-            resume
-              ? router.push({ pathname: "/session/[id]", params: { id: resume.id } })
-              : next?.workoutId && programState.run
-                ? void startSlot(next.workoutId, {
-                    runId: programState.run.id,
-                    slotId: next.id,
-                    cycle: programState.progress.cycle,
-                  })
-                : void start(workoutId)
+            next?.workoutId && programState.run
+              ? void startSlot(next.workoutId, {
+                  runId: programState.run.id,
+                  slotId: next.id,
+                  cycle: programState.progress.cycle,
+                })
+              : void start(workoutId)
           }
           onStartEmpty={() => void start(null)}
         />

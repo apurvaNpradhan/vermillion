@@ -3,6 +3,9 @@ import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { useRouter } from "expo-router";
 import { runProgress, useActiveRun } from "./use-active-program";
+import { runWeek } from "@workspace/shared";
+import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
+import { Button } from "@/platform/ui/button";
 import { TRAINING_LIMITS } from "@workspace/shared";
 import type { ProgramDetail, ProgramSlotDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
@@ -17,6 +20,7 @@ import {
   Plus,
   Repeat,
   ShareNetwork,
+  Stop,
   Trash,
   WarningCircle,
 } from "phosphor-react-native";
@@ -26,7 +30,6 @@ import Animated from "react-native-reanimated";
 
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
-import { ListRow, ListSection } from "@/platform/ui/list";
 import { SectionHeader } from "@/platform/ui/section-header";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { MarkdownText } from "@/platform/ui/markdown-text";
@@ -113,11 +116,16 @@ function LoadedProgram({
   const actions = useProgramActions();
   const active = useActiveRun();
   const isActive = active.run?.program_id === program.id;
-  const activationLabel = t(isActive ? "run__stop" : "run__set_active");
-  const toggleActive = () => {
-    if (isActive) void active.stop();
-    else active.activate(program.id);
-  };
+  const timeZone = useDeviceTimeZone();
+  // "Active · Week 3 of 12": where the program stands, when it is the active one.
+  const status = (() => {
+    if (!isActive || !active.run) return null;
+    const week = runWeek(active.run.started_at, new Date(), timeZone, active.run.pauses);
+    const state = t(active.paused ? "run__paused" : "run__status_active");
+    return program.plannedWeeks === null
+      ? t("run__status", { status: state, week })
+      : t("run__status_of", { status: state, week, total: program.plannedWeeks });
+  })();
   // Slots done or skipped in the current Cycle, marked on the rotation rows of the active Program.
   const cycle = useMemo(
     () => (isActive ? runProgress(active.runs, active.run?.id ?? null, program.slots) : null),
@@ -156,7 +164,6 @@ function LoadedProgram({
   const pauseLabel = t(active.paused ? "run__resume_run" : "run__pause_run");
   const togglePause = () => void active.changePause(!active.paused);
   const menu: SwipeAction[] = [
-    { key: "active", label: activationLabel, icon: Repeat, onPress: toggleActive },
     ...(isActive
       ? [
           {
@@ -164,6 +171,12 @@ function LoadedProgram({
             label: pauseLabel,
             icon: active.paused ? Play : Pause,
             onPress: togglePause,
+          },
+          {
+            key: "stop",
+            label: t("run__stop"),
+            icon: Stop,
+            onPress: () => void active.stop(),
           },
         ]
       : []),
@@ -251,19 +264,6 @@ function LoadedProgram({
           <View className="flex-row">
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={t("share__share")}
-              className="h-11 w-11 items-center justify-center"
-              onPress={() => {
-                router.push({
-                  pathname: "/share/[kind]/[id]",
-                  params: { kind: "program", id: program.id },
-                });
-              }}
-            >
-              <ShareNetwork size={24} color={foreground} />
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
               accessibilityLabel={t("training__program_menu")}
               onPress={() => setMenuOpen(true)}
               className="h-11 w-11 items-center justify-center"
@@ -304,22 +304,13 @@ function LoadedProgram({
                 </View>
                 <PencilSimple size={20} color={foreground} />
               </Pressable>
-              <ListSection variant="plain">
-                <ListRow
-                  icon={Repeat}
-                  title={activationLabel}
-                  accessory="none"
-                  onPress={toggleActive}
-                />
-                {isActive ? (
-                  <ListRow
-                    icon={active.paused ? Play : Pause}
-                    title={pauseLabel}
-                    accessory="none"
-                    onPress={togglePause}
-                  />
-                ) : null}
-              </ListSection>
+              {status !== null ? (
+                <Text className="font-normal text-body tabular-nums text-muted">{status}</Text>
+              ) : (
+                <Button onPress={() => active.activate(program.id)}>
+                  <Button.Label>{t("run__set_active")}</Button.Label>
+                </Button>
+              )}
               {program.description !== null ? (
                 <MarkdownText
                   markdown={program.description}
@@ -332,7 +323,6 @@ function LoadedProgram({
             <PhaseSection
               program={program}
               run={isActive ? active.run : null}
-              paused={isActive && active.paused}
               trainedAt={active.runs.value?.phaseStarts}
               actions={actions}
             />
