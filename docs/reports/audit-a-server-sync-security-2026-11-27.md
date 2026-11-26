@@ -15,11 +15,11 @@ afterwards (results below).
 | Medium   | 3     |
 | Low      | 13    |
 
-| Verdict | Count | Findings          |
-| ------- | ----- | ----------------- |
-| FIX NOW | 6     | F1–F6             |
-| LATER   | 7     | F7–F13            |
-| SKIP    | 3     | F14–F16           |
+| Verdict | Count | Findings |
+| ------- | ----- | -------- |
+| FIX NOW | 6     | F1–F6    |
+| LATER   | 7     | F7–F13   |
+| SKIP    | 3     | F14–F16  |
 
 No ownership hole was found. Every new upload handler (`program_slot_skip`, `gym`,
 `gym_exercise_setting`, `exercise_pin`, the new Run, Program, Workout, Session, Session exercise
@@ -268,11 +268,11 @@ bounded by `PHASE_WEEK_MAX`, and it is not streamed.
 
 Each batch touches its own files, so the three can be built in parallel.
 
-| Batch | Findings | Files |
-| ----- | -------- | ----- |
-| **A: training handlers** | F1, F3, F4 | `packages/api/src/training/run-sync.ts`, `gym-sync.ts`, `operations/gyms.ts`, `operations/lookup.ts` (if needed), `phase-sync.test.ts`, `gym-sync.test.ts`; `packages/shared/src/training/logging/session-inputs.ts` (`GYM_LIMITS`); `packages/sync/src/training/gyms/gym-store.ts` (+ test) and the native gym-create message if the cap needs copy (`en.json`). |
-| **B: sync contract version** | F2 | `packages/shared/src/sync.ts`, the shared and connector tests that pin the version, and a check of the client's `incompatible` path in `packages/sync/src/platform/connector.ts`. ADR 0018 note. |
-| **C: export and ops** | F5, F6 | `packages/sync/src/platform/backup.ts`, `backup.test.ts`; `scripts/ops/repair-run-started-at.sh`, `docs/runbook.md`. |
+| Batch                        | Findings   | Files                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A: training handlers**     | F1, F3, F4 | `packages/api/src/training/run-sync.ts`, `gym-sync.ts`, `operations/gyms.ts`, `operations/lookup.ts` (if needed), `phase-sync.test.ts`, `gym-sync.test.ts`; `packages/shared/src/training/logging/session-inputs.ts` (`GYM_LIMITS`); `packages/sync/src/training/gyms/gym-store.ts` (+ test) and the native gym-create message if the cap needs copy (`en.json`). |
+| **B: sync contract version** | F2         | `packages/shared/src/sync.ts`, the shared and connector tests that pin the version, and a check of the client's `incompatible` path in `packages/sync/src/platform/connector.ts`. ADR 0018 note.                                                                                                                                                                  |
+| **C: export and ops**        | F5, F6     | `packages/sync/src/platform/backup.ts`, `backup.test.ts`; `scripts/ops/repair-run-started-at.sh`, `docs/runbook.md`.                                                                                                                                                                                                                                              |
 
 Deploy order is unchanged: run the repair dry run, deploy the API (migrations), then release the
 app. With F2 in place, an API rollback after the app ships pauses uploads instead of refusing them.
