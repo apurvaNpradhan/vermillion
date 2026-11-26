@@ -78,8 +78,8 @@ const phaseEditsSchema = z
  * A Program's phases: a repeating pattern ("build, build, build, deload"), optional overrides of
  * single weeks, and optional edits of a phase's modifiers (only the fields given replace the
  * preset). Overrides name Program weeks. An inserted Deload consumes the next planned Deload
- * within one pattern length and restarts the pattern. With none in reach, it only replaces the
- * current week. No plan means no phases.
+ * within one pattern length: the pattern goes on from the week after it. With none in reach, it
+ * only replaces the current week. No plan means no phases.
  *
  * Keys this build does not know are stripped, not refused, so an older app can still read and
  * edit a Program whose plan a newer app wrote.
@@ -186,21 +186,21 @@ export function phaseOfWeek(
   if (!plan || plan.pattern.length === 0) return null;
   const clamped = Math.max(1, Math.floor(week));
   const overrides = new Map(plan.overrides.map(({ week, phase }) => [week, phase]));
-  let patternStart = 1;
   let offset = 0;
+  // The pattern is read at the Program week, so the week an override names and the phase it shows
+  // are the same week, whatever was inserted before it.
   const phaseAt = (runWeek: number) =>
-    overrides.get(runWeek + offset) ?? plan.pattern[(runWeek - patternStart) % plan.pattern.length];
+    overrides.get(runWeek + offset) ?? plan.pattern[(runWeek + offset - 1) % plan.pattern.length];
   for (const inserted of insertedDeloads) {
     if (inserted > clamped) break;
     if (inserted === clamped)
       return { phase: "deload", week: clamped, programWeek: clamped + offset, inserted: true };
-    // Skip through the replaced Deload and restart the pattern. With none in reach,
-    // the insert only changes its own week.
+    // Take the place of the next planned Deload, within one pattern length: the pattern goes on
+    // from the week after it. With none in reach, the insert only changes its own week.
     const bound = inserted + plan.pattern.length;
     for (let scheduled = inserted; scheduled < bound; scheduled += 1) {
       if (phaseAt(scheduled) !== "deload") continue;
       offset += scheduled - inserted;
-      patternStart = inserted + 1;
       break;
     }
   }

@@ -103,6 +103,54 @@ describe("phaseOfWeek", () => {
   });
 });
 
+describe("an inserted Deload in a pattern that does not end in Deload", () => {
+  const phases = (input: PhasePlan, weeks: number, inserted: number[]) =>
+    Array.from({ length: weeks }, (_, index) => phaseOfWeek(input, index + 1, inserted)?.phase);
+  const D = "deload";
+  const B = "build";
+
+  it("continues after the Deload it replaces, not twice in a row", () => {
+    const first = plan({ pattern: [D, B, B, B] });
+    expect(phases(first, 9, [])).toEqual([D, B, B, B, D, B, B, B, D]);
+    // Week 5 is already a Deload: inserting there changes nothing.
+    expect(phases(first, 9, [5])).toEqual([D, B, B, B, D, B, B, B, D]);
+    expect(phaseOfWeek(first, 6, [5])).toMatchObject({ phase: B, programWeek: 6, inserted: false });
+  });
+
+  it("keeps the builds between Deloads at the pattern's count", () => {
+    const middle = plan({ pattern: [B, B, D, B] });
+    expect(phases(middle, 10, [])).toEqual([B, B, D, B, B, B, D, B, B, B]);
+    // Week 1 takes the place of the Deload in week 3: then the pattern goes on after it.
+    expect(phases(middle, 10, [1])).toEqual([D, B, B, B, D, B, B, B, D, B]);
+    expect(phaseOfWeek(middle, 4, [1])).toMatchObject({ phase: B, programWeek: 6 });
+  });
+
+  it.each([
+    [[B, B, B, D]],
+    [[D, B, B, B]],
+    [[B, B, D, B]],
+    [[B, D, B, B, B]],
+    [["push", B, "test", D, B]],
+  ] as const)("reads every week from its Program week (%j)", (pattern) => {
+    const input = plan({ pattern: [...pattern] });
+    for (const inserted of [[1], [2], [3, 5], [4], [2, 3, 7]]) {
+      for (let week = 1; week <= 14; week += 1) {
+        const found = phaseOfWeek(input, week, inserted);
+        if (found?.inserted) continue;
+        expect(found?.phase).toBe(pattern[(found!.programWeek - 1) % pattern.length]);
+      }
+    }
+  });
+
+  it("puts an override on the week whose strip cell names it", () => {
+    const input = plan({
+      pattern: [B, B, D, B],
+      overrides: [{ week: 6, phase: "push" }],
+    });
+    expect(phaseOfWeek(input, 4, [1])).toMatchObject({ phase: "push", programWeek: 6 });
+  });
+});
+
 describe("phaseFor", () => {
   const start = "2026-11-02T10:00:00Z"; // a Monday
   it.each([
@@ -766,12 +814,14 @@ describe("editing a plan", () => {
     expect(withPattern(null, [])).toBeNull();
   });
 
-  it("sets and clears a week against the restarted pattern after an inserted deload", () => {
+  it("sets and clears a week against the pattern as it goes on after an inserted deload", () => {
     const original = plan({ pattern: ["build", "deload", "push"] });
     const inserted = [1];
-    expect(phaseOfWeek(original, 2, inserted)?.phase).toBe("build");
-    const edited = withWeekPhase(original, 2, "push", inserted);
-    expect(phaseOfWeek(edited, 2, inserted)?.phase).toBe("push");
+    // Week 1 takes the place of the Deload in Program week 2; Program week 3 follows it.
+    expect(phaseOfWeek(original, 2, inserted)).toMatchObject({ phase: "push", programWeek: 3 });
+    const edited = withWeekPhase(original, 2, "test", inserted);
+    expect(edited.overrides).toEqual([{ week: 3, phase: "test" }]);
+    expect(phaseOfWeek(edited, 2, inserted)?.phase).toBe("test");
     expect(withWeekPhase(edited, 2, null, inserted)).toEqual(original);
   });
 
