@@ -5,7 +5,8 @@ import {
   type WarmupRounding,
   type WarmupStep,
 } from "@workspace/shared";
-import { ArrowCounterClockwise, Plus, Trash } from "phosphor-react-native";
+import { ArrowCounterClockwise, Flame, Plus, Trash } from "phosphor-react-native";
+import { Switch } from "heroui-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
@@ -32,7 +33,7 @@ const sameSteps = (a: readonly WarmupStep[], b: readonly WarmupStep[]) =>
   a.length === b.length && a.every((s, i) => s.percent === b[i]?.percent && s.reps === b[i]?.reps);
 
 /**
- * The warm-up calculator: the ramp built for the first working set, as editable steps (a share of
+ * The one Warm-ups screen: whether warm-up sets count toward totals, and the calculator, the ramp built for the first working set, as editable steps (a share of
  * the working weight for some reps) and how each load is rounded. The default is 50% × 5,
  * 70% × 3 and 85% × 1, rounded to the bars and plates.
  */
@@ -40,7 +41,7 @@ export function WarmupSettingsScreen() {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
   const { preferences, setUi } = usePreferences();
-  const { warmupSteps: steps, warmupRounding: rounding } = preferences.ui;
+  const { warmupSteps: steps, warmupRounding: rounding, countWarmups } = preferences.ui;
   const [picker, setPicker] = useState(false);
   const isDefault = sameSteps(steps, DEFAULT_WARMUP_STEPS) && rounding === "equipment";
 
@@ -56,6 +57,23 @@ export function WarmupSettingsScreen() {
 
   return (
     <ScrollPage title={t("settings__warmup_title")} back backFallback="/settings/workouts">
+      <ListSection>
+        <ListRow
+          icon={Flame}
+          title={t("settings__count_warmups")}
+          description={t("settings__count_warmups_hint")}
+          accessory="none"
+          checked={countWarmups}
+          onPress={() => setUi({ countWarmups: !countWarmups })}
+          trailing={
+            <Switch
+              accessibilityLabel={t("settings__count_warmups")}
+              isSelected={countWarmups}
+              onSelectedChange={(value) => setUi({ countWarmups: value })}
+            />
+          }
+        />
+      </ListSection>
       <Text className="font-normal px-1 text-caption text-muted">{t("settings__warmup_hint")}</Text>
       <ListSection title={t("settings__warmup_steps")}>
         {steps.map((step, index) => (

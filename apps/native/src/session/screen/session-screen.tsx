@@ -31,6 +31,8 @@ import {
   SlidersHorizontal,
   Plus,
   PushPin,
+  Ruler,
+  TrendUp,
   Swap,
   Trash,
   WarningCircle,
@@ -138,6 +140,14 @@ export function SessionScreen(props: SessionScreenProps) {
 }
 
 /** The screen's own background while the Session reads from the device (milliseconds). */
+const hasUnit = (exercise: SessionExerciseDetail) =>
+  SET_FIELDS[exercise.type].some((field) => field === "weight");
+const isLoaded = (exercise: SessionExerciseDetail) =>
+  exercise.type === "weight_reps" || exercise.type === "bodyweight_weighted_reps";
+/** Unit, progression, Max load and setup, and the warm-up link: what the Exercise settings sheet holds. */
+const hasExerciseSettings = (exercise: SessionExerciseDetail) =>
+  hasUnit(exercise) || isLoaded(exercise) || canAddWarmups(exercise);
+
 function SessionBlank() {
   return <View className="flex-1 bg-background" />;
 }
@@ -158,6 +168,8 @@ function SessionHost({ stored, ...props }: SessionScreenProps & { stored: Sessio
 
 type Sheet =
   | { kind: "menu"; exercise: SessionExerciseDetail }
+  | { kind: "note-menu"; exercise: SessionExerciseDetail }
+  | { kind: "exercise-settings"; exercise: SessionExerciseDetail }
   | { kind: "note"; exercise: SessionExerciseDetail }
   | { kind: "pinned"; exercise: SessionExerciseDetail }
   | { kind: "limits"; exercise: SessionExerciseDetail }
@@ -443,47 +455,15 @@ const LoadedSession = memo(function LoadedSession({
           key: "note",
           label: t("session__pinned_note"),
           icon: NotePencil,
-          onPress: () => setSheet({ kind: "note", exercise: menuExercise }),
+          onPress: () => setSheet({ kind: "note-menu", exercise: menuExercise }),
         },
-        {
-          key: "pinned",
-          label: t(
-            menuExercise.pinnedNote === null
-              ? "session__pin_note_action"
-              : "session__edit_pinned_note_action",
-          ),
-          icon: PushPin,
-          onPress: () => setSheet({ kind: "pinned", exercise: menuExercise }),
-        },
-        ...(menuExercise.type === "weight_reps" || menuExercise.type === "bodyweight_weighted_reps"
+        ...(hasExerciseSettings(menuExercise)
           ? [
               {
-                key: "limits",
-                label: t("gym__limits_action"),
-                icon: Barbell,
-                onPress: () => setSheet({ kind: "limits", exercise: menuExercise }),
-              },
-            ]
-          : []),
-        ...(menuExercise.type === "weight_reps" || menuExercise.type === "bodyweight_weighted_reps"
-          ? [
-              {
-                key: "progression",
-                label: t("progress__rule"),
+                key: "exercise-settings",
+                label: t("session__exercise_settings"),
                 icon: SlidersHorizontal,
-                onPress: () => setSheet({ kind: "progression", exercise: menuExercise }),
-              },
-            ]
-          : []),
-        ...(SET_FIELDS[menuExercise.type].some((field) => field === "weight")
-          ? [
-              {
-                key: "unit",
-                label: t("session__exercise_unit", {
-                  unit: unitLabels[menuExercise.unit ?? "default"],
-                }),
-                icon: Gauge,
-                onPress: () => setSheet({ kind: "unit", exercise: menuExercise }),
+                onPress: () => setSheet({ kind: "exercise-settings", exercise: menuExercise }),
               },
             ]
           : []),
@@ -518,6 +498,72 @@ const LoadedSession = memo(function LoadedSession({
             else void actions.removeExercise(menuExercise.id);
           },
         },
+      ]
+    : [];
+
+  const noteMenuExercise = sheet?.kind === "note-menu" ? sheet.exercise : null;
+  const noteMenuActions: SwipeAction[] = noteMenuExercise
+    ? [
+        {
+          key: "session-note",
+          label: t("session__note_session"),
+          icon: NotePencil,
+          onPress: () => setSheet({ kind: "note", exercise: noteMenuExercise }),
+        },
+        {
+          key: "pinned-note",
+          label: t(
+            noteMenuExercise.pinnedNote === null
+              ? "session__pin_note_action"
+              : "session__edit_pinned_note_action",
+          ),
+          icon: PushPin,
+          onPress: () => setSheet({ kind: "pinned", exercise: noteMenuExercise }),
+        },
+      ]
+    : [];
+
+  const settingsExercise = sheet?.kind === "exercise-settings" ? sheet.exercise : null;
+  const settingsActions: SwipeAction[] = settingsExercise
+    ? [
+        ...(hasUnit(settingsExercise)
+          ? [
+              {
+                key: "unit",
+                label: t("session__exercise_unit", {
+                  unit: unitLabels[settingsExercise.unit ?? "default"],
+                }),
+                icon: Ruler,
+                onPress: () => setSheet({ kind: "unit", exercise: settingsExercise }),
+              },
+            ]
+          : []),
+        ...(isLoaded(settingsExercise)
+          ? [
+              {
+                key: "progression",
+                label: t("progress__rule"),
+                icon: TrendUp,
+                onPress: () => setSheet({ kind: "progression", exercise: settingsExercise }),
+              },
+              {
+                key: "limits",
+                label: t("gym__limits_action"),
+                icon: Barbell,
+                onPress: () => setSheet({ kind: "limits", exercise: settingsExercise }),
+              },
+            ]
+          : []),
+        ...(canAddWarmups(settingsExercise)
+          ? [
+              {
+                key: "warmup-settings",
+                label: t("exercise__warmup_settings"),
+                icon: FireSimple,
+                onPress: () => router.push("/settings/warmups"),
+              },
+            ]
+          : []),
       ]
     : [];
 
@@ -908,6 +954,22 @@ const LoadedSession = memo(function LoadedSession({
         isOpen={menuExercise !== null}
         onOpenChange={(open) => {
           if (!open && sheet?.kind === "menu") closeSheet();
+        }}
+      />
+      <ActionSheet
+        title={noteMenuExercise?.title ?? ""}
+        actions={noteMenuActions}
+        isOpen={noteMenuExercise !== null}
+        onOpenChange={(open) => {
+          if (!open && sheet?.kind === "note-menu") closeSheet();
+        }}
+      />
+      <ActionSheet
+        title={settingsExercise?.title ?? ""}
+        actions={settingsActions}
+        isOpen={settingsExercise !== null}
+        onOpenChange={(open) => {
+          if (!open && sheet?.kind === "exercise-settings") closeSheet();
         }}
       />
       <ActionSheet
