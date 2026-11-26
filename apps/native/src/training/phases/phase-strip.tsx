@@ -13,7 +13,7 @@ const BLOCK_WIDTH = 28;
  * The Program's weeks as a small block chart: each week a flat block as tall as its phase is hard
  * (Deload lowest, Test tallest). Weeks already trained are ink, weeks to come a quiet fill, and
  * the current week carries the accent dot. Tapping a week sets its phase; an inserted Deload week
- * is set by "Insert deload now" and does not open.
+ * is set by "Deload this week" and does not open.
  */
 export function PhaseStrip({
   blocks,

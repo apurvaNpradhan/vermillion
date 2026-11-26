@@ -1,5 +1,13 @@
 import type { TranslationKey } from "@workspace/i18n";
-import { phaseEffects, type Phase, type PhaseModifiers, type TestTop } from "@workspace/shared";
+import {
+  patternRuns,
+  phaseEffects,
+  type PatternRun,
+  type Phase,
+  type PhaseModifiers,
+  type TestTop,
+  type WeeksSummary,
+} from "@workspace/shared";
 import { useCallback } from "react";
 
 import { useTranslation } from "@/platform/i18n";
@@ -95,15 +103,8 @@ export function usePhaseText() {
     },
     [effects, name, t, locale],
   );
-  /** A pattern with its runs folded: "Build ×3, Deload". */
-  const pattern = useCallback(
-    (weeks: readonly Phase[]) => {
-      const runs: { phase: Phase; count: number }[] = [];
-      for (const phase of weeks) {
-        const last = runs[runs.length - 1];
-        if (last?.phase === phase) last.count += 1;
-        else runs.push({ phase, count: 1 });
-      }
+  const runsText = useCallback(
+    (runs: readonly PatternRun[]) => {
       const parts = runs.map((run) =>
         run.count === 1
           ? name(run.phase)
@@ -113,5 +114,22 @@ export function usePhaseText() {
     },
     [name, t, locale],
   );
-  return { name, hint, effects, banner, pattern };
+  /** A pattern with its runs folded: "Build ×3, Deload". */
+  const pattern = useCallback(
+    (weeks: readonly Phase[]) => runsText(patternRuns(weeks)),
+    [runsText],
+  );
+  /** The Weeks row: "12 weeks · Build ×3, Deload", "Open-ended · No phases". */
+  const summary = useCallback(
+    ({ length, runs }: WeeksSummary) =>
+      t("phase__summary", {
+        length:
+          length === null
+            ? t("phase__open_ended")
+            : t("training__program_meta_weeks", { count: length }),
+        pattern: runs.length === 0 ? t("phase__no_phases") : runsText(runs),
+      }),
+    [t, runsText],
+  );
+  return { name, hint, effects, banner, pattern, summary };
 }

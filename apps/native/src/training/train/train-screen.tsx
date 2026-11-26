@@ -307,6 +307,12 @@ export function TrainScreen() {
                     <RunHero
                       state={active}
                       onOpen={openProgram}
+                      onPlan={(programId) =>
+                        router.push({
+                          pathname: "/train/program/[id]/weeks",
+                          params: { id: programId },
+                        })
+                      }
                       onStart={startDay}
                       startSecondary={resume !== undefined}
                     />

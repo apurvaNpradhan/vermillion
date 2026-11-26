@@ -574,6 +574,49 @@ export function withWeekPhase(plan: PhasePlan, week: number, phase: Phase | null
   return { ...plan, overrides };
 }
 
+/** The plan to show and edit when a Program has none: every week Build. */
+export const planOrBuild = (plan: PhasePlan | null): PhasePlan => plan ?? BUILD_ONLY;
+
+/** The pattern with a Build week added at the end; a full pattern stays as it is. */
+export function addPatternWeek(pattern: readonly Phase[], phase: Phase = "build"): Phase[] {
+  return pattern.length >= PHASE_PATTERN_MAX ? [...pattern] : [...pattern, phase];
+}
+
+/** The pattern without its week `index` (0-based); an index outside it changes nothing. */
+export function removePatternWeek(pattern: readonly Phase[], index: number): Phase[] {
+  return pattern.filter((_, at) => at !== index);
+}
+
+/** The pattern with its week `index` (0-based) set to `phase`; an index outside it changes nothing. */
+export function setPatternWeek(pattern: readonly Phase[], index: number, phase: Phase): Phase[] {
+  return pattern.map((item, at) => (at === index ? phase : item));
+}
+
+/** A pattern with its runs folded: Build, Build, Build, Deload as Build ×3, Deload. */
+export function patternRuns(pattern: readonly Phase[]): PatternRun[] {
+  const runs: PatternRun[] = [];
+  for (const phase of pattern) {
+    const last = runs[runs.length - 1];
+    if (last?.phase === phase) last.count += 1;
+    else runs.push({ phase, count: 1 });
+  }
+  return runs;
+}
+
+export type PatternRun = { phase: Phase; count: number };
+export type WeeksSummary = { length: number | null; runs: PatternRun[] };
+
+/**
+ * What the Weeks row on the Program page says: the planned length (null when open-ended) and the
+ * pattern's runs (none when the Program has no phases).
+ */
+export function weeksSummary(input: {
+  plan: PhasePlan | null;
+  plannedWeeks: number | null;
+}): WeeksSummary {
+  return { length: input.plannedWeeks, runs: patternRuns(input.plan?.pattern ?? []) };
+}
+
 /** The plan with `phase`'s modifiers edited; only what differs from the preset is stored. */
 export function withModifiers(
   plan: PhasePlan,

@@ -20,7 +20,7 @@ export function WeekSheet({
   state: ReturnType<typeof useActiveProgram>;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Open the Program, where its weeks are planned. */
+  /** Open Plan your weeks for the Program. */
   onPlan: (programId: string) => void;
 }) {
   const { t } = useTranslation();
