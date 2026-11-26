@@ -305,21 +305,11 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
       expect((await row(run)).inserted_deloads).toEqual([]);
     });
 
-    it("rejects a queued undo after another device logs a counted workout in that local week", async () => {
-      const me = await writer("deload-counted@example.com");
-      const device = me.anotherDevice();
-      const { run, program } = await runOf(me);
-      const startedAt = "2026-11-02T07:30:00.000Z";
-      const trainedAt = "2026-11-17T08:30:00.000Z";
-      await me.send([
-        op("PATCH", "program_run", run, {
-          started_at: startedAt,
-          pauses: JSON.stringify([
-            { from: "2026-11-08T20:00:00.000Z", until: "2026-11-11T08:00:00.000Z" },
-          ]),
-        }),
-      ]);
-      await me.send([change(run, "insert", 3)]);
+    /** A counted workout another device logged: one finished working set, in the Run. */
+    async function logCountedWorkout(
+      device: Pick<Writer, "send">,
+      input: { run: string; program: string; startedAt: string; phase: "build" | "deload" },
+    ) {
       const session = uuidv7();
       const entry = uuidv7();
       const set = uuidv7();
@@ -327,39 +317,91 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
       const [exercise] = await app.rows(
         sql`SELECT id FROM exercise WHERE exercise_type = 'weight_reps' LIMIT 1`,
       );
-      const exerciseId = String(exercise?.id);
+      return device.send([
+        op("PUT", "training_session", session, {
+          title: "Workout",
+          device_id: uuidv7(),
+          started_at: input.startedAt,
+          run_id: input.run,
+          program_id: input.program,
+          phase: input.phase,
+        }),
+        op("PUT", "session_exercise", entry, {
+          session_id: session,
+          exercise_id: String(exercise?.id),
+          exercise_title: "Bench press",
+          exercise_type: "weight_reps",
+          position: "a0",
+        }),
+        op("PUT", "session_set", set, {
+          session_exercise_id: entry,
+          position: "a0",
+          kind: "working",
+          weight_kg: 50,
+          reps: 5,
+          completed_at: input.startedAt,
+        }),
+        op("PATCH", "training_session", session, { finished_at: input.startedAt }),
+      ]);
+    }
+    /** Run started 2 November with a pause; 17 November in Los Angeles is Run week 3. */
+    async function pausedRun(email: string) {
+      const me = await writer(email);
+      const { run, program } = await runOf(me);
+      await me.send([
+        op("PATCH", "program_run", run, {
+          started_at: "2026-11-02T07:30:00.000Z",
+          pauses: JSON.stringify([
+            { from: "2026-11-08T20:00:00.000Z", until: "2026-11-11T08:00:00.000Z" },
+          ]),
+        }),
+      ]);
+      await me.send([change(run, "insert", 3)]);
+      return { me, run, program };
+    }
+    const trainedAt = "2026-11-17T08:30:00.000Z";
+    const undo = (run: string) => change(run, "undo", 3, "America/Los_Angeles");
+
+    it("rejects a queued undo after another device logs a Deload workout in that local week", async () => {
+      const { me, run, program } = await pausedRun("deload-counted@example.com");
+      const device = me.anotherDevice();
       expect(
-        await device.send([
-          op("PUT", "training_session", session, {
-            title: "Workout",
-            device_id: uuidv7(),
-            started_at: trainedAt,
-            run_id: run,
-            program_id: program,
-            phase: "deload",
-          }),
-          op("PUT", "session_exercise", entry, {
-            session_id: session,
-            exercise_id: exerciseId,
-            exercise_title: "Bench press",
-            exercise_type: "weight_reps",
-            position: "a0",
-          }),
-          op("PUT", "session_set", set, {
-            session_exercise_id: entry,
-            position: "a0",
-            kind: "working",
-            weight_kg: 50,
-            reps: 5,
-            completed_at: trainedAt,
-          }),
-          op("PATCH", "training_session", session, { finished_at: trainedAt }),
-        ]),
+        await logCountedWorkout(device, { run, program, startedAt: trainedAt, phase: "deload" }),
       ).toEqual(applied);
-      expect(await me.send([change(run, "undo", 3, "America/Los_Angeles")])).toMatchObject({
+      expect(await me.send([undo(run)])).toMatchObject({
         status: "rejected",
         code: "RUN_DELOAD_LOGGED",
       });
+      expect((await row(run)).inserted_deloads).toEqual([3]);
+    });
+
+    // Build on Monday, "Deload this week" on Wednesday: the Build workout was not the Deload.
+    it.each([true, false])(
+      "takes a queued undo after a Build workout in that week (workout synced first: %s)",
+      async (workoutFirst) => {
+        const { me, run, program } = await pausedRun(`deload-build-${workoutFirst}@example.com`);
+        const device = me.anotherDevice();
+        const build = () =>
+          logCountedWorkout(device, { run, program, startedAt: trainedAt, phase: "build" });
+        if (workoutFirst) expect(await build()).toEqual(applied);
+        expect(await me.send([undo(run)])).toEqual(applied);
+        if (!workoutFirst) expect(await build()).toEqual(applied);
+        expect((await row(run)).inserted_deloads).toEqual([]);
+      },
+    );
+
+    it("keeps an undo that arrived before the Deload workout, and refuses it after", async () => {
+      const { me, run, program } = await pausedRun("deload-order@example.com");
+      const device = me.anotherDevice();
+      // Undo first: the week is a Build week again, and a later workout is simply a Build one.
+      expect(await me.send([undo(run)])).toEqual(applied);
+      expect(
+        await logCountedWorkout(device, { run, program, startedAt: trainedAt, phase: "deload" }),
+      ).toEqual(applied);
+      expect((await row(run)).inserted_deloads).toEqual([]);
+      // Insert again, log as the Deload, and the second undo is refused.
+      expect(await me.send([change(run, "insert", 3)])).toEqual(applied);
+      expect(await me.send([undo(run)])).toMatchObject({ code: "RUN_DELOAD_LOGGED" });
       expect((await row(run)).inserted_deloads).toEqual([3]);
     });
 

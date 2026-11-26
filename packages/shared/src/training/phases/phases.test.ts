@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { LoggedSet } from "../logging/logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
@@ -9,7 +9,7 @@ import { loadGridOf } from "../progress/load-grid";
 import { suggestNext } from "../engine/pipeline";
 import type { ProgressionSession } from "../progress/progression";
 import { stalledSessions } from "../progress/stalled-lift";
-import type { RunPause } from "../plans/cycle";
+import { runWeek, type RunPause } from "../plans/cycle";
 import { lowerLoad } from "./phases";
 import {
   PHASE_PRESETS,
@@ -35,6 +35,7 @@ import {
   phasePlanSchema,
   snapshotModifiers,
   snapshotOf,
+  deloadLogged,
   undoableDeloadWeek,
   withModifiers,
   withPattern,
@@ -897,6 +898,9 @@ describe("undoing an inserted deload", () => {
     inserted_deloads: inserted,
     pauses,
   });
+  const logged = (phase: Phase | null, at: string) => ({ started_at: at, phase });
+  const undoable = (sessions: { started_at: string; phase: Phase | null }[], inserted = [2]) =>
+    undoableDeloadWeek({ run: run(inserted), now: week2, timezone: "UTC", sessions });
 
   it("removes only the named week", () => {
     expect(removeInsertedDeload([2, 5], 5)).toEqual([2]);
@@ -905,40 +909,32 @@ describe("undoing an inserted deload", () => {
   });
 
   it("offers the undo for a deload inserted this week when nothing was trained in it", () => {
-    expect(undoableDeloadWeek({ run: run([2]), now: week2, timezone: "UTC", trainedAt: [] })).toBe(
-      2,
-    );
+    expect(undoable([])).toBe(2);
   });
 
-  it("is not offered after a counted Session in this week", () => {
+  it("is not offered after a Session started as the Deload in this week", () => {
     expect(
-      undoableDeloadWeek({
-        run: run([2]),
-        now: week2,
-        timezone: "UTC",
-        trainedAt: ["2026-11-09T08:00:00Z", "2026-11-03T08:00:00Z"],
-      }),
+      undoable([logged("deload", "2026-11-11T08:00:00Z"), logged("build", "2026-11-09T08:00:00Z")]),
     ).toBeNull();
   });
 
-  it("ignores Sessions of other weeks", () => {
+  it("is still offered after a Build Session logged earlier in the same week", () => {
+    // Build on Monday, "Deload this week" on Wednesday: the Build Session was not the Deload.
+    expect(undoable([logged("build", "2026-11-09T08:00:00Z")])).toBe(2);
+    expect(undoable([logged(null, "2026-11-10T08:00:00Z")])).toBe(2);
     expect(
-      undoableDeloadWeek({
-        run: run([2]),
-        now: week2,
-        timezone: "UTC",
-        trainedAt: ["2026-11-08T08:00:00Z"],
-      }),
+      undoable([logged("push", "2026-11-09T08:00:00Z"), logged("test", "2026-11-09T07:00:00Z")]),
     ).toBe(2);
   });
 
+  it("ignores Sessions of other weeks", () => {
+    expect(undoable([logged("deload", "2026-11-08T08:00:00Z")])).toBe(2);
+    expect(undoable([logged("deload", "2026-11-17T08:00:00Z")])).toBe(2);
+  });
+
   it("is not offered when this week is a planned deload or a build week", () => {
-    expect(
-      undoableDeloadWeek({ run: run([]), now: week2, timezone: "UTC", trainedAt: [] }),
-    ).toBeNull();
-    expect(
-      undoableDeloadWeek({ run: run([5]), now: week2, timezone: "UTC", trainedAt: [] }),
-    ).toBeNull();
+    expect(undoable([], [])).toBeNull();
+    expect(undoable([], [5])).toBeNull();
   });
 
   it("is not offered for a past inserted week", () => {
@@ -947,9 +943,26 @@ describe("undoing an inserted deload", () => {
         run: run([2]),
         now: new Date("2026-11-17T12:00:00Z"),
         timezone: "UTC",
-        trainedAt: [],
+        sessions: [],
       }),
     ).toBeNull();
+  });
+
+  it("reads the Run's weeks in the lifter's zone, with a pause", () => {
+    const paused = run(
+      [2],
+      [{ from: "2026-11-08T20:00:00.000Z", until: "2026-11-11T08:00:00.000Z" }],
+    );
+    // The pause takes two whole local days off the Run: 17 November is week 2 in Los Angeles.
+    const inLosAngeles = (sessions: { started_at: string; phase: Phase | null }[]) =>
+      undoableDeloadWeek({
+        run: paused,
+        now: new Date("2026-11-17T20:00:00Z"),
+        timezone: "America/Los_Angeles",
+        sessions,
+      });
+    expect(inLosAngeles([logged("build", "2026-11-17T08:30:00Z")])).toBe(2);
+    expect(inLosAngeles([logged("deload", "2026-11-17T08:30:00Z")])).toBeNull();
   });
 
   it("puts the pattern back where it was", () => {
@@ -967,6 +980,56 @@ describe("undoing an inserted deload", () => {
       "build",
       "deload",
     ]);
+  });
+});
+
+describe("reading the week of a Run that has been paused", () => {
+  // Every Train and Home render asks for the phase and the Undo: both must stay cheap with a long
+  // history (the watch holds 500 Sessions) and a pause, whatever the device's Intl costs.
+  const zone = "Europe/Berlin";
+  const start = Date.parse("2025-01-06T10:00:00Z");
+  const sessions = Array.from({ length: 500 }, (_, index) => ({
+    started_at: new Date(start + (499 - index) * 86_400_000).toISOString(),
+    phase: "deload" as const,
+  }));
+  const run = {
+    started_at: new Date(start).toISOString(),
+    inserted_deloads: [72],
+    pauses: [{ from: "2025-03-01T10:00:00Z", until: "2025-03-20T10:00:00Z" }],
+  };
+  const now = new Date(start + 499 * 86_400_000 + 3_600_000);
+
+  it("builds no formatter per Session and reads this week's Sessions only", () => {
+    const formats = vi.spyOn(Intl, "DateTimeFormat");
+    try {
+      const began = performance.now();
+      for (let render = 0; render < 40; render += 1) {
+        undoableDeloadWeek({ run, now, timezone: zone, sessions });
+        phaseFor(
+          plan({ pattern: ["build", "build", "build", "test"] }),
+          run,
+          now,
+          zone,
+          sessions.map((item) => item.started_at),
+        );
+      }
+      const elapsed = performance.now() - began;
+      // Zone formatters are made once (the wall clock and the calendar day), not per call.
+      expect(formats.mock.calls.length).toBeLessThanOrEqual(2);
+      // Generous: 40 renders took over two seconds when a formatter was built per Session.
+      expect(elapsed).toBeLessThan(500);
+    } finally {
+      formats.mockRestore();
+    }
+  });
+
+  it("converts only the Sessions from this week back, newest first", () => {
+    const week = runWeek(run.started_at, now, zone, run.pauses);
+    expect(week).toBeGreaterThan(50);
+    expect(deloadLogged(run, week, zone, sessions)).toBe(true);
+    // Only older Sessions: the walk meets an earlier week at once and stops.
+    const older = sessions.slice(30);
+    expect(deloadLogged(run, week, zone, older)).toBe(false);
   });
 });
 

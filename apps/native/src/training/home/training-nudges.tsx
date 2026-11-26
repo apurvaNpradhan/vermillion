@@ -54,7 +54,7 @@ export function TrainingNudges({
   const { lighterWeeks, deloadCardDismissedAt } = preferences.ui;
   const deload = useDeloadWeek({
     run,
-    trainedAt: program.trainedAt,
+    sessions: program.sessionPhases,
     sessionStarts: state.finished?.map((session) => session.started_at),
   });
   const week = weekRange(now, state.timezone, state.weekStart);

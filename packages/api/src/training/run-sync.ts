@@ -1,9 +1,9 @@
 import type { DbExecutor } from "@workspace/db";
 import {
+  deloadLogged,
   insertedDeloadsSchema,
   PHASE_WEEK_MAX,
   runPausesSchema,
-  runWeek,
   timezoneSchema,
   TRAINING_LIMITS,
   type RunPause,
@@ -65,6 +65,12 @@ function mergeLegacyWeeks(
   return [...new Set([...(stored ?? []), ...added])].sort((a, b) => a - b);
 }
 
+/**
+ * An undo is refused once a counted Session was started as the Deload in that Run week. A Build
+ * Session logged earlier in the week does not count: it was not the Deload. The rule is the shared
+ * one; the query only hands it the Deload Sessions, and the check runs on the stored rows, so
+ * it gives the same answer whichever device's write arrives first.
+ */
 async function assertNoCountedSession(
   db: DbExecutor,
   run: typeof programRun.$inferSelect,
@@ -78,6 +84,7 @@ async function assertNoCountedSession(
       and(
         eq(session.runId, run.id),
         eq(session.userId, run.userId),
+        eq(session.phase, "deload"),
         isNull(session.deletedAt),
         isNotNull(session.finishedAt),
         exists(
@@ -97,10 +104,16 @@ async function assertNoCountedSession(
         ),
       ),
     );
+  const sessions = starts.map(({ at }) => ({
+    started_at: at.toISOString(),
+    phase: "deload" as const,
+  }));
   if (
-    starts.some(
-      ({ at }) =>
-        runWeek(run.startedAt?.toISOString() ?? null, at, timezone, run.pauses ?? []) === week,
+    deloadLogged(
+      { started_at: run.startedAt?.toISOString() ?? null, pauses: run.pauses ?? [] },
+      week,
+      timezone,
+      sessions,
     )
   )
     throw new SyncRejection("RUN_DELOAD_LOGGED");

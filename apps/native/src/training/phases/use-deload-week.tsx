@@ -6,6 +6,7 @@ import {
   undoableDeloadWeek,
   undoableLighterWeek,
   type RunPause,
+  type RunSessionPhase,
 } from "@workspace/shared";
 import { insertDeloadNow, undoDeloadNow } from "@workspace/sync";
 import { useState } from "react";
@@ -28,18 +29,19 @@ type DeloadRun = {
 /**
  * "Deload this week" and "Undo deload", the one pair for both cases. With an active Run it adds
  * (or takes back) an inserted Deload week; without one it starts (or ends) a Lighter week for the
- * next seven days. `trainedAt` is the start of each counted Session of the Run, and
- * `sessionStarts` the start of recent Sessions, which decide whether an undo is still allowed.
+ * next seven days. `sessions` are the counted Sessions of the Run with their phases (an undo stops
+ * once one was started as the Deload), and `sessionStarts` the start of recent Sessions, which
+ * decide whether a Lighter week may still be undone.
  * Render `dialog` next to the control that calls `ask`.
  */
 export function useDeloadWeek({
   run,
-  trainedAt = [],
+  sessions = [],
   sessionStarts,
 }: {
   /** The active Run (null when there is none). */
   run: DeloadRun | null;
-  trainedAt?: readonly string[];
+  sessions?: readonly RunSessionPhase[];
   sessionStarts?: readonly string[];
 }) {
   const { t } = useTranslation();
@@ -50,7 +52,7 @@ export function useDeloadWeek({
   const [open, setOpen] = useState(false);
   const { lighterWeeks } = preferences.ui;
   const now = new Date();
-  const undoRunWeek = run ? undoableDeloadWeek({ run, now, timezone: timeZone, trainedAt }) : null;
+  const undoRunWeek = run ? undoableDeloadWeek({ run, now, timezone: timeZone, sessions }) : null;
   const lighter = activeLighterWeek(lighterWeeks, now);
   const canUndoLighter =
     sessionStarts !== undefined && undoableLighterWeek(lighterWeeks, now, sessionStarts) !== null;

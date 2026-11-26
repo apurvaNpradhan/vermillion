@@ -294,27 +294,54 @@ export function removeInsertedDeload(inserted: readonly number[], week: number):
   return inserted.filter((item) => item !== week);
 }
 
+/** What the Undo rule reads of a counted Session of the Run: when it started and its phase. */
+export type RunSessionPhase = { started_at: string; phase: Phase | null | undefined };
+
+type UndoRun = {
+  started_at: string | null;
+  inserted_deloads: readonly number[];
+  pauses?: readonly RunPause[];
+};
+
+/**
+ * Whether a counted Session of the Run was started as a Deload in Run week `week`. A Session keeps
+ * the phase it started in, so a Build Session logged before the Deload was inserted does not count:
+ * only work done as the Deload makes the insert stick. The one rule behind the Undo on every
+ * device and the server's check. Sessions of later weeks are skipped, and the walk stops at the
+ * first of an earlier week, so only this week's Sessions are converted to Run weeks.
+ */
+export function deloadLogged(
+  run: Omit<UndoRun, "inserted_deloads">,
+  week: number,
+  timezone: string,
+  sessions: readonly RunSessionPhase[],
+): boolean {
+  const starts = sessions
+    .flatMap(({ started_at, phase }) => (phase === "deload" ? [Date.parse(started_at)] : []))
+    .sort((a, b) => b - a);
+  for (const at of starts) {
+    const found = runWeek(run.started_at, new Date(at), timezone, run.pauses);
+    if (found === week) return true;
+    if (found < week) return false;
+  }
+  return false;
+}
+
 /**
  * The Run week "Undo deload" may take back, or null. It is the current Run week, it is an inserted
- * Deload, and no counted Session of the Run (`trainedAt`, their start times) falls in it.
+ * Deload, and no counted Session of the Run was started as that Deload ({@link deloadLogged}).
  */
 export function undoableDeloadWeek(input: {
-  run: {
-    started_at: string | null;
-    inserted_deloads: readonly number[];
-    pauses?: readonly RunPause[];
-  };
+  run: UndoRun;
   now: Date;
   timezone: string;
-  trainedAt: readonly string[];
+  /** The counted Sessions of the Run with their phases; only the Deload ones are read. */
+  sessions: readonly RunSessionPhase[];
 }): number | null {
   const { run, now, timezone } = input;
   const week = runWeek(run.started_at, now, timezone, run.pauses);
   if (!run.inserted_deloads.includes(week)) return null;
-  const trained = input.trainedAt.some(
-    (at) => runWeek(run.started_at, new Date(at), timezone, run.pauses) === week,
-  );
-  return trained ? null : week;
+  return deloadLogged(run, week, timezone, input.sessions) ? null : week;
 }
 
 /** Sessions of these phases are never a baseline for progression, stalls or Ghost loads. */

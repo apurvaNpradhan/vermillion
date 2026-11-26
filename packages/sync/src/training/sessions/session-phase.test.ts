@@ -309,6 +309,38 @@ it("undoes an inserted deload before a counted workout and reads the pattern as 
   }
 });
 
+it("undoes an inserted deload after a Build workout earlier in the same week", async () => {
+  const s = await setupSessions();
+  try {
+    const { workoutId, runId } = await setup(s, { pattern: ["build", "build", "deload"] });
+    // Week 2: a Build workout on Monday, "Deload this week" on Wednesday.
+    const monday = await startInWeek(s, runId, workoutId, 2);
+    expect(phaseOf(s, monday)).toBe("build");
+    const exercise = s.exercises(monday)[0];
+    const set = exercise && s.sets(String(exercise.id))[0];
+    if (!set) throw new Error("Expected a working set");
+    await tickSet(s.training, String(set.id), { weight: 100, reps: 8 });
+    await finishSession(s.training, monday);
+    expect(await insertDeloadNow(s.training, runId, 2)).toBe(true);
+    expect(await undoDeloadNow(s.training, runId, 2, "UTC")).toBe(true);
+    expect((await readRuns(s.training))[0]?.inserted_deloads).toEqual([]);
+
+    // Once a workout is logged as the Deload, the week stays a Deload.
+    expect(await insertDeloadNow(s.training, runId, 2)).toBe(true);
+    const wednesday = await startInWeek(s, runId, workoutId, 2);
+    expect(phaseOf(s, wednesday)).toBe("deload");
+    const lighter = s.exercises(wednesday)[0];
+    const done = lighter && s.sets(String(lighter.id))[0];
+    if (!done) throw new Error("Expected a working set");
+    await tickSet(s.training, String(done.id), { weight: 90, reps: 8 });
+    await finishSession(s.training, wednesday);
+    expect(await undoDeloadNow(s.training, runId, 2, "UTC")).toBe(false);
+    expect((await readRuns(s.training))[0]?.inserted_deloads).toEqual([2]);
+  } finally {
+    s.sqlite.close();
+  }
+});
+
 it("refuses to insert a deload into a finished Run", async () => {
   const s = await setupSessions();
   try {
