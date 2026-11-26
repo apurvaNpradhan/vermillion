@@ -7,10 +7,8 @@ import {
   Bell,
   ChatCircleText,
   Database,
-  Hash,
   Info,
   ListChecks,
-  LinkSimple,
   SignOut,
   Trash,
 } from "phosphor-react-native";
@@ -115,20 +113,6 @@ export function SettingsScreen() {
               name: appConfig.displayName,
               version: appConfig.version,
             })}
-          />
-        </ListSection>
-        <ListSection title={t("settings__section_sharing")}>
-          <ListRow
-            icon={Hash}
-            title={t("share__enter_code_title")}
-            description={t("settings__enter_code_hint")}
-            onPress={() => router.push("/import")}
-          />
-          <ListRow
-            icon={LinkSimple}
-            title={t("share__links_title")}
-            description={t("settings__shared_links_hint")}
-            onPress={() => router.push("/settings/shared-links")}
           />
         </ListSection>
         <ListSection title={t("settings__section_data")}>

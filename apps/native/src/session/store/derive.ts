@@ -89,6 +89,7 @@ export type ExerciseView = {
   progress: string;
   /** What the ticked sets logged, after the progress; empty while none is ticked. */
   summary: string;
+  capKg: number | null;
   /** Previous values of the exercise have loaded, or their lookup failed. */
   historyReady: boolean;
   setIds: readonly string[];
@@ -161,9 +162,10 @@ function buildView(
         )
       : {};
     const saved = exercise.prescription?.sets.find(({ id }) => id === set.id);
+    const locked = finished || set.completedAt !== null;
     const row: RowView = {
       previous,
-      ghosts: saved ? saved.ghosts : capGhostWeight(ghosts, capKg),
+      ghosts: saved && locked ? saved.ghosts : capGhostWeight(saved?.ghosts ?? ghosts, capKg),
       badge: badges[index] ?? String(index + 1),
       number: index + 1,
       canRemove: exercise.sets.length > 1,
@@ -173,13 +175,14 @@ function buildView(
         (fields.some((field) => valueOfSet(set, field) !== null) ||
           (showsEffort && set.rpe !== null)),
       optional: optional.has(index) && set.completedAt === null,
-      capKg: saved ? (exercise.prescription?.capKg ?? null) : capKg,
+      capKg: saved && locked ? (exercise.prescription?.capKg ?? null) : capKg,
     };
     rows.set(set.id, keepIfEqual(before?.rows.get(set.id), row));
   });
 
   const setIds = exercise.sets.map((set) => set.id);
   const view: ExerciseView = {
+    capKg,
     suggestion: before && deepEqual(before.suggestion, suggestion) ? before.suggestion : suggestion,
     prescriptionDraft:
       !finished && loaded && !exercise.prescription

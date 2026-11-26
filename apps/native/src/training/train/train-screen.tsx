@@ -1,7 +1,7 @@
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import type { ProgramSummary, WorkoutSummary } from "@workspace/sync";
 import { useRouter } from "expo-router";
-import { Barbell, Hash, ListNumbers, Lightning, Plus } from "phosphor-react-native";
+import { Barbell, ListNumbers, Lightning, Plus } from "phosphor-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 
@@ -129,14 +129,12 @@ export function TrainScreen({ onStartEmpty }: { onStartEmpty: () => void }) {
   const { start, startSlot, sheet: startSheet } = useStartSession();
   const newWorkout = useCallback(() => void fromPicker(), [fromPicker]);
   const newProgram = useCallback(() => router.push("/train/new-program"), [router]);
-  const enterCode = useCallback(() => router.push("/import"), [router]);
   const newActions = useMemo(
     () => [
       { key: "workout", label: t("training__new_workout"), icon: Plus, onPress: newWorkout },
       { key: "program", label: t("training__new_program"), icon: ListNumbers, onPress: newProgram },
-      { key: "code", label: t("share__enter_code_title"), icon: Hash, onPress: enterCode },
     ],
-    [t, newWorkout, newProgram, enterCode],
+    [t, newWorkout, newProgram],
   );
   const edit = useCallback(
     (id: string) => router.push({ pathname: "/train/workout/[id]/edit", params: { id } }),

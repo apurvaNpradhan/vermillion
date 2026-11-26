@@ -402,7 +402,6 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       key: "copy",
       label: t("session__copy_previous"),
       icon: Copy,
-      iconOnly: true,
       onPress: () => props.onCopySets(set.id, "previous"),
     });
   if (props.row.canFillRemaining)
@@ -410,7 +409,6 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       key: "fill",
       label: t("session__fill_remaining"),
       icon: Rows,
-      iconOnly: true,
       onPress: () => props.onCopySets(set.id, "remaining"),
     });
   if (canRemove)
@@ -419,7 +417,6 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       label: t("training__remove"),
       icon: Trash,
       tone: "danger",
-      iconOnly: true,
       onPress: () => void props.onRemove(set.id),
     });
   return (

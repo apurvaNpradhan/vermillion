@@ -3,7 +3,6 @@ import {
   EQUIPMENT_KEYS,
   MUSCLE_DETAIL_KEYS,
   MUSCLE_GROUP_KEYS,
-  type MuscleDetail,
   type MuscleGroup,
 } from "@workspace/shared";
 import { DEFAULT_LIBRARY_FILTERS, type LibraryRow } from "@workspace/sync";
@@ -25,7 +24,6 @@ import { useGymAvailability, useGyms } from "@/gym";
 import { useExerciseActions } from "../../use-exercise-actions";
 import { hasActiveFacets, toggled, withoutFacets, type LibraryFilterState } from "../filter-state";
 import { useExerciseLibrary } from "../use-exercise-library";
-import { BodyMapFilter } from "./body-map-filter";
 import { ExerciseRow } from "./exercise-row";
 import { FilterChips, type FilterChip } from "./filter-chips";
 import { FilterPill } from "./filter-pill";
@@ -243,12 +241,6 @@ export function ExerciseLibrary({
     [],
   );
 
-  const selectMapMuscle = useCallback(
-    (muscles: readonly MuscleGroup[], primaryDetail: MuscleDetail | null) =>
-      setFilters((current) => ({ ...current, muscles, primaryDetail, includeSecondary: false })),
-    [],
-  );
-
   const status = library.status;
   const stateView: ReactNode = (() => {
     if (status === "error") return <LoadFailedState onRetry={library.retry} />;
@@ -388,13 +380,6 @@ export function ExerciseLibrary({
                 <View className="gap-3 px-4 pb-3">
                   <SyncBanner />
                   <RejectedExercises />
-                  {mode === "browse" ? (
-                    <BodyMapFilter
-                      muscles={filters.muscles}
-                      detail={filters.primaryDetail}
-                      onSelect={selectMapMuscle}
-                    />
-                  ) : null}
                   {showSwapSuggestions ? listHeader : null}
                 </View>
               </View>

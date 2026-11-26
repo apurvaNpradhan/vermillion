@@ -8,10 +8,10 @@ import { currentSetsOf } from "./logging-ghosts";
 
 /**
  * Keeps the Session's snapshots in step with the exercises they were made for. The snapshot holds
- * numbers the lifter saw, so it does not follow history, but three edits do change what a set
+ * numbers the lifter saw, so it does not follow history, but some edits change what a set
  * should be offered: the Session gym moved (every unticked set is suggested again), a set's
  * target or kind was edited (that set is), and a set was added after the snapshot (it gets a
- * suggestion appended). Ticked sets and adjustments the lifter has not outgrown stay. Only the
+ * suggestion appended). A live cap change also replaces loads above it. Ticked sets and adjustments the lifter has not outgrown stay. Only the
  * device that runs the Session writes, and each situation is tried once.
  */
 export function usePrescriptionRevisions({
@@ -39,9 +39,10 @@ export function usePrescriptionRevisions({
       if (!snapshot || entry.finished) continue;
       const gymId = entry.inputs.sessionGymId ?? null;
       const current = currentSetsOf(entry.exercise);
-      const stale = staleSets(snapshot, current, gymId);
+      const capKg = entry.view.capKg;
+      const stale = staleSets(snapshot, current, gymId, capKg);
       if (!stale) continue;
-      const key = JSON.stringify([id, snapshot.revision, gymId, current]);
+      const key = JSON.stringify([id, snapshot.revision, gymId, capKg, current]);
       if (tried.current.has(key)) continue;
       const draft = freshPrescription(entry);
       // No suggestion yet (history is still coming): look again at the next change.

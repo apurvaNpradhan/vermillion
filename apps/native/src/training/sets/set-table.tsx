@@ -320,7 +320,6 @@ export function SetTable({
                     label: t("training__remove"),
                     icon: Trash,
                     tone: "danger",
-                    iconOnly: true,
                     onPress: () => onRemove(index),
                   },
                 ]}

@@ -1,5 +1,5 @@
 /** Width of one action button revealed behind a row. */
-export const SWIPE_ACTION_WIDTH = 76;
+export const SWIPE_ACTION_WIDTH = 60;
 /** Seconds of a fling counted as distance already travelled when deciding to open or close. */
 export const VELOCITY_LOOKAHEAD = 0.12;
 

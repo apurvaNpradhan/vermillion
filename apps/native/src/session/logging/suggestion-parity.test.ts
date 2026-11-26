@@ -651,7 +651,7 @@ it.each([
   { unit: "kg", weight: 60 },
   { unit: "lb", weight: 135 },
 ] as const)(
-  "revises the snapshot when a set is added, a kind is edited or the gym moves, in $unit",
+  "revises the snapshot when a set is added, a kind is edited, the gym moves or a cap changes, in $unit",
   async ({ unit, weight }) => {
     const fixture = await setupSessions();
     const { training } = fixture;
@@ -680,7 +680,7 @@ it.each([
     const history = new Map([
       [SQUAT, parseFinishedSessions(await training.getAll(EXERCISE_HISTORY_SQL, [SQUAT, SQUAT]))],
     ]);
-    const gym = buildGymLoads({ unit, kit: [], settings: [], gymId: null });
+    let gym = buildGymLoads({ unit, kit: [], settings: [], gymId: null });
     const derive = async () => {
       const session = await readSession(id);
       if (!session) throw new Error("Expected the Session");
@@ -716,10 +716,15 @@ it.each([
     const reconcile = async () => {
       const { session, cache, snapshot } = await derive();
       if (!snapshot) throw new Error("Expected a snapshot");
-      const stale = staleSets(snapshot, currentSetsOf(cache.exercise), session.gymId ?? null);
-      if (!stale) return false;
       const draft = freshPrescription(cache);
       if (!draft) throw new Error("Expected a suggestion");
+      const stale = staleSets(
+        snapshot,
+        currentSetsOf(cache.exercise),
+        session.gymId ?? null,
+        cache.view.capKg,
+      );
+      if (!stale) return false;
       return revisePrescription(training, cache.exercise.id, draft, [...stale], fixture.installId);
     };
 
@@ -769,6 +774,28 @@ it.each([
     );
     expect(edited.snapshot?.sets.find((set) => set.id === one.id)).toEqual(
       grown.snapshot?.sets.find((set) => set.id === one.id),
+    );
+    expect(await reconcile()).toBe(false);
+
+    // Saving a cap in this gym revises the still-open suggestions without changing the logged set.
+    const openSet = edited.cache.exercise.sets[2];
+    if (!openSet) throw new Error("Expected an unticked working set");
+    const capKg = unit === "kg" ? 50 : 115 * KG_PER_LB;
+    gym = buildGymLoads({
+      unit,
+      gymId: null,
+      kit: [],
+      settings: [
+        { exerciseId: SQUAT, loadRanges: [{ min: 0, max: capKg, step: null }], setupNote: null },
+      ],
+    });
+    expect(edited.cache.view.rows.get(openSet.id)?.ghosts.weight).toBeGreaterThan(capKg);
+    expect((await derive()).cache.view.rows.get(openSet.id)?.ghosts.weight).toBeCloseTo(capKg);
+    expect(await reconcile()).toBe(true);
+    const capped = await derive();
+    expect(capped.cache.view.rows.get(openSet.id)?.ghosts.weight).toBeCloseTo(capKg);
+    expect(capped.snapshot?.sets.find((set) => set.id === one.id)).toEqual(
+      edited.snapshot?.sets.find((set) => set.id === one.id),
     );
     expect(await reconcile()).toBe(false);
 

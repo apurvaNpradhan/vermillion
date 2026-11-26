@@ -11,7 +11,7 @@ import {
   type ComponentType,
   type ReactNode,
 } from "react";
-import { Pressable, Text, View, type AccessibilityActionEvent } from "react-native";
+import { Pressable, View, type AccessibilityActionEvent } from "react-native";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation,
@@ -37,8 +37,6 @@ export type SwipeAction = {
   icon: ComponentType<IconProps>;
   /** `danger` for destructive actions: rose on a faint rose tint, never a filled red. */
   tone?: "default" | "danger";
-  /** Show the icon alone; for rows too short to fit a label without clipping it. */
-  iconOnly?: boolean;
   onPress: () => void;
 };
 
@@ -347,21 +345,11 @@ function SwipeButton({
         accessibilityElementsHidden
         onPress={onPress}
         className={cn(
-          "ml-2 flex-1 items-center justify-center gap-1 rounded-2xl",
+          "ml-2 flex-1 items-center justify-center rounded-2xl",
           tone === "danger" ? "bg-danger/15" : "bg-default",
         )}
       >
         <action.icon size={20} color={color} />
-        {action.iconOnly ? null : (
-          <Text
-            className={cn(
-              "text-caption font-medium",
-              tone === "danger" ? "text-danger" : "text-subtle",
-            )}
-          >
-            {action.label}
-          </Text>
-        )}
       </Pressable>
     </View>
   );

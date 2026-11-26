@@ -142,10 +142,10 @@ describe("revisedSets", () => {
     expect(next.sets[1]?.ghosts.weight).toBe(57.5);
   });
 
-  it("only appends when nothing is replaced, keeping the reason and cap", () => {
+  it("appends without replacing saved sets and adopts the current cap", () => {
     const next = revisedSets(adjusted, fresh(50), new Set());
     expect(next.sets.map((set) => set.ghosts.weight)).toEqual([60, 57.5, 57.5, 50]);
-    expect(next).toMatchObject({ reason: "add_weight", capKg: 100, gymId: GYM_B });
+    expect(next).toMatchObject({ reason: "add_weight", capKg: 80, gymId: GYM_B });
     expect(next.adjustments).toHaveLength(1);
   });
 

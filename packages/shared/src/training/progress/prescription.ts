@@ -148,33 +148,48 @@ export type CurrentSet = { id: string; basis: string; completed: boolean };
 /**
  * Which unticked sets of a snapshot need a fresh suggestion, or null when it still stands. A set
  * whose kind or target changed since it was suggested is replaced, and every unticked set is when
- * the Session gym moved. A set the snapshot never covered (added after) is appended by the
- * revision itself. A snapshot that did not record its basis or gym is left alone.
+ * the Session gym moved. A new cap replaces suggestions above it, including loads Undo could
+ * restore. Newly added sets are appended by the revision itself.
  */
 export function staleSets(
   snapshot: Prescription,
   current: readonly CurrentSet[],
   gymId: string | null,
+  capKg: number | null = snapshot.capKg,
 ): ReadonlySet<string> | null {
   const saved = new Map(snapshot.sets.map((set) => [set.id, set]));
   const moved = snapshot.gymId !== undefined && snapshot.gymId !== gymId;
+  const capChanged = snapshot.capKg !== capKg && current.some((set) => !set.completed);
+  const overCap = (kg: number | null | undefined) => capKg !== null && kg != null && kg > capKg;
+  const previouslyOverCap = new Set(
+    snapshot.adjustments?.flatMap(({ moved }) =>
+      moved.filter(({ fromKg }) => overCap(fromKg)).map(({ id }) => id),
+    ),
+  );
   const replace = new Set<string>();
   let missing = false;
   for (const set of current) {
     const known = saved.get(set.id);
     if (!known) missing = true;
-    else if (!set.completed && (moved || (known.basis !== undefined && known.basis !== set.basis)))
+    else if (
+      !set.completed &&
+      (moved ||
+        (known.basis !== undefined && known.basis !== set.basis) ||
+        overCap(known.ghosts.weight) ||
+        overCap(known.unadjustedWeightKg) ||
+        previouslyOverCap.has(set.id))
+    )
       replace.add(set.id);
   }
-  return replace.size > 0 || moved || missing ? replace : null;
+  return replace.size > 0 || moved || missing || capChanged ? replace : null;
 }
 
 /**
  * The snapshot with a fresh suggestion for the sets named in `replace` and for sets it did not
  * cover, taken from `draft`; every other set keeps what it had (ticked sets always do) and sets
  * that are gone leave. A replaced set's adjustment is forgotten, and an adjustment left with
- * nothing it moved or whose trigger is gone goes with it. Its reason, step and cap follow the draft
- * whenever a set was replaced. The caller supplies the new `revision` and `previousRevision`.
+ * nothing it moved or whose trigger is gone goes with it. Reason and step follow the draft when
+ * a set was replaced. The cap always follows the draft. The caller supplies the new `revision` and `previousRevision`.
  */
 export function revisedSets(
   saved: Prescription,
@@ -197,7 +212,7 @@ export function revisedSets(
     reason: header.reason ?? null,
     incrementKg: header.incrementKg,
     breakDays: header.breakDays ?? null,
-    capKg: header.capKg ?? null,
+    capKg: draft.capKg ?? null,
     ...(header.evidence ? { evidence: header.evidence } : {}),
     gymId: draft.gymId ?? saved.gymId ?? null,
     sets,

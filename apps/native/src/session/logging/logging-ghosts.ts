@@ -22,8 +22,9 @@ export function loggingGhosts(
 ) {
   const set = exercise.sets[index];
   const saved = exercise.prescription?.sets.find(({ id }) => id === set?.id);
-  if (saved) return saved.ghosts;
   const { settings, history, progression } = prescribed;
+  const capKg = gridCapInUnit(settings.grid ?? null, settings.weightUnit);
+  if (saved) return set?.completedAt !== null ? saved.ghosts : capGhostWeight(saved.ghosts, capKg);
   return set
     ? capGhostWeight(
         ghostsOf(
@@ -35,7 +36,7 @@ export function loggingGhosts(
           progression?.sets[index],
           exercise.repeated,
         ),
-        gridCapInUnit(settings.grid ?? null, settings.weightUnit),
+        capKg,
       )
     : {};
 }
