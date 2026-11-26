@@ -3,8 +3,8 @@
  * Copyright (c) 2026 Khalid Abdi. See THIRD_PARTY_NOTICES.md.
  * Keeps the row of seven day columns with a weekday over its number, marks beneath it, a ringed
  * selected day and faded or disabled days. Changes: UTC calendar-day numbers instead of `Date`s, role
- * classes (`accent`, `muted`) instead of the library's tones, a hollow dot for a
- * planned day, no scrolling layout, no `tailwind-variants`, and every string from the caller.
+ * classes (`accent`, `muted`) instead of the library's tones, Sigil's ledger day marks, no
+ * scrolling layout, no `tailwind-variants`, and every string from the caller.
  */
 import { Pressable, Text, View } from "react-native";
 
@@ -16,9 +16,7 @@ export type WeekStripTone = "accent" | "muted";
 export type WeekStripMarks = {
   /** Up to three filled dots, one per kind of thing on the day. */
   dots?: readonly WeekStripTone[];
-  /** A hollow dot for something planned on the day. */
-  planned?: boolean;
-  /** A ledger mark shared with the Train strip; drawn in place of the dots. */
+  /** A ledger mark shared with the Train strip; it replaces today's dot. */
   state?: DayMarkState;
   /** Spoken after the date, e.g. "trained". */
   label?: string;
@@ -100,9 +98,6 @@ export function WeekStrip({
               {dots.map((tone, index) => (
                 <View key={index} className={`h-1.5 w-1.5 rounded-full ${TONE[tone]}`} />
               ))}
-              {mark?.planned ? (
-                <View className="h-1.5 w-1.5 rounded-full border border-muted" />
-              ) : null}
             </View>
           </Pressable>
         );

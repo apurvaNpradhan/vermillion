@@ -10,8 +10,8 @@ import type { HomeWeek } from "./home-stats";
 
 /**
  * Home's displayed week under its month label: a ledger mark on each trained day and on the day of
- * the next planned workout (the same marks as the Train strip), and the selected day ringed. A swipe changes the week, the label jumps back to
- * today and a tap selects a day.
+ * the next planned workout (the same marks as the Train strip), and the selected day ringed. A
+ * swipe or the ‹ › buttons change the week, the label jumps back to today and a tap selects a day.
  */
 export function HomeWeekStrip({
   week,
