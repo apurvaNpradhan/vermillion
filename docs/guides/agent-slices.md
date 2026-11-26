@@ -29,7 +29,7 @@ checked once with `task_status`.
 ## The gate
 
 `pnpm lint && pnpm typecheck && pnpm knip && pnpm i18n:check`, then the tests through the shared
-lock: `flock ~/.cache/vermillion-test.lock pnpm test --concurrency=2` (tests need
+lock: `flock ~/.cache/vermillion-test.lock pnpm test --concurrency=2 --continue` (tests need
 `pnpm db:start`; its exit 1 after MinIO's init job exits 0 is harmless). The machine has 14 GB of
 RAM: two full runs at once, or one without the concurrency cap, time API tests out at random and
 get workers killed (exit 137). A test that fails only in the full run is rerun alone and both
