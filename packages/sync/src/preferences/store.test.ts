@@ -150,6 +150,26 @@ describe("preferences store", () => {
   });
 
   describe("upload patch", () => {
+    it("keeps consecutive dismissals in the local view and queues only each hint action", async () => {
+      const s = await setup();
+      await savePreferences(s.database, { ui: { dismissedHints: ["older"] } }, s.scope);
+      await savePreferences(s.database, { hintDismissal: "set-row" }, s.scope);
+      expect(s.patchOf()).toMatchObject({ hintDismissal: "set-row" });
+      expect(s.patchOf()).not.toHaveProperty("ui");
+      await savePreferences(s.database, { hintDismissal: "train-strip" }, s.scope);
+      expect(s.patchOf()).toMatchObject({ hintDismissal: "train-strip" });
+      expect((await readPreferences(s.database, "owner")).ui.dismissedHints).toEqual([
+        "older",
+        "set-row",
+        "train-strip",
+      ]);
+      await savePreferences(s.database, { hintDismissal: "reset" }, s.scope);
+      expect(s.patchOf()).toMatchObject({ hintDismissal: "reset" });
+      expect((await readPreferences(s.database, "owner")).ui.dismissedHints).toEqual(["older"]);
+      await savePreferences(s.database, { hintDismissal: "reset" }, s.scope);
+      expect(s.patchOf()).toMatchObject({ hintDismissal: "reset" });
+    });
+
     it("queues only the keys of the latest write, not the merged view", async () => {
       const s = await setup();
       await savePreferences(s.database, { ui: { weightUnit: "lb", avatarMediaId: null } }, s.scope);

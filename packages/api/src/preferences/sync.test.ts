@@ -26,9 +26,7 @@ describe("preferences uploads", () => {
   });
   afterAll(async () => app.close());
 
-  async function writer() {
-    const client = app.client(await createSignedInUser(app, `${uuidv7()}@example.com`));
-    const { userId } = await client.sync.credentials();
+  function device(client: ReturnType<TestApp["client"]>, userId: string) {
     const installId = uuidv7();
     let txId = 0;
     return {
@@ -45,7 +43,40 @@ describe("preferences uploads", () => {
       },
     };
   }
+
+  async function writer() {
+    const client = app.client(await createSignedInUser(app, `${uuidv7()}@example.com`));
+    const { userId } = await client.sync.credentials();
+    return device(client, userId);
+  }
   const table = "user_preferences";
+
+  it("merges simultaneous hint dismissals from two devices and resets only this round's hints", async () => {
+    const a = await writer();
+    const { userId } = await a.client.sync.credentials();
+    const b = device(a.client, userId);
+    const existing = Array.from({ length: 100 }, (_, index) => `older-${index}`);
+    await a.client.preferences.update({ ui: { dismissedHints: existing } });
+    const hintPatch = (hintDismissal: UpdatePreferences["hintDismissal"]): SyncOp[] => [
+      { op: "PATCH", table, id: uuidv7(), opData: { patch: JSON.stringify({ hintDismissal }) } },
+    ];
+    const results = await Promise.all([
+      a.send(hintPatch("set-row")),
+      b.send(hintPatch("train-strip")),
+    ]);
+    expect(results).toEqual([{ status: "applied" }, { status: "applied" }]);
+    const { ui } = await a.client.preferences.get();
+    expect(ui.dismissedHints.slice(0, -2)).toEqual(existing.slice(2));
+    expect(ui.dismissedHints.slice(-2).sort()).toEqual(["set-row", "train-strip"]);
+
+    expect(await b.send(hintPatch("reset"))).toEqual({ status: "applied" });
+    expect((await a.client.preferences.get()).ui.dismissedHints).toEqual(existing.slice(2));
+    expect(await a.send(hintPatch("plan-weeks"))).toEqual({ status: "applied" });
+    expect((await b.client.preferences.get()).ui.dismissedHints).toEqual([
+      ...existing.slice(2),
+      "plan-weeks",
+    ]);
+  });
 
   it("creates the user's row from a device's first write and merges later ones key by key", async () => {
     const a = await writer();

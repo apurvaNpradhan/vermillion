@@ -5,6 +5,7 @@
  */
 export const HINT_IDS = ["plan-weeks", "train-strip", "set-row"] as const;
 export type HintId = (typeof HINT_IDS)[number];
+export type HintDismissal = HintId | "reset";
 
 /** The most ids the preference holds (its schema limit). */
 export const DISMISSED_HINTS_MAX = 100;
@@ -27,4 +28,9 @@ export function dismissHint(dismissed: readonly string[], id: HintId): string[] 
 export function resetHints(dismissed: readonly string[]): string[] | null {
   const kept = dismissed.filter((id) => !HINT_IDS.some((hint) => hint === id));
   return kept.length === dismissed.length ? null : kept;
+}
+
+/** Apply one hint action to the current list, locally or when its upload arrives. */
+export function applyHintDismissal(dismissed: readonly string[], action: HintDismissal) {
+  return action === "reset" ? resetHints(dismissed) : dismissHint(dismissed, action);
 }

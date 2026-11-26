@@ -1,6 +1,7 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/common";
 import { wrapPowerSyncWithDrizzle } from "@powersync/drizzle-driver";
 import {
+  applyHintDismissal,
   experienceWarmupSteps,
   isLocale,
   TARGET_MUSCLES,
@@ -138,6 +139,10 @@ export async function savePreferences(
       : fixedPatch;
     if (Object.keys(patch).length === 0) return;
     const merged = { ...sparseUi(row?.ui), ...patch.ui };
+    if (patch.hintDismissal !== undefined) {
+      const dismissed = applyHintDismissal(merged.dismissedHints ?? [], patch.hintDismissal);
+      if (dismissed) merged.dismissedHints = dismissed;
+    }
     const experience = patch.ui?.trainingExperience;
     if (experience && patch.ui?.warmupSteps === undefined) {
       const steps = experienceWarmupSteps(experience, readPreferencesRow(row).ui.warmupSteps);
@@ -159,7 +164,7 @@ export async function savePreferences(
     const values = {
       ...(patch.locale !== undefined ? { locale: patch.locale } : {}),
       ...(patch.timezone !== undefined ? { timezone: patch.timezone } : {}),
-      ...(patch.ui || patch.muscleGoalChanges ? { ui } : {}),
+      ...(patch.ui || patch.muscleGoalChanges || patch.hintDismissal !== undefined ? { ui } : {}),
     };
     // Only what this write changed goes up; `writtenAt` keeps two equal writes from collapsing.
     const dirty = JSON.stringify({ ...patch, writtenAt: new Date().toISOString() });
