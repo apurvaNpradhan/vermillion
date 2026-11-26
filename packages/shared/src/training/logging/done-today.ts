@@ -5,15 +5,6 @@ export type FinishedOf = {
   title: string;
 };
 
-function dayIn(timeZone: string, at: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(at);
-}
-
 /**
  * The latest Session of `workoutId` finished on the same local day as `now` (in the user's time
  * zone), or null. Starting that Workout again asks once ("You did Upper A today").
@@ -24,13 +15,22 @@ export function finishedToday<Session extends FinishedOf>(
   now: Date,
   timeZone: string,
 ): Session | null {
-  const today = dayIn(timeZone, now);
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const today = formatter.format(now);
   let latest: Session | null = null;
+  let latestAt = -Infinity;
   for (const session of sessions) {
     if (session.workout_id !== workoutId) continue;
-    const at = new Date(session.finished_at);
-    if (Number.isNaN(at.getTime()) || dayIn(timeZone, at) !== today) continue;
-    if (latest === null || at.getTime() > Date.parse(latest.finished_at)) latest = session;
+    const at = Date.parse(session.finished_at);
+    if (!Number.isFinite(at) || at > now.getTime() || at <= latestAt) continue;
+    if (formatter.format(at) !== today) continue;
+    latest = session;
+    latestAt = at;
   }
   return latest;
 }

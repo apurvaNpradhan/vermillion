@@ -1,15 +1,15 @@
 import {
   checkSet,
   formatLoad,
-  formatWeight,
   loadBasisOf,
   referenceFrom,
   resolveExerciseUnit,
+  type SetKind,
   type SetCheck,
   type WeightUnit,
 } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { useTranslation } from "@/platform/i18n";
 import { ChoiceDialog, type DialogChoice } from "@/platform/ui/choice-dialog";
@@ -21,6 +21,8 @@ type Typed = { weightKg: number | null; reps: number | null };
 export type GuardRequest = {
   setId: string;
   exercise: SessionExerciseDetail;
+  kind: SetKind;
+  editedField?: "weight" | "reps";
   /** What the lifter typed; a cell the app filled is left null so it is never questioned. */
   typed: Typed;
   /** Today's suggested load for the set, when there is one. */
@@ -35,37 +37,50 @@ export type GuardRequest = {
 
 type Asked = { request: GuardRequest; check: SetCheck; unit: WeightUnit };
 
-const keptKey = ({ weightKg, reps }: Typed) => `${weightKg ?? ""}|${reps ?? ""}`;
-
 /**
  * "Check this set": one quiet question before a typed set that is far outside the lifter's own
  * history is logged. It reads the histories the Session already holds, so no row subscribes to
  * anything for it, and a set kept once is not asked about again in this Session. `ask` returns
  * whether the dialog opened; `dialog` is rendered once by the screen.
  */
-export function useEntryGuard(previous: PreviousSets, preferredUnit: WeightUnit) {
+export function useEntryGuard(
+  previous: PreviousSets,
+  preferredUnit: WeightUnit,
+  sessionId: string,
+) {
   const { t } = useTranslation();
   // Mounted closed and opened by a change, as dialogs are; `asked` stays for the closing animation.
   const [asked, setAsked] = useState<Asked | null>(null);
   const [open, setOpen] = useState(false);
-  const kept = useRef(new Map<string, string>());
+  const kept = useRef(new Set<string>());
+  const references = useMemo(() => {
+    const result = new Map<string, ReturnType<typeof referenceFrom>>();
+    for (const [id, sessions] of previous) {
+      result.set(
+        id,
+        referenceFrom(
+          sessions.flatMap((session) => (session.id === sessionId ? [] : session.sets)),
+        ),
+      );
+    }
+    return result;
+  }, [previous, sessionId]);
 
   const ask = useCallback(
     (request: GuardRequest): boolean => {
       const { typed, exercise, setId } = request;
       if (typed.weightKg === null && typed.reps === null) return false;
-      if (kept.current.get(setId) === keptKey(typed)) return false;
+      if (!request.editedField && kept.current.has(setId)) return false;
       const unit = resolveExerciseUnit(preferredUnit, exercise.unit);
-      const history = referenceFrom(
-        previous.get(exercise.exerciseId)?.flatMap((session) => session.sets) ?? [],
-      );
       const check = checkSet({
         type: exercise.type,
+        kind: request.kind,
         basis: loadBasisOf(exercise.exercise?.equipment ?? "other"),
         unit,
         weightKg: typed.weightKg,
         reps: typed.reps,
-        history,
+        editedField: request.editedField,
+        history: references.get(exercise.exerciseId) ?? { heaviestKg: null, bestReps: null },
         suggestedKg: request.suggestedKg,
       });
       if (!check) return false;
@@ -73,7 +88,7 @@ export function useEntryGuard(previous: PreviousSets, preferredUnit: WeightUnit)
       setOpen(true);
       return true;
     },
-    [previous, preferredUnit],
+    [references, preferredUnit],
   );
 
   const close = useCallback(() => setOpen(false), []);
@@ -90,7 +105,7 @@ export function useEntryGuard(previous: PreviousSets, preferredUnit: WeightUnit)
         case "high_load":
           return t(check.source === "history" ? "guard__high_history" : "guard__high_suggestion", {
             exercise: exercise.title,
-            reference: `${formatWeight(check.referenceKg, unit)} ${unitName}`,
+            reference: loadText(check.referenceKg),
             value,
           });
         case "ceiling":
@@ -102,6 +117,7 @@ export function useEntryGuard(previous: PreviousSets, preferredUnit: WeightUnit)
               : unit === "kg"
                 ? "guard__slip_up_kg"
                 : "guard__slip_up_lb",
+            { value, reference: loadText(check.referenceKg) },
           );
         case "high_reps":
           return t("guard__reps", { exercise: exercise.title, reps: typed.reps });
@@ -124,7 +140,7 @@ export function useEntryGuard(previous: PreviousSets, preferredUnit: WeightUnit)
       {
         label: keepLabel,
         onPress: () => {
-          kept.current.set(request.setId, keptKey(typed));
+          if (!request.editedField) kept.current.add(request.setId);
           request.proceed();
         },
       },

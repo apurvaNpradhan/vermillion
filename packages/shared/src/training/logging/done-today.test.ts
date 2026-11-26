@@ -27,14 +27,18 @@ describe("finishedToday", () => {
     // 2026-11-27 02:00 in Kolkata is still the 26th in UTC.
     const early = new Date("2026-11-27T02:00:00+05:30");
     expect(
-      finishedToday([finished("w1", "2026-11-26T22:00:00Z")], "w1", early, "Asia/Kolkata"),
+      finishedToday([finished("w1", "2026-11-26T20:00:00Z")], "w1", early, "Asia/Kolkata"),
     ).not.toBeNull();
     expect(
-      finishedToday([finished("w1", "2026-11-26T22:00:00Z")], "w1", early, "UTC"),
+      finishedToday([finished("w1", "2026-11-26T20:00:00Z")], "w1", early, "UTC"),
     ).not.toBeNull();
     expect(
       finishedToday([finished("w1", "2026-11-26T17:00:00Z")], "w1", early, "Asia/Kolkata"),
     ).toBeNull();
+  });
+
+  it("ignores a finish in the future even if it is the same local day", () => {
+    expect(finishedToday([finished("w1", "2026-11-27T15:30:00Z")], "w1", now, "UTC")).toBeNull();
   });
 
   it("returns the latest of several", () => {

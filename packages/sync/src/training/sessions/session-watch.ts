@@ -25,6 +25,7 @@ import {
 } from "@workspace/shared";
 import { z } from "zod";
 
+import { DEVICE_OWNER_ID } from "../../platform/device-owner";
 import { parsePhaseSnapshot } from "../plans/phase-plan";
 
 /** Sessions the history reads load at most this many, newest first. */
@@ -131,10 +132,17 @@ export function parseActiveSessions(rows: readonly object[]): ActiveSession[] {
     }));
 }
 
-/** The latest finished Sessions of one Workout, for "you did this today". */
-export const FINISHED_OF_WORKOUT_SQL = `SELECT workout_id, title, finished_at FROM training_session
-  WHERE workout_id = ? AND finished_at IS NOT NULL
-  ORDER BY finished_at DESC
+/**
+ * The latest finished Sessions of one Workout, up to the time of the press. The training sync
+ * stream excludes tombstones and local deletes remove rows. SQLite compares finish instants
+ * so local ISO strings and timestamps from another device sort together.
+ */
+export const FINISHED_OF_WORKOUT_SQL = `SELECT s.workout_id, COALESCE(w.title, s.title) AS title,
+    strftime('%Y-%m-%dT%H:%M:%fZ', s.finished_at) AS finished_at FROM training_session s
+  LEFT JOIN workout w ON w.id = s.workout_id AND w.user_id = s.user_id
+  WHERE s.workout_id = ? AND s.user_id = (SELECT user_id FROM device_owner WHERE id = '${DEVICE_OWNER_ID}')
+    AND julianday(s.finished_at) <= julianday(?)
+  ORDER BY julianday(s.finished_at) DESC, s.id DESC
   LIMIT 3`;
 
 const finishedOfWorkoutSchema = z.array(

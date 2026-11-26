@@ -21,8 +21,6 @@ import { useTrainingWrite } from "@/training";
 
 import { StartConflictSheet } from "./start-conflict-sheet";
 
-const NO_ACTIVE: ActiveSession[] = [];
-
 /** What a new Session is made from: a Workout (or nothing), or a finished Session to repeat. */
 type Pending = { source: BeginSource; active: ActiveSession[] };
 
@@ -46,6 +44,7 @@ export function useStartSession() {
   const [repeat, setRepeat] = useState<Repeat | null>(null);
   const [repeatOpen, setRepeatOpen] = useState(false);
   const starting = useRef(false);
+  const checking = useRef(false);
 
   const open = useCallback(
     (id: string) => router.push({ pathname: "/session/[id]", params: { id } }),
@@ -90,50 +89,48 @@ export function useStartSession() {
     [write, writeScope, t, undoToast, open, timeZone],
   );
 
-  /** Starts a Session, or asks first when one is active. */
-  const startAfterChecks = useCallback(
-    async (source: BeginSource) => {
-      const active = await write(
-        async (db) => parseActiveSessions(await db.getAll(ACTIVE_SESSIONS_SQL)),
-        NO_ACTIVE,
-      );
-      if (active.length > 0) setPending({ source, active });
-      else await begin(source, []);
-    },
-    [write, begin],
-  );
-
   /**
    * The one way into a Session from the Train strip, Home, the Workout page and the editor. A
    * Workout with a Session already finished today (local day) asks once; resuming, an empty
    * Session and Perform again are the lifter's own choice and are not asked.
    */
   const startFrom = useCallback(
-    async (source: BeginSource) => {
-      const workoutId = "workoutId" in source ? source.workoutId : null;
-      if (workoutId) {
+    async (source: BeginSource, confirmedRepeat = false) => {
+      if (checking.current || starting.current) return;
+      checking.current = true;
+      try {
         const active = await write(
           async (db) => parseActiveSessions(await db.getAll(ACTIVE_SESSIONS_SQL)),
-          NO_ACTIVE,
+          null,
         );
-        // With a Session open the conflict sheet is the question; do not stack another on it.
-        if (active.length === 0) {
+        if (!active) return;
+        if (active.length > 0) {
+          setPending({ source, active });
+          return;
+        }
+        const workoutId = "workoutId" in source ? source.workoutId : null;
+        if (workoutId && !confirmedRepeat) {
+          const now = new Date();
           const done = await write(
             async (db) =>
-              parseFinishedOfWorkout(await db.getAll(FINISHED_OF_WORKOUT_SQL, [workoutId])),
+              parseFinishedOfWorkout(
+                await db.getAll(FINISHED_OF_WORKOUT_SQL, [workoutId, now.toISOString()]),
+              ),
             [],
           );
-          const today = finishedToday(done, workoutId, new Date(), timeZone);
+          const today = finishedToday(done, workoutId, now, timeZone);
           if (today) {
             setRepeat({ source, title: today.title });
             setRepeatOpen(true);
             return;
           }
         }
+        await begin(source, []);
+      } finally {
+        checking.current = false;
       }
-      await startAfterChecks(source);
     },
-    [write, timeZone, startAfterChecks],
+    [write, timeZone, begin],
   );
   const start = useCallback((workoutId: string | null) => startFrom({ workoutId }), [startFrom]);
   const startSlot = useCallback(
@@ -156,7 +153,7 @@ export function useStartSession() {
         cancelLabel={t("common__cancel")}
         confirmLabel={t("guard__again_confirm")}
         onConfirm={() => {
-          if (repeat) void startAfterChecks(repeat.source);
+          if (repeat) void startFrom(repeat.source, true);
         }}
       />
       <StartConflictSheet

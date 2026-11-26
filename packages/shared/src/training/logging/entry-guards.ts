@@ -40,6 +40,7 @@ export function referenceFrom(sets: readonly HistorySet[]): ExerciseReference {
 
 export type SetCheckInput = {
   type: ExerciseType;
+  kind: SetKind;
   /** How the logged load reads: per dumbbell, per side of a bar, or the whole load. */
   basis: LoadBasis;
   /** The unit the lifter sees; it decides the +20 kg / +45 lb margin and the 90 lb floor. */
@@ -47,6 +48,8 @@ export type SetCheckInput = {
   /** What the lifter typed; null for a cell they left to a Ghost value or that has none. */
   weightKg: number | null;
   reps: number | null;
+  /** An autosaved edit checks its changed cell. A swap can use both manually entered values. */
+  editedField?: "weight" | "reps";
   history: ExerciseReference;
   /** Today's suggested load for the set, when there is one. */
   suggestedKg: number | null;
@@ -104,26 +107,35 @@ function ceilingKg(type: ExerciseType, basis: LoadBasis): number {
  * reference, the equipment ceiling when there is no history, then reps.
  */
 export function checkSet(input: SetCheckInput): SetCheck | null {
-  const { type, basis, unit, weightKg, reps, history, suggestedKg } = input;
+  const { type, kind, basis, unit, weightKg, reps, editedField, history, suggestedKg } = input;
   const hasWeight = WEIGHT_TYPES.includes(type) && weightKg !== null && weightKg > 0;
   const heaviest = history.heaviestKg ?? 0;
   const suggested = suggestedKg ?? 0;
   const referenceKg = Math.max(heaviest, suggested);
   const hasReference = referenceKg > 0;
   const hasReps = reps !== null && reps > 0;
+  const lighterSet = kind === "warmup" || kind === "drop";
+  const assisted = type === "bodyweight_assisted_reps";
 
-  if (hasWeight && hasReference && hasReps) {
+  if (hasWeight && hasReference && hasReps && !lighterSet && reps > (history.bestReps ?? 0)) {
     const swapped = swappedFields(weightKg, reps, referenceKg, unit);
     if (swapped) return { reason: "swapped", ...swapped };
   }
 
-  if (hasWeight && hasReference) {
+  // The amount of assistance is not a lifting load: more assistance makes the set easier.
+  if (editedField !== "reps" && hasWeight && hasReference && !assisted) {
     const up = referenceKg * SLIP_RATIO;
     const down = referenceKg / SLIP_RATIO;
-    if (Math.abs(weightKg - up) <= up * SLIP_TOLERANCE) {
+    if (
+      Math.abs(weightKg - up) <= up * SLIP_TOLERANCE &&
+      (type !== "bodyweight_weighted_reps" ||
+        weightKg > referenceKg + toKg(HIGH_LOAD_MARGIN[unit], unit))
+    ) {
       return { reason: "unit_slip", direction: "up", referenceKg };
     }
     if (
+      !lighterSet &&
+      Math.abs(weightKg - suggested) > suggested * SLIP_TOLERANCE &&
       referenceKg >= toKg(SLIP_DOWN_MIN[unit], unit) &&
       Math.abs(weightKg - down) <= down * SLIP_TOLERANCE
     ) {
@@ -139,18 +151,18 @@ export function checkSet(input: SetCheckInput): SetCheck | null {
         source: suggested > heaviest ? "suggestion" : "history",
       };
     }
-  } else if (hasWeight) {
+  } else if (editedField !== "reps" && hasWeight) {
     const ceiling = ceilingKg(type, basis);
     if (weightKg > ceiling) return { reason: "ceiling", ceilingKg: ceiling };
   }
 
-  if (hasReps) {
+  if (editedField !== "weight" && hasReps) {
     const best = history.bestReps;
     const loaded = LOADED_REPS_TYPES.includes(type);
     if (loaded && reps > HIGH_REPS && (best ?? 0) <= HIGH_REPS_HISTORY) {
       return { reason: "high_reps", bestReps: best };
     }
-    if (best !== null && reps > best * REPS_RATIO && reps > REPS_FLOOR) {
+    if (!lighterSet && best !== null && reps > best * REPS_RATIO && reps > REPS_FLOOR) {
       return { reason: "high_reps", bestReps: best };
     }
   }

@@ -2,7 +2,14 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
-import { kgToLb, lbToKg, shownWeight } from "@workspace/shared";
+import {
+  BODY_LIMITS,
+  dailyWeights,
+  kgToLb,
+  lbToKg,
+  shownWeight,
+  trendSeries,
+} from "@workspace/shared";
 import type { WatchedMeasurement } from "@workspace/sync";
 import { useTranslation } from "@/platform/i18n";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
@@ -27,7 +34,7 @@ export function WeightLogSheet({
   const state = useWeight();
   const sheet = useSheetPresent();
   const action = useLogWeight();
-  const weighIn = useWeighInGuard(state.unit, state.trend);
+  const weighIn = useWeighInGuard(state.unit);
   const { t } = useTranslation();
   const [fresh, setFresh] = useState(true);
   const initial = entry?.value ?? (goal ? state.goal : state.trend) ?? 70;
@@ -45,18 +52,38 @@ export function WeightLogSheet({
         if (await action.save(Number(fields.value), fields.date, entry)) onClose();
       };
       const entered = Number(fields.value);
+      const kg = state.unit === "lb" ? lbToKg(entered) : entered;
       // Editing only the date keeps the weight it had, so there is nothing new to check.
       const unchanged = entry && Math.abs(shownWeight(entry.value, state.unit) - entered) <= 1e-9;
-      const asked =
-        !unchanged &&
-        Number.isFinite(entered) &&
-        weighIn.review({
-          kg: state.unit === "lb" ? lbToKg(entered) : entered,
+      if (
+        unchanged ||
+        !Number.isFinite(kg) ||
+        kg < BODY_LIMITS.weightMin ||
+        kg > BODY_LIMITS.weightMax
+      ) {
+        await save();
+        return;
+      }
+      const day = state.localDate(fields.date);
+      // Backdated readings compare with the trend on that day. An edit cannot justify itself.
+      const trendKg =
+        !entry && day === state.today
+          ? state.trend
+          : (trendSeries(
+              dailyWeights(
+                state.entries.filter((row) => row.id !== entry?.id && row.local_date <= day),
+              ),
+            ).at(-1)?.trend ?? null);
+      if (
+        !weighIn.review({
+          kg,
+          trendKg,
           value: fields.value,
           proceed: () => void save(),
           change: () => setFresh(true),
-        });
-      if (!asked) await save();
+        })
+      )
+        await save();
     },
   });
   const { value, date } = useStore(form.store, (s) => s.values);
