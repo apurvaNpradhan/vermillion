@@ -34,6 +34,10 @@ parallel agents take turns: two full test runs at once push the load past 30 and
 out at random. Builders and fixers run the gate; reviewers and re-checkers read its output and
 run only a single targeted test when probing a suspected bug.
 
+A fresh worktree has no `apps/native/.expo/types/router.d.ts`, so typecheck there accepts any
+route string. A slice that adds or renames a route regenerates it first:
+`cd apps/native && CI=1 timeout 60 npx expo start --offline`.
+
 Worktrees share one Turbo cache through `TURBO_CACHE_DIR` (set in the shell profile), so unchanged
 packages hit the cache across worktrees.
 
