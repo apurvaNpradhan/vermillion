@@ -25,6 +25,8 @@ import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 import { useTranslation } from "@/platform/i18n";
 import { usePhaseText } from "@/platform/phase-text";
 import { EmptyState } from "@/platform/ui/empty-state";
+import { Hint } from "@/platform/ui/hint";
+import { useHint } from "@/platform/ui/use-hint";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
 import { ScrollPage } from "@/platform/ui/page";
@@ -79,12 +81,17 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
   const [week, setWeek] = useState<StripBlock | null>(null);
   const [editing, setEditing] = useState<Phase | null>(null);
 
-  const save = (edit: (current: PhasePlan | null) => PhasePlan | null) =>
+  const hint = useHint("plan-weeks");
+  // Any edit on this page is the thing the hint describes: the first one closes it.
+  const { dismiss: dismissHint } = hint;
+  const save = (edit: (current: PhasePlan | null) => PhasePlan | null) => {
+    dismissHint();
     void actions.update(program.id, ({ phase_plan }) => {
       const stored = phase_plan ?? null;
       const next = edit(stored);
       return next === stored ? {} : { phase_plan: next };
     });
+  };
   const blocks = stripBlocks({
     plan: shown,
     current: run
@@ -103,6 +110,7 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
     week !== null && shown.overrides.some((item) => item.week === week.programWeek);
 
   const stepWeeks = (direction: 1 | -1) => {
+    dismissHint();
     void actions.update(program.id, ({ planned_weeks }) => {
       const next = (planned_weeks ?? 0) + direction;
       return {
@@ -116,6 +124,7 @@ function LoadedPlan({ program }: { program: ProgramDetail }) {
 
   return (
     <ScrollPage title={t("run__plan_weeks")} back backFallback="/train">
+      {hint.visible ? <Hint text={t("hint__plan_weeks")} onDismiss={hint.dismiss} /> : null}
       <View className="gap-1.5">
         <Text className="text-label font-medium text-foreground">
           {t("training__planned_length")}

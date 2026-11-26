@@ -30,6 +30,7 @@ import { SyncBanner, useSignOutConfirmation } from "@/sync";
 
 import { CrashReportsRow } from "./crash-reports-row";
 import { FeedbackSheet } from "./feedback-sheet";
+import { ShowTipsRow } from "./show-tips-row";
 
 /**
  * Settings as grouped rows: the profile picture, Preferences (appearance, language, time zone,
@@ -104,6 +105,7 @@ export function SettingsScreen() {
                 );
             }}
           />
+          <ShowTipsRow />
           <CrashReportsRow />
           <ListRow
             icon={Info}
