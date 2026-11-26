@@ -165,6 +165,8 @@ export function useActiveProgram() {
     week,
     totalWeeks,
     phase,
+    /** Start of each counted Session of the Run, newest first. */
+    trainedAt: runs.value?.phaseStarts,
     paused,
     changePause,
     loading,

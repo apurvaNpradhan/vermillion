@@ -9,6 +9,7 @@ import { loadGridOf } from "../progress/load-grid";
 import { suggestNext } from "../engine/pipeline";
 import type { ProgressionSession } from "../progress/progression";
 import { stalledSessions } from "../progress/stalled-lift";
+import type { RunPause } from "../plans/cycle";
 import { lowerLoad } from "./phases";
 import {
   PHASE_PRESETS,
@@ -23,9 +24,11 @@ import {
   phaseEffects,
   phaseFor,
   phaseOfWeek,
+  removeInsertedDeload,
   phasePlanSchema,
   snapshotModifiers,
   snapshotOf,
+  undoableDeloadWeek,
   withModifiers,
   withPattern,
   withWeekPhase,
@@ -783,5 +786,86 @@ describe("editing a plan", () => {
       deload: { load: 0.85 },
       push: { rpe: 1.5 },
     });
+  });
+});
+
+describe("undoing an inserted deload", () => {
+  const start = "2026-11-02T10:00:00Z"; // a Monday
+  const week2 = new Date("2026-11-10T12:00:00Z");
+  const run = (inserted: number[], pauses: RunPause[] = []) => ({
+    started_at: start,
+    inserted_deloads: inserted,
+    pauses,
+  });
+
+  it("removes only the named week", () => {
+    expect(removeInsertedDeload([2, 5], 5)).toEqual([2]);
+    expect(removeInsertedDeload([2], 2)).toEqual([]);
+    expect(removeInsertedDeload([2], 3)).toEqual([2]);
+  });
+
+  it("offers the undo for a deload inserted this week when nothing was trained in it", () => {
+    expect(undoableDeloadWeek({ run: run([2]), now: week2, timezone: "UTC", trainedAt: [] })).toBe(
+      2,
+    );
+  });
+
+  it("is not offered after a counted Session in this week", () => {
+    expect(
+      undoableDeloadWeek({
+        run: run([2]),
+        now: week2,
+        timezone: "UTC",
+        trainedAt: ["2026-11-09T08:00:00Z", "2026-11-03T08:00:00Z"],
+      }),
+    ).toBeNull();
+  });
+
+  it("ignores Sessions of other weeks", () => {
+    expect(
+      undoableDeloadWeek({
+        run: run([2]),
+        now: week2,
+        timezone: "UTC",
+        trainedAt: ["2026-11-08T08:00:00Z"],
+      }),
+    ).toBe(2);
+  });
+
+  it("is not offered when this week is a planned deload or a build week", () => {
+    expect(
+      undoableDeloadWeek({ run: run([]), now: week2, timezone: "UTC", trainedAt: [] }),
+    ).toBeNull();
+    expect(
+      undoableDeloadWeek({ run: run([5]), now: week2, timezone: "UTC", trainedAt: [] }),
+    ).toBeNull();
+  });
+
+  it("is not offered for a past inserted week", () => {
+    expect(
+      undoableDeloadWeek({
+        run: run([2]),
+        now: new Date("2026-11-17T12:00:00Z"),
+        timezone: "UTC",
+        trainedAt: [],
+      }),
+    ).toBeNull();
+  });
+
+  it("puts the pattern back where it was", () => {
+    const inserted = insertDeload([], 3);
+    const phases = (weeks: number[]) =>
+      Array.from({ length: 8 }, (_, index) => phaseOfWeek(threeOne, index + 1, weeks)?.phase);
+    expect(phases(removeInsertedDeload(inserted, 3))).toEqual(phases([]));
+    expect(phases(removeInsertedDeload(inserted, 3))).toEqual([
+      "build",
+      "build",
+      "build",
+      "deload",
+      "build",
+      "build",
+      "build",
+      "deload",
+    ]);
   });
 });

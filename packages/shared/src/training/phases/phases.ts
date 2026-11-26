@@ -280,6 +280,34 @@ export function insertDeload(inserted: readonly number[], week: number): number[
   return inserted.includes(at) ? [...inserted] : [...inserted, at].sort((a, b) => a - b);
 }
 
+/** "Undo deload": the inserted Deload weeks without `week`. */
+export function removeInsertedDeload(inserted: readonly number[], week: number): number[] {
+  return inserted.filter((item) => item !== week);
+}
+
+/**
+ * The Run week "Undo deload" may take back, or null. It is the current Run week, it is an inserted
+ * Deload, and no counted Session of the Run (`trainedAt`, their start times) falls in it.
+ */
+export function undoableDeloadWeek(input: {
+  run: {
+    started_at: string | null;
+    inserted_deloads: readonly number[];
+    pauses?: readonly RunPause[];
+  };
+  now: Date;
+  timezone: string;
+  trainedAt: readonly string[];
+}): number | null {
+  const { run, now, timezone } = input;
+  const week = runWeek(run.started_at, now, timezone, run.pauses);
+  if (!run.inserted_deloads.includes(week)) return null;
+  const trained = input.trainedAt.some(
+    (at) => runWeek(run.started_at, new Date(at), timezone, run.pauses) === week,
+  );
+  return trained ? null : week;
+}
+
 /** Sessions of these phases are never a baseline for progression, stalls or Ghost loads. */
 export const isBaselinePhase = (phase: Phase | null | undefined): boolean =>
   phase !== "test" && phase !== "deload";

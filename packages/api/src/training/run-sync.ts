@@ -44,11 +44,21 @@ const patchInput = z
   .partial();
 /**
  * Two devices may each insert a Deload while offline: both stay, and the weeks do not repeat. A
+ * list that is a strict subset of the stored weeks replaces them (an undo). A
  * Run holds at most {@link TRAINING_LIMITS.insertedDeloadsMax} of them; more than that is refused
  * here rather than left to the database's check.
  */
 function unionWeeks(stored: readonly number[] | null, incoming: readonly number[] | null) {
   if (incoming === null && stored === null) return null;
+  // "Undo deload": a list that only drops weeks the Run holds is the lifter taking them back. Any
+  // list with a week the server lacks came from an offline insert and merges as before.
+  if (
+    stored !== null &&
+    incoming !== null &&
+    incoming.length < stored.length &&
+    incoming.every((week) => stored.includes(week))
+  )
+    return [...incoming];
   const weeks = [...new Set([...(stored ?? []), ...(incoming ?? [])])].sort((a, b) => a - b);
   if (weeks.length > TRAINING_LIMITS.insertedDeloadsMax) throw new SyncRejection("SYNC_INVALID_OP");
   return weeks;

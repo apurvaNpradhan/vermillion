@@ -11,7 +11,6 @@ import { useRouter } from "expo-router";
 import {
   ArrowClockwise,
   DotsThreeVertical,
-  PencilSimple,
   ShareNetwork,
   Trash,
   FloppyDisk,
@@ -272,12 +271,6 @@ export function SessionDetailScreen({ id }: { id: string }) {
                 title={session.title}
                 actions={[
                   {
-                    key: "edit",
-                    label: t("session__edit"),
-                    icon: PencilSimple,
-                    onPress: () => router.push({ pathname: "/session/[id]", params: { id } }),
-                  },
-                  {
                     key: "again",
                     label: t("session__perform_again"),
                     icon: ArrowClockwise,
@@ -298,12 +291,6 @@ export function SessionDetailScreen({ id }: { id: string }) {
                             );
                         });
                     },
-                  },
-                  {
-                    key: "share",
-                    label: t("share__action"),
-                    icon: ShareNetwork,
-                    onPress: openShare,
                   },
                   {
                     key: "delete",

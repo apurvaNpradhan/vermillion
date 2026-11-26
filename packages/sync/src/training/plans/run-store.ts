@@ -3,6 +3,7 @@ import {
   closeRunPauses,
   insertDeload,
   insertedDeloadsSchema,
+  removeInsertedDeload,
   runPausesSchema,
   runPausedAt,
   TRAINING_LIMITS,
@@ -117,6 +118,27 @@ export function insertDeloadNow(
     const next = insertDeload(current, week);
     if (next.length === current.length || next.length > TRAINING_LIMITS.insertedDeloadsMax)
       return false;
+    await tx.update(programRun).set({ inserted_deloads: next }).where(eq(programRun.id, id));
+    return true;
+  });
+}
+/**
+ * "Undo deload": Run week `week` stops being an inserted Deload and the pattern is read as before.
+ * False when the Run is gone or finished, or the week was not inserted. Whether a Session was
+ * logged in the week is the caller's check (`undoableDeloadWeek`).
+ */
+export function undoDeloadNow(
+  database: TrainingDatabase,
+  id: string,
+  week: number,
+  scope?: string,
+) {
+  return write(database, scope, async (tx) => {
+    const [run] = await tx.select().from(programRun).where(eq(programRun.id, id)).limit(1);
+    if (!run || run.finished_at !== null) return false;
+    const current = insertedDeloadsSchema.catch([]).parse(run.inserted_deloads ?? []);
+    const next = removeInsertedDeload(current, week);
+    if (next.length === current.length) return false;
     await tx.update(programRun).set({ inserted_deloads: next }).where(eq(programRun.id, id));
     return true;
   });

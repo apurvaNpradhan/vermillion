@@ -16,11 +16,14 @@ const CLOSE_MS = 200;
  */
 function ActionSheetBody({
   title,
+  description,
   actions,
   isOpen,
   onOpenChange,
 }: {
   title: string;
+  /** A line under the title: what the sheet is about. */
+  description?: string;
   actions: SwipeAction[];
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -31,10 +34,15 @@ function ActionSheetBody({
       <BottomSheet.Portal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent>
-          <View className="px-4">
+          <View className="gap-1 px-4">
             <BottomSheet.Title numberOfLines={1} className="font-semibold text-title-lg">
               {title}
             </BottomSheet.Title>
+            {description ? (
+              <BottomSheet.Description className="font-normal text-body text-muted">
+                {description}
+              </BottomSheet.Description>
+            ) : null}
           </View>
           <ListSection>
             {actions.map((action) => (

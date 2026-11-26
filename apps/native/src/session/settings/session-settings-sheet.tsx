@@ -5,7 +5,7 @@ import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { workoutLive } from "../../../modules/workout-live";
-import { AppState, Platform, Text, View } from "react-native";
+import { AppState, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
@@ -85,9 +85,6 @@ function SessionSettingsSheetBody({
                 </ListSection>
               )}
               {training.section}
-              <Text className="font-normal px-1 text-caption text-muted">
-                {t("session__settings_footnote")}
-              </Text>
             </BottomSheetScrollView>
           </FixedSheetContent>
         </BottomSheet.Portal>

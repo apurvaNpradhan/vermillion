@@ -1,9 +1,10 @@
 import { Play } from "phosphor-react-native";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 
 import { useThemeColor } from "heroui-native";
 
 import { useTranslation } from "@/platform/i18n";
+import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 
 /** How many exercises the card lists before it says "and N more". */
@@ -17,11 +18,10 @@ export type NextWorkoutExercise = {
 };
 
 /**
- * Home's hero, the Next workout: where the program stands ("Week 3 · Day 2"), the workout's name,
- * each exercise with last time's top set, how long the last session took, one big Start (Resume
- * when a Session is open) and Start empty under it as the quiet alternative. Start empty stays
- * while a Session is open: it asks first, through the Session conflict sheet, what to do with
- * that one.
+ * Home's hero, the Next workout: where the program stands ("Week 3 · Workout 2"), the workout's
+ * name, each exercise with last time's top set, how long the last workout took, one big Start and
+ * "Start empty workout" as a quiet text link under it. While a workout is open Start turns quiet
+ * (Resume is the bar above the tabs) and the link goes.
  */
 export function NextWorkoutCard({
   eyebrow,
@@ -29,12 +29,12 @@ export function NextWorkoutCard({
   meta,
   exercises,
   lastDuration,
-  resuming,
+  workoutOpen,
   resumesRun,
   onStart,
   onStartEmpty,
 }: {
-  /** "Week 3 · Day 2", or "In progress". Null when it has nothing to say. */
+  /** "Week 3 · Workout 2". Null when it has nothing to say. */
   eyebrow: string | null;
   /** The workout's name; null when there is no workout to run, only an empty Session. */
   title: string | null;
@@ -42,15 +42,17 @@ export function NextWorkoutCard({
   exercises: readonly NextWorkoutExercise[];
   /** "Last time 52 min"; null when the workout was not done yet. */
   lastDuration: string | null;
-  resuming: boolean;
+  /** A workout is open: Start is quiet and there is no empty start. */
+  workoutOpen: boolean;
   resumesRun: boolean;
   onStart: () => void;
   onStartEmpty: () => void;
 }) {
   const { t } = useTranslation();
   const onAction = useThemeColor("accent-foreground");
-  const listed = resuming ? [] : exercises.slice(0, LISTED);
-  const more = resuming ? 0 : exercises.length - listed.length;
+  const subtle = useSubtleColor();
+  const listed = exercises.slice(0, LISTED);
+  const more = exercises.length - listed.length;
   return (
     <View className="gap-4 rounded-2xl bg-surface p-4">
       {title === null ? null : (
@@ -63,7 +65,7 @@ export function NextWorkoutCard({
           </Text>
           {meta ? (
             <Text numberOfLines={1} className="font-normal text-body tabular-nums text-muted">
-              {lastDuration && !resuming ? `${meta} · ${lastDuration}` : meta}
+              {lastDuration ? `${meta} · ${lastDuration}` : meta}
             </Text>
           ) : null}
         </View>
@@ -92,18 +94,23 @@ export function NextWorkoutCard({
       {resumesRun ? (
         <Text className="text-caption text-muted">{t("run__start_resumes")}</Text>
       ) : null}
-      <Button size="lg" className="h-14 w-full" onPress={title === null ? onStartEmpty : onStart}>
-        <Play size={20} color={onAction} />
-        <Button.Label>
-          {t(
-            title === null ? "home__start_empty" : resuming ? "session__resume" : "session__start",
-          )}
-        </Button.Label>
+      <Button
+        size="lg"
+        variant={workoutOpen && title !== null ? "secondary" : "primary"}
+        className="h-14 w-full"
+        onPress={title === null ? onStartEmpty : onStart}
+      >
+        <Play size={20} color={workoutOpen && title !== null ? subtle : onAction} />
+        <Button.Label>{t(title === null ? "home__start_empty" : "session__start")}</Button.Label>
       </Button>
-      {title !== null ? (
-        <Button variant="secondary" className="w-full" onPress={onStartEmpty}>
-          <Button.Label>{t("home__start_empty")}</Button.Label>
-        </Button>
+      {title !== null && !workoutOpen ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onStartEmpty}
+          className="min-h-11 items-center justify-center active:opacity-60"
+        >
+          <Text className="font-medium text-body text-muted">{t("home__start_empty")}</Text>
+        </Pressable>
       ) : null}
     </View>
   );

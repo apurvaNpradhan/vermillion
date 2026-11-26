@@ -39,6 +39,21 @@ export function endLighterWeek(periods: readonly LighterPeriod[], now: Date) {
   return { deloadUntil: null, lighterWeeks };
 }
 
+/**
+ * The running Lighter week when "Undo deload" may end it: no Session (`sessionStarts`) started
+ * since it began. Otherwise null.
+ */
+export function undoableLighterWeek(
+  periods: readonly LighterPeriod[],
+  now: Date,
+  sessionStarts: readonly string[],
+): LighterPeriod | null {
+  const active = activeLighterWeek(periods, now);
+  if (!active) return null;
+  const from = Date.parse(active.from);
+  return sessionStarts.some((at) => Date.parse(at) >= from) ? null : active;
+}
+
 /** Whether a Session started in a Lighter week: its loads are not a baseline for anything. */
 export function inLighterWeek(startedAt: string, periods: readonly LighterPeriod[]): boolean {
   const instant = Date.parse(startedAt);

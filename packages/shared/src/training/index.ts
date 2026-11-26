@@ -61,6 +61,7 @@ export * from "./progress/stalled-lift";
 export * from "./progress/suggestion-context";
 export { usesFixedPrescription } from "./progress/suggestion-history";
 export * from "./plans/week";
+export { workoutNumber } from "./plans/week-count";
 export * from "./plans/session-goal";
 export * from "./volume/muscle-targets";
 export * from "./volume/weekly-muscle-volume";

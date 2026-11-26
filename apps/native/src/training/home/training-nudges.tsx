@@ -4,7 +4,7 @@ import {
   offerLighterWeek,
   sessionsInRange,
   stalledExerciseIds,
-  startLighterWeek,
+  undoableLighterWeek,
   weekRange,
 } from "@workspace/shared";
 import { useRouter } from "expo-router";
@@ -19,11 +19,12 @@ import {
 } from "@/exercise";
 import { useExerciseRules } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { Button } from "@/platform/ui/button";
 import { usePreferences } from "@/preferences";
 import { sessionRecords, usePreviousSets, useRecordHistory } from "@/session";
 import { ANCHORED } from "@/platform/navigation/anchored";
-import { useInsertDeload } from "@/training/phases/use-insert-deload";
+import { useDeloadWeek } from "@/training/phases/use-deload-week";
 import type { useActiveProgram } from "@/training/programs/use-active-program";
 
 import { useHomeTraining } from "./use-home-training";
@@ -33,10 +34,11 @@ const RECORDS_DAYS = 7;
 const DAY_MS = 86_400_000;
 
 /**
- * Home's contextual cards, each only when it applies: a running Lighter week from before phases
- * (a line with its end date and "End now"), otherwise the offer when several lifts trained this
- * week have stalled (a Deload week inserted into the active Run, or a plain Lighter week when
- * there is no Run), or a note about the one or two that have; and the records of the last Session.
+ * Home's contextual cards, each only when it applies: a running deload without a program (a line
+ * with its end date and "Undo deload", or "End now" once a workout was logged in it), otherwise
+ * the offer when several lifts trained this week have stalled ("Deload this week", for the active
+ * program or on its own), or a note about the one or two that have; and the records of the last
+ * workout.
  */
 export function TrainingNudges({
   state,
@@ -49,11 +51,16 @@ export function TrainingNudges({
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { preferences, setUi } = usePreferences();
+  const { toast } = useAppToast();
   useStallVersion();
   const run = program.run;
-  const insert = useInsertDeload(run);
   const now = new Date();
   const { lighterWeeks, deloadCardDismissedAt } = preferences.ui;
+  const deload = useDeloadWeek({
+    run,
+    trainedAt: program.trainedAt,
+    sessionStarts: state.sessions.map((session) => session.started_at),
+  });
   const week = weekRange(now, state.timezone, state.weekStart);
   const thisWeek = sessionsInRange(state.sessions, week, state.timezone);
   const exerciseIds = [
@@ -62,6 +69,12 @@ export function TrainingNudges({
   const histories = usePreviousSets(exerciseIds);
   const rules = useExerciseRules();
   const active = activeLighterWeek(lighterWeeks, now);
+  const lighterUndoable =
+    undoableLighterWeek(
+      lighterWeeks,
+      now,
+      state.sessions.map((session) => session.started_at),
+    ) !== null;
   const latest = state.recent[0];
   const showRecords =
     latest !== undefined && now.getTime() - Date.parse(latest.started_at) <= RECORDS_DAYS * DAY_MS;
@@ -82,12 +95,18 @@ export function TrainingNudges({
           <Pressable
             accessibilityRole="button"
             hitSlop={8}
-            onPress={() => setUi(endLighterWeek(lighterWeeks, new Date()))}
+            onPress={() => {
+              setUi(endLighterWeek(lighterWeeks, new Date()));
+              if (lighterUndoable) toast.show({ label: t("deload__undone_toast") });
+            }}
             className="min-h-11 justify-center"
           >
-            <Text className="text-caption font-medium text-foreground">{t("lighter__end")}</Text>
+            <Text className="text-caption font-medium text-foreground">
+              {t(lighterUndoable ? "deload__undo" : "lighter__end")}
+            </Text>
           </Pressable>
         </View>
+        {deload.dialog}
         {records}
       </>
     );
@@ -124,17 +143,15 @@ export function TrainingNudges({
     <>
       {offer ? (
         <View className="gap-3 rounded-2xl bg-surface p-4">
-          <Text className="font-normal text-body text-foreground">
-            {t(run ? "phase__offer_title" : "lighter__card_title")}
-          </Text>
+          <View className="gap-1">
+            <Text className="font-semibold text-body text-foreground">
+              {t("deload__offer_title")}
+            </Text>
+            <Text className="font-normal text-caption text-muted">{t("deload__offer_body")}</Text>
+          </View>
           <View className="flex-row gap-3">
-            <Button
-              className="flex-1"
-              onPress={() =>
-                run ? insert.ask() : setUi(startLighterWeek(lighterWeeks, new Date()))
-              }
-            >
-              <Button.Label>{t(run ? "phase__insert_week" : "lighter__start")}</Button.Label>
+            <Button className="flex-1" variant="secondary" onPress={deload.ask}>
+              <Button.Label>{t("deload__action")}</Button.Label>
             </Button>
             <Button
               className="flex-1"
@@ -153,7 +170,7 @@ export function TrainingNudges({
           }
         />
       ) : null}
-      {insert.dialog}
+      {deload.dialog}
       {records}
     </>
   );

@@ -259,6 +259,34 @@ describe("week phases: program.phase_plan, program_run.inserted_deloads, workout
       expect((await row(run))?.inserted_deloads).toEqual([2, 5]);
     });
 
+    it("takes an inserted week back for the owner and for no one else", async () => {
+      const me = await writer("deload-undo@example.com");
+      const other = await writer("deload-undo-other@example.com");
+      const { run } = await runOf(me);
+      await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[2,5]" })]);
+      expect(
+        await other.send([op("PATCH", "program_run", run, { inserted_deloads: "[2]" })]),
+      ).toMatchObject(rejected);
+      expect((await row(run))?.inserted_deloads).toEqual([2, 5]);
+      expect(await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[2]" })])).toEqual(
+        applied,
+      );
+      expect((await row(run))?.inserted_deloads).toEqual([2]);
+      expect(await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[]" })])).toEqual(
+        applied,
+      );
+      expect((await row(run))?.inserted_deloads).toEqual([]);
+    });
+
+    it("still unions a list that holds a week the server lacks", async () => {
+      const me = await writer("deload-undo-offline@example.com");
+      const { run } = await runOf(me);
+      await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[2,5]" })]);
+      // A device that never saw week 5 inserts week 7: the 2 and 5 stay.
+      await me.send([op("PATCH", "program_run", run, { inserted_deloads: "[7]" })]);
+      expect((await row(run))?.inserted_deloads).toEqual([2, 5, 7]);
+    });
+
     it("leaves the weeks alone when a patch touches another field", async () => {
       const me = await writer("deload-keep@example.com");
       const { run } = await runOf(me);
