@@ -1107,6 +1107,7 @@ const LoadedSession = memo(function LoadedSession({
         }}
       />
       {flow.sheets}
+      {logging.guardDialog}
       <ConfirmSheet
         isOpen={confirmRemove !== null}
         onOpenChange={(open) => {

@@ -15,6 +15,7 @@ import { finishSession, startRest, startSession } from "./session-store";
 import {
   ACTIVE_SESSIONS_SQL,
   EQUIPMENT_SQL,
+  FINISHED_OF_WORKOUT_SQL,
   EXERCISE_HISTORY_SQL,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
@@ -30,6 +31,7 @@ import {
   parseActiveSessions,
   parseEquipment,
   parseExerciseHistories,
+  parseFinishedOfWorkout,
   parseFinishedSessions,
   parseSessionDetail,
 } from "./session-watch";
@@ -72,6 +74,28 @@ it.each(["top", "backoff", "myo"] as const)(
     expect(detail?.exercises[0]?.sets[0]).toMatchObject({ kind, rpe: 8, weightKg: 100, reps: 5 });
   },
 );
+
+describe("finished Sessions of a Workout", () => {
+  it("lists only that Workout's finished Sessions, latest first", async () => {
+    const s = await setupSessions();
+    const plan = await pushWorkout(s);
+    const first = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+    await finishSession(s.training, first, { startedAt: daysAgo(2), finishedAt: daysAgo(2) });
+    const second = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+    await finishSession(s.training, second, { startedAt: daysAgo(1), finishedAt: daysAgo(1) });
+    await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+    await finishedSquat(s, daysAgo(3), [100]);
+
+    const rows = parseFinishedOfWorkout(
+      s.sqlite.prepare(FINISHED_OF_WORKOUT_SQL).all(plan.workoutId),
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => row.workout_id === plan.workoutId)).toBe(true);
+    expect(Date.parse(rows[0]?.finished_at ?? "")).toBeGreaterThan(
+      Date.parse(rows[1]?.finished_at ?? ""),
+    );
+  });
+});
 
 describe("active Sessions", () => {
   it("lists every unfinished Session, newest first, with its counts and last tick", async () => {

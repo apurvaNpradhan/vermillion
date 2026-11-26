@@ -48,6 +48,7 @@ import type { useOptimisticSession } from "./use-optimistic-session";
 import { dueTimers, timerTarget, timerView } from "@/session/timer/duration-timer";
 import { hasRequiredSetValues, historySettled } from "./history-gate";
 import { usePrescriptionRevisions } from "./use-prescription-revisions";
+import { useEntryGuard } from "./use-entry-guard";
 import { previewTick, savedSession, settleTick } from "./optimistic";
 import { tickedSetIsRecord, type createRecordBestsCache } from "./record-on-tick";
 import { restAfterTick } from "@/session/rest/rest-rules";
@@ -331,9 +332,38 @@ export function useLoggingState({
     return () => subscription.remove();
   }, [flush]);
 
+  // "Check this set". A live Session asks when a set is ticked; a finished one saves each edit as
+  // it is typed, so leaving the cell is when the edit is looked at.
+  const guard = useEntryGuard(previous, unit);
+  const askGuard = guard.ask;
+  const openCellRef = useRef<(setId: string, field: EntryField) => void>(() => undefined);
+  const reviewLeft = useCallback(() => {
+    const state = store.getState();
+    if (state.session.finishedAt === null) return;
+    const current = readEntry();
+    if (!current || current.fresh) return;
+    const { setId, field } = current.cell;
+    if (field !== "weight" && field !== "reps") return;
+    const at = state.found.get(setId);
+    if (!at) return;
+    askGuard({
+      setId,
+      exercise: at.exercise,
+      typed: {
+        weightKg: field === "weight" ? current.draftValue : at.set.weightKg,
+        reps: field === "reps" ? current.draftValue : at.set.reps,
+      },
+      suggestedKg: null,
+      proceed: () => undefined,
+      change: (changed) => openCellRef.current(setId, changed),
+      swap: (weightKg, reps) => void actions.updateValues(setId, { weight_kg: weightKg, reps }),
+    });
+  }, [store, readEntry, askGuard, actions]);
+
   const openCell = useCallback(
     (setId: string, field: EntryField) => {
       if (readOnly) return;
+      reviewLeft();
       flush();
       const at = store.getState().found.get(setId);
       if (!at) return;
@@ -347,12 +377,16 @@ export function useLoggingState({
         fresh: true,
       });
     },
-    [readOnly, flush, store, unit, actions, setEntry],
+    [readOnly, reviewLeft, flush, store, unit, actions, setEntry],
   );
+  useLayoutEffect(() => {
+    openCellRef.current = openCell;
+  }, [openCell]);
   const closeKeypad = useCallback(() => {
+    reviewLeft();
     flush();
     setEntry(null);
-  }, [flush, setEntry]);
+  }, [reviewLeft, flush, setEntry]);
 
   /** Writes a cell's value (null clears it); a ticked set must keep its values. */
   const commit = useCallback(
@@ -635,6 +669,8 @@ export function useLoggingState({
   const onTick = useCallback(
     async (setId: string) => {
       if (readOnly) return;
+      // What is typed in the open cell is not in the store until the write lands.
+      const typing = readEntry();
       const savingEdits = flush();
       setEntry(null);
       const state = store.getState();
@@ -646,9 +682,45 @@ export function useLoggingState({
         if (editor) await actions.untick(setId);
         return;
       }
-      await tickWith(setId, lookupGhosts(setId), undefined, savingEdits);
+      const ghosts = lookupGhosts(setId);
+      const proceed = () => void tickWith(setId, ghosts, undefined, savingEdits);
+      // Only what the lifter typed is looked at: a cell left to its Ghost value is the app's own.
+      const draft = (field: "weight" | "reps") =>
+        typing && typing.cell.setId === setId && typing.cell.field === field && !typing.fresh
+          ? typing.draftValue
+          : undefined;
+      const typedWeight = draft("weight");
+      const typedReps = draft("reps");
+      const asked = askGuard({
+        setId,
+        exercise: at.exercise,
+        typed: {
+          weightKg: typedWeight === undefined ? at.set.weightKg : typedWeight,
+          reps: typedReps === undefined ? at.set.reps : typedReps,
+        },
+        suggestedKg: ghosts.weight ?? null,
+        proceed,
+        change: (field) => openCell(setId, field),
+        swap: (weightKg, reps) => {
+          void actions.updateValues(setId, { weight_kg: weightKg, reps });
+          proceed();
+        },
+      });
+      if (!asked) await tickWith(setId, ghosts, undefined, savingEdits);
     },
-    [readOnly, flush, actions, lookupGhosts, tickWith, store, setEntry, editor],
+    [
+      readOnly,
+      readEntry,
+      flush,
+      actions,
+      lookupGhosts,
+      tickWith,
+      store,
+      setEntry,
+      editor,
+      askGuard,
+      openCell,
+    ],
   );
 
   // ---- Duration timers ----
@@ -832,6 +904,8 @@ export function useLoggingState({
     found,
     flush,
     flushWrites,
+    /** The "Check this set" dialog; the screen renders it once. */
+    guardDialog: guard.dialog,
     /** Whether typed values still wait to be written (the keypad coalesces them). */
     editsPending: writer.busy,
   };
