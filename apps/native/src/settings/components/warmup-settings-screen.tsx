@@ -33,9 +33,10 @@ const sameSteps = (a: readonly WarmupStep[], b: readonly WarmupStep[]) =>
   a.length === b.length && a.every((s, i) => s.percent === b[i]?.percent && s.reps === b[i]?.reps);
 
 /**
- * The one Warm-ups screen: whether warm-up sets count toward totals, and the calculator, the ramp built for the first working set, as editable steps (a share of
- * the working weight for some reps) and how each load is rounded. The default is 50% × 5,
- * 70% × 3 and 85% × 1, rounded to the bars and plates.
+ * The one Warm-ups screen: whether warm-up sets count toward totals, then the calculator: the ramp
+ * built for the first working set, as editable steps (a share of the working weight for some reps)
+ * and how each load is rounded. The default is 50% × 5, 70% × 3 and 85% × 1, rounded to the bars
+ * and plates.
  */
 export function WarmupSettingsScreen() {
   const { t } = useTranslation();

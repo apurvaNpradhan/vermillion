@@ -140,7 +140,6 @@ export function SessionScreen(props: SessionScreenProps) {
   );
 }
 
-/** The screen's own background while the Session reads from the device (milliseconds). */
 const hasUnit = (exercise: SessionExerciseDetail) =>
   SET_FIELDS[exercise.type].some((field) => field === "weight");
 const isLoaded = (exercise: SessionExerciseDetail) =>
@@ -149,6 +148,7 @@ const isLoaded = (exercise: SessionExerciseDetail) =>
 const hasExerciseSettings = (exercise: SessionExerciseDetail) =>
   hasUnit(exercise) || isLoaded(exercise) || canAddWarmups(exercise);
 
+/** The screen's own background while the Session reads from the device (milliseconds). */
 function SessionBlank() {
   return <View className="flex-1 bg-background" />;
 }
@@ -561,7 +561,7 @@ const LoadedSession = memo(function LoadedSession({
                 key: "warmup-settings",
                 label: t("exercise__warmup_settings"),
                 icon: FireSimple,
-                onPress: () => router.push("/settings/warmups"),
+                onPress: () => router.push("/session/warmups"),
               },
             ]
           : []),

@@ -16,6 +16,7 @@ export default function ExerciseViewRoute() {
       onOpenExercise={(next) =>
         router.push({ pathname: "/exercise-view/[id]", params: { id: next, sessionId } })
       }
+      onWarmupSettings={() => router.push("/exercise-view/warmups")}
     />
   );
 }
