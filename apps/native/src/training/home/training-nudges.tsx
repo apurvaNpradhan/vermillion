@@ -5,6 +5,7 @@ import {
   weekRange,
 } from "@workspace/shared";
 import { useRouter } from "expo-router";
+import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import {
@@ -47,7 +48,7 @@ export function TrainingNudges({
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { preferences, setUi } = usePreferences();
-  useStallVersion();
+  const stallVersion = useStallVersion();
   const run = program.run;
   const now = new Date();
   const { lighterWeeks, deloadCardDismissedAt } = preferences.ui;
@@ -57,13 +58,58 @@ export function TrainingNudges({
     sessionStarts: state.finished?.map((session) => session.started_at),
   });
   const week = weekRange(now, state.timezone, state.weekStart);
-  const thisWeek = sessionsInRange(state.sessions, week, state.timezone);
-  const exerciseIds = [
-    ...new Set(thisWeek.flatMap((session) => session.sets.map((set) => set.exercise_id))),
-  ];
+  const { start: weekStartMs, end: weekEndMs } = week;
+  const thisWeek = useMemo(
+    () => sessionsInRange(state.sessions, { start: weekStartMs, end: weekEndMs }, state.timezone),
+    [state.sessions, weekStartMs, weekEndMs, state.timezone],
+  );
+  const exerciseIds = useMemo(
+    () => [...new Set(thisWeek.flatMap((session) => session.sets.map((set) => set.exercise_id)))],
+    [thisWeek],
+  );
   const histories = usePreviousSets(exerciseIds);
   const rules = useExerciseRules();
   const { lighter } = deload;
+  const { previousSource, weightUnit, weightIncrementKg, weightIncrementUnit } = preferences.ui;
+  const today = now.toISOString().slice(0, 10);
+  const { history, ready, bodyweightOn } = histories;
+  const rulesByExercise = rules.value;
+  const rulesLoading = rules.loading;
+  // The verdict scans each exercise's history; Home renders often, so it is worked out again only
+  // when what it reads changes (a new watch result, a dismissal, a new day).
+  const stalled = useMemo(() => {
+    if (!ready || rulesLoading) return [];
+    return stalledExerciseIds(
+      thisWeek,
+      history,
+      {
+        previousSource,
+        unit: weightUnit,
+        weightIncrementKg,
+        weightIncrementUnit,
+        lighterWeeks,
+        bodyweightKg: bodyweightOn(new Date().toISOString()),
+        stallMemory,
+      },
+      // A maintained lift is never stalled.
+      rulesByExercise ?? new Map(),
+    );
+    // `today` and `stallVersion` stand for what the verdict reads from the clock and the device.
+  }, [
+    thisWeek,
+    history,
+    ready,
+    bodyweightOn,
+    rulesByExercise,
+    rulesLoading,
+    previousSource,
+    weightUnit,
+    weightIncrementKg,
+    weightIncrementUnit,
+    lighterWeeks,
+    today,
+    stallVersion,
+  ]);
   const latest = state.recent[0];
   const showRecords =
     latest !== undefined && now.getTime() - Date.parse(latest.started_at) <= RECORDS_DAYS * DAY_MS;
@@ -98,21 +144,6 @@ export function TrainingNudges({
     );
   }
   if (!histories.ready || rules.loading) return records;
-  const stalled = stalledExerciseIds(
-    thisWeek,
-    histories.history,
-    {
-      previousSource: preferences.ui.previousSource,
-      unit: preferences.ui.weightUnit,
-      weightIncrementKg: preferences.ui.weightIncrementKg,
-      weightIncrementUnit: preferences.ui.weightIncrementUnit,
-      lighterWeeks,
-      bodyweightKg: histories.bodyweightOn(now.toISOString()),
-      stallMemory,
-    },
-    // A maintained lift is never stalled.
-    rules.value ?? new Map(),
-  );
   // A week that is already a Deload needs no offer of one.
   const offer =
     !program.paused &&
