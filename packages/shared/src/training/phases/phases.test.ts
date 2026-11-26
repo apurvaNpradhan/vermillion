@@ -14,6 +14,13 @@ import { lowerLoad } from "./phases";
 import {
   PHASE_PRESETS,
   PATTERN_PRESETS,
+  PHASE_PATTERN_MAX,
+  addPatternWeek,
+  patternRuns,
+  planOrBuild,
+  removePatternWeek,
+  setPatternWeek,
+  weeksSummary,
   applyPhase,
   baselineSessions,
   insertDeload,
@@ -867,5 +874,64 @@ describe("undoing an inserted deload", () => {
       "build",
       "deload",
     ]);
+  });
+});
+
+describe("editing the pattern as chips", () => {
+  const pattern: Phase[] = ["build", "build", "push", "deload"];
+
+  it("adds a Build week at the end, up to the pattern's limit", () => {
+    expect(addPatternWeek(pattern)).toEqual([...pattern, "build"]);
+    expect(addPatternWeek([])).toEqual(["build"]);
+    const full = Array.from({ length: PHASE_PATTERN_MAX }, () => "build" as const);
+    expect(addPatternWeek(full)).toEqual(full);
+  });
+
+  it("removes week i and keeps the others in order", () => {
+    expect(removePatternWeek(pattern, 1)).toEqual(["build", "push", "deload"]);
+    expect(removePatternWeek(["build"], 0)).toEqual([]);
+    expect(removePatternWeek(pattern, 9)).toEqual(pattern);
+  });
+
+  it("sets week i and leaves the input alone", () => {
+    expect(setPatternWeek(pattern, 0, "test")).toEqual(["test", "build", "push", "deload"]);
+    expect(setPatternWeek(pattern, 7, "test")).toEqual(pattern);
+    expect(pattern).toEqual(["build", "build", "push", "deload"]);
+  });
+
+  it("removing the last week leaves no phases", () => {
+    expect(withPattern(plan({ pattern: ["build"] }), removePatternWeek(["build"], 0))).toBeNull();
+  });
+
+  it("a Program with no plan is edited as all Build weeks", () => {
+    expect(planOrBuild(null).pattern).toEqual(["build"]);
+    const edited = withWeekPhase(planOrBuild(null), 3, "test");
+    expect(phaseOfWeek(edited, 3)?.phase).toBe("test");
+    expect(phaseOfWeek(edited, 2)?.phase).toBe("build");
+  });
+});
+
+describe("the Weeks row summary", () => {
+  it("folds the pattern's runs and carries the planned length", () => {
+    expect(
+      weeksSummary({
+        plan: plan({ pattern: ["build", "build", "build", "deload"] }),
+        plannedWeeks: 12,
+      }),
+    ).toEqual({
+      length: 12,
+      runs: [
+        { phase: "build", count: 3 },
+        { phase: "deload", count: 1 },
+      ],
+    });
+  });
+
+  it("is open-ended without a planned length, and has no runs without phases", () => {
+    expect(weeksSummary({ plan: null, plannedWeeks: null })).toEqual({ length: null, runs: [] });
+  });
+
+  it("folds only neighbours", () => {
+    expect(patternRuns(["build", "deload", "build"]).map((run) => run.count)).toEqual([1, 1, 1]);
   });
 });
