@@ -15,9 +15,17 @@
  * (no blur, no raw colors); the close button is a Phosphor icon; the strings (close, counter) come
  * from props; `scheduleOnRN` replaces `runOnJS`, the haptic is `haptic.tick`.
  */
-import { X } from "phosphor-react-native";
+import { X, type IconProps } from "phosphor-react-native";
 import { useThemeColor } from "heroui-native";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import {
   FlatList,
   Modal,
@@ -61,6 +69,14 @@ export type ViewerItem = {
   height: number;
   /** Read out for the picture and drawn under it. */
   caption?: string;
+};
+
+/** An optional button at the top right of the viewer (delete, share…); it acts on the open page. */
+export type ViewerAction = {
+  label: string;
+  icon: ComponentType<IconProps>;
+  onPress: (index: number) => void;
+  tone?: "default" | "danger";
 };
 
 /** What `renderImage` is given: the size the picture is drawn at, in points. */
@@ -299,6 +315,7 @@ export function ImageViewer({
   renderImage,
   closeLabel,
   pageLabel,
+  action,
 }: {
   items: readonly ViewerItem[];
   index: number;
@@ -308,10 +325,12 @@ export function ImageViewer({
   closeLabel: string;
   /** The counter under the top bar, e.g. "2 / 4"; shown when there is more than one picture. */
   pageLabel: (index: number, count: number) => string;
+  action?: ViewerAction;
 }) {
   const viewport = useWindowDimensions();
   const { top, bottom } = useSafeAreaInsets();
   const foreground = useThemeColor("foreground");
+  const danger = useThemeColor("danger");
   const fade = useSharedValue(1);
   const [pagerLocked, setPagerLocked] = useState(false);
   const list = useRef<FlatList<ViewerItem>>(null);
@@ -395,6 +414,17 @@ export function ImageViewer({
                 {pageLabel(page, count)}
               </Text>
             </View>
+          ) : null}
+          {action ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
+              onPress={() => action.onPress(page)}
+              hitSlop={8}
+              className="size-11 items-center justify-center rounded-full bg-surface active:bg-default"
+            >
+              <action.icon size={20} color={action.tone === "danger" ? danger : foreground} />
+            </Pressable>
           ) : null}
         </Animated.View>
         {caption ? (
