@@ -8,6 +8,8 @@
  */
 import { Pressable, Text, View } from "react-native";
 
+import { DayMark, type DayMarkState } from "./day-mark";
+
 /** The colour of a mark: the accent text tone (done, "you / now"; a fill would wash out on white), or quiet. */
 export type WeekStripTone = "accent" | "muted";
 
@@ -16,6 +18,8 @@ export type WeekStripMarks = {
   dots?: readonly WeekStripTone[];
   /** A hollow dot for something planned on the day. */
   planned?: boolean;
+  /** A ledger mark shared with the Train strip; drawn in place of the dots. */
+  state?: DayMarkState;
   /** Spoken after the date, e.g. "trained". */
   label?: string;
 };
@@ -88,8 +92,11 @@ export function WeekStrip({
             >
               {labels.day(day)}
             </Text>
-            <View className="h-2 flex-row items-center justify-center gap-1">
-              {day === today ? <View className="h-1.5 w-1.5 rounded-full bg-accent-text" /> : null}
+            <View className="h-3.5 flex-row items-center justify-center gap-1">
+              {day === today && !mark?.state ? (
+                <View className="h-1.5 w-1.5 rounded-full bg-accent-text" />
+              ) : null}
+              {mark?.state ? <DayMark state={mark.state} /> : null}
               {dots.map((tone, index) => (
                 <View key={index} className={`h-1.5 w-1.5 rounded-full ${TONE[tone]}`} />
               ))}

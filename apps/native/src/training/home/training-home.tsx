@@ -175,6 +175,27 @@ export function TrainingHome() {
           setSelectedDay(null);
         }}
       />
+      {resume !== undefined && !hasWorkout ? null : (
+        <NextWorkoutCard
+          eyebrow={eyebrow}
+          title={hasWorkout ? title : null}
+          meta={meta}
+          exercises={heroExercises}
+          lastDuration={lastDuration}
+          workoutOpen={resume !== undefined}
+          resumesRun={resume === undefined && programState.paused && Boolean(next?.workoutId)}
+          onStart={() =>
+            next?.workoutId && programState.run
+              ? void startSlot(next.workoutId, {
+                  runId: programState.run.id,
+                  slotId: next.id,
+                  cycle: programState.progress.cycle,
+                })
+              : void start(workoutId)
+          }
+          onStartEmpty={() => void start(null)}
+        />
+      )}
       {viewingPast ? (
         <View className="gap-3 rounded-2xl bg-surface p-4">
           <Text className="font-semibold text-title-md text-foreground">
@@ -200,27 +221,7 @@ export function TrainingHome() {
             ))
           )}
         </View>
-      ) : resume !== undefined && !hasWorkout ? null : (
-        <NextWorkoutCard
-          eyebrow={eyebrow}
-          title={hasWorkout ? title : null}
-          meta={meta}
-          exercises={heroExercises}
-          lastDuration={lastDuration}
-          workoutOpen={resume !== undefined}
-          resumesRun={resume === undefined && programState.paused && Boolean(next?.workoutId)}
-          onStart={() =>
-            next?.workoutId && programState.run
-              ? void startSlot(next.workoutId, {
-                  runId: programState.run.id,
-                  slotId: next.id,
-                  cycle: programState.progress.cycle,
-                })
-              : void start(workoutId)
-          }
-          onStartEmpty={() => void start(null)}
-        />
-      )}
+      ) : null}
       <ThisWeekRow current={summary.current} previous={summary.previous} goal={goal} unit={unit} />
       <TrainingNudges state={state} program={programState} />
       {hasWeight ? <WeightTrendCard weight={weight} /> : null}

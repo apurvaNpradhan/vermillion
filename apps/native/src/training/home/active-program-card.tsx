@@ -7,6 +7,7 @@ import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
+import { DayMark } from "@/platform/ui/day-mark";
 import { SectionHeader } from "@/platform/ui/section-header";
 import { useStartSession } from "@/session";
 import type { useActiveProgram } from "@/training/programs/use-active-program";
@@ -46,45 +47,23 @@ export function ActiveProgramCard({
           </Text>
         </View>
       </View>
-      <View className="flex-row flex-wrap gap-2">
+      <View className="flex-row flex-wrap">
         {program.slots.map((slot, index) => {
           const state = stripState(slot, progress);
-          const trained = state === "done";
-          const rest = state === "rest";
           return (
             <View
               key={slot.id}
               accessible
               accessibilityLabel={t("run__slot_state", {
                 day: index + 1,
-                title: rest ? t("training__rest_day") : slotTitle(slot, t),
+                title: state === "rest" ? t("training__rest_day") : slotTitle(slot, t),
                 state: t(SLOT_STATE_KEYS[state]),
               })}
-              className={
-                rest
-                  ? "h-7 w-7 self-center items-center justify-center rounded-full bg-default opacity-40"
-                  : trained
-                    ? "h-10 w-10 items-center justify-center rounded-full bg-foreground"
-                    : state === "next"
-                      ? "h-10 w-10 items-center justify-center rounded-full border-2 border-foreground bg-default"
-                      : "h-10 w-10 items-center justify-center rounded-full bg-default"
-              }
+              className="h-11 w-11 items-center justify-center gap-1"
             >
-              {rest ? (
-                <View className="size-1.5 rounded-full bg-muted" />
-              ) : state === "skipped" ? (
-                <View
-                  className="h-px w-3 bg-foreground"
-                  style={{ transform: [{ rotate: "-45deg" }] }}
-                />
-              ) : (
-                <Text
-                  className={
-                    trained
-                      ? "text-label font-semibold text-background"
-                      : "text-label text-foreground"
-                  }
-                >
+              <DayMark state={state} />
+              {state === "rest" ? null : (
+                <Text className="text-caption text-muted">
                   {slotTitle(slot, t).slice(0, 1).toLocaleUpperCase()}
                 </Text>
               )}
