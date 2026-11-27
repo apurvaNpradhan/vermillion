@@ -10,7 +10,8 @@ import { useGyms } from "./use-gyms";
 
 /**
  * "@ Gym ▾": where this Session is trained, in its header, to change it. Only with two gyms or
- * more; with one there is nothing to choose.
+ * more; with one there is nothing to choose. Choosing a gym also makes it the active gym, since
+ * the chip is editable only while the Session is live.
  */
 export function SessionGymChip({
   sessionId,
@@ -23,7 +24,7 @@ export function SessionGymChip({
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
-  const { gyms, multiple, setForSession } = useGyms();
+  const { gyms, multiple, setForSession, select } = useGyms();
   const [open, setOpen] = useState(false);
   const current = gyms.find((gym) => gym.id === gymId);
   if (!multiple) return null;
@@ -55,7 +56,11 @@ export function SessionGymChip({
             key: gym.id,
             label: gym.name,
             icon: gym.id === gymId ? Check : MapPin,
-            onPress: () => void setForSession(sessionId, gym.id),
+            onPress: () => {
+              void setForSession(sessionId, gym.id);
+              // The chip is only editable in the live Session: you are at that gym now.
+              select(gym.id);
+            },
           })),
           {
             key: "any",
