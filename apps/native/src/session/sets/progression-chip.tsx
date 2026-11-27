@@ -6,11 +6,9 @@ import {
 } from "@workspace/shared";
 import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
-import { useState } from "react";
 
 import { EvidenceLines } from "@/platform/ui/evidence-lines";
 import { useMountOnOpen } from "@/platform/ui/mount-on-open";
-import { Pressable, Text } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import {
   progressionParams,
@@ -19,23 +17,26 @@ import {
 } from "@/platform/ui/progression-reason";
 import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 
-export function ProgressionChip({
-  suggestion,
-  badges,
-  unit,
-  type,
-  effortScale,
-}: {
-  suggestion: Progression;
-  badges: readonly string[];
-  unit: WeightUnit;
-  type: ExerciseType;
-  effortScale: EffortScale;
-}) {
-  const animation = useSheetAnimation();
+/** The suggestion as the exercise's second line shows it, and the reason the sheet explains. */
+export type ProgressionNote = {
+  /** "Add 2.5 kg", or the mixed label when sets differ. */
+  label: string;
+  /** The sheet text: one reason, or one line per set when they differ. */
+  description: string;
+};
+
+/** The next-session suggestion of an exercise as short text; null when there is nothing to say. */
+export function useProgressionNote(
+  input: {
+    suggestion: Progression;
+    badges: readonly string[];
+    unit: WeightUnit;
+    effortScale: EffortScale;
+  } | null,
+): ProgressionNote | null {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const sheet = useMountOnOpen(open);
+  if (!input) return null;
+  const { suggestion, badges, unit, effortScale } = input;
   const explanations = badges.flatMap((badge, index) => {
     const outcome = suggestion.outcomes[index];
     if (!outcome) return [];
@@ -52,39 +53,50 @@ export function ProgressionChip({
   const first = explanations[0];
   if (!first || !explanations.some((entry) => entry.show)) return null;
   const mixed = explanations.some((entry) => entry.reason !== first.reason);
-  const label = mixed ? t("progress__label_mixed") : first.label;
+  return {
+    label: mixed ? t("progress__label_mixed") : first.label,
+    description: mixed
+      ? explanations
+          .map(({ badge, reason }) => t("progress__set_reason", { badge, reason }))
+          .join("\n")
+      : first.reason,
+  };
+}
+
+/** Why the suggestion is what it is. Opened by a tap on the suggestion in the exercise's header. */
+export function ProgressionSheet({
+  note,
+  suggestion,
+  unit,
+  type,
+  isOpen,
+  onOpenChange,
+}: {
+  note: ProgressionNote;
+  suggestion: Progression;
+  unit: WeightUnit;
+  type: ExerciseType;
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const animation = useSheetAnimation();
+  const { t } = useTranslation();
+  const sheet = useMountOnOpen(isOpen);
+  if (!sheet.mounted) return null;
   return (
-    <>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        onPress={() => setOpen(true)}
-        className="min-h-11 max-w-full self-start justify-center pl-3 pr-2 active:opacity-70"
-      >
-        <Text className="text-caption font-semibold text-foreground">{label}</Text>
-      </Pressable>
-      {sheet.mounted ? (
-        <BottomSheet animation={animation} isOpen={sheet.open} onOpenChange={setOpen}>
-          <SheetPortal>
-            <BottomSheet.Overlay />
-            <BottomSheet.Content
-              animationConfigs={SHEET_SPRING}
-              backgroundClassName="rounded-t-[20px] bg-overlay"
-              contentContainerClassName="px-5 pb-10 gap-3"
-            >
-              <BottomSheet.Title>{t("progress__next")}</BottomSheet.Title>
-              <BottomSheet.Description>
-                {mixed
-                  ? explanations
-                      .map(({ badge, reason }) => t("progress__set_reason", { badge, reason }))
-                      .join("\n")
-                  : first.reason}
-              </BottomSheet.Description>
-              <EvidenceLines evidence={suggestion.evidence} type={type} unit={unit} />
-            </BottomSheet.Content>
-          </SheetPortal>
-        </BottomSheet>
-      ) : null}
-    </>
+    <BottomSheet animation={animation} isOpen={sheet.open} onOpenChange={onOpenChange}>
+      <SheetPortal>
+        <BottomSheet.Overlay />
+        <BottomSheet.Content
+          animationConfigs={SHEET_SPRING}
+          backgroundClassName="rounded-t-[20px] bg-overlay"
+          contentContainerClassName="px-5 pb-10 gap-3"
+        >
+          <BottomSheet.Title>{t("progress__next")}</BottomSheet.Title>
+          <BottomSheet.Description>{note.description}</BottomSheet.Description>
+          <EvidenceLines evidence={suggestion.evidence} type={type} unit={unit} />
+        </BottomSheet.Content>
+      </SheetPortal>
+    </BottomSheet>
   );
 }

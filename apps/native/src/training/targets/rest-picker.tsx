@@ -131,12 +131,15 @@ export function RestPicker({
   onChange,
   group = false,
   chip = false,
+  compact = false,
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
   group?: boolean;
   /** A small chip ("Rest 2:00", muted text and icon, no fill) instead of a full-width row. */
   chip?: boolean;
+  /** An icon button for a card header: the timer, with the time beside it when there is one. */
+  compact?: boolean;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
@@ -165,14 +168,23 @@ export function RestPicker({
           choose(value ?? 120);
           setOpen(true);
         }}
+        hitSlop={compact ? 4 : undefined}
         className={
-          chip
-            ? "min-h-11 flex-row items-center gap-1.5 self-start rounded-full px-2 active:bg-default"
-            : "min-h-11 flex-row items-center gap-2 rounded-xl bg-default px-3"
+          compact
+            ? "h-11 min-w-11 flex-row items-center justify-center gap-1 rounded-full px-1.5 active:bg-default"
+            : chip
+              ? "min-h-11 flex-row items-center gap-1.5 self-start rounded-full px-2 active:bg-default"
+              : "min-h-11 flex-row items-center gap-2 rounded-xl bg-default px-3"
         }
       >
-        <Timer size={chip ? 16 : 20} color={subtle} />
-        {chip ? (
+        <Timer size={compact ? 20 : chip ? 16 : 20} color={subtle} />
+        {compact ? (
+          value === null ? null : (
+            <Text className="font-medium text-caption text-muted tabular-nums">
+              {formatClock(value)}
+            </Text>
+          )
+        ) : chip ? (
           <Text className="font-medium text-label text-muted tabular-nums">
             {t(group ? "session__rest_chip_group" : "session__rest_chip", {
               value: value === null ? t("session__chip_off") : formatClock(value),

@@ -40,7 +40,9 @@ export const ExerciseRow = memo(function ExerciseRow({
   onMenu,
   onReorder,
   children,
-  progression,
+  suggestion,
+  onSuggestion,
+  actions,
 }: {
   exercise: SessionExerciseDetail;
   place: SupersetPlace;
@@ -67,7 +69,12 @@ export const ExerciseRow = memo(function ExerciseRow({
   onReorder: () => void;
   /** The open body: chips, note, set grid. Not built while closed. */
   children?: ReactNode;
-  progression?: ReactNode;
+  /** The next-session suggestion ("Add 2.5 kg"), last on the second line; open exercises only. */
+  suggestion?: string | null;
+  /** Opens the reason behind the suggestion. */
+  onSuggestion?: () => void;
+  /** Small icon buttons beside the menu (rest, note); open exercises only. */
+  actions?: ReactNode;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
@@ -86,9 +93,11 @@ export const ExerciseRow = memo(function ExerciseRow({
   const subtitle = summary === "" ? progress : `${progress} · ${summary}`;
   const doneText = summary === "" ? progress : summary;
   const toggle = () => onToggle(exercise.id);
+  const shownSuggestion = expanded && suggestion ? suggestion : null;
+  const spoken = shownSuggestion ? `${subtitle}, ${shownSuggestion}` : subtitle;
   const exerciseLabel = t(grouped ? "session__superset_header" : "session__exercise_header", {
     title: name,
-    summary: done ? t("session__exercise_completed", { summary: subtitle }) : subtitle,
+    summary: done ? t("session__exercise_completed", { summary: spoken }) : spoken,
   });
 
   const headerLabel =
@@ -117,11 +126,15 @@ export const ExerciseRow = memo(function ExerciseRow({
             accessibilityLabel={headerLabel}
             accessibilityState={{ expanded }}
             accessibilityHint={readOnly ? undefined : t("training__drag_hint")}
-            accessibilityActions={
-              readOnly ? undefined : [{ name: "reorder", label: t("training__reorder") }]
-            }
+            accessibilityActions={[
+              ...(readOnly ? [] : [{ name: "reorder", label: t("training__reorder") }]),
+              ...(shownSuggestion && onSuggestion
+                ? [{ name: "suggestion", label: t("progress__next") }]
+                : []),
+            ]}
             onAccessibilityAction={(event) => {
               if (!readOnly && event.nativeEvent.actionName === "reorder") onReorder();
+              if (event.nativeEvent.actionName === "suggestion") onSuggestion?.();
             }}
             onPress={toggle}
             className="min-h-11 justify-center gap-0.5 py-2 pl-3 pr-1 active:bg-default"
@@ -150,14 +163,29 @@ export const ExerciseRow = memo(function ExerciseRow({
               >
                 {done ? doneText : subtitle}
               </Text>
+              {shownSuggestion ? (
+                <>
+                  <Text className="font-normal text-caption text-muted">·</Text>
+                  <Pressable
+                    accessible={false}
+                    onPress={onSuggestion}
+                    hitSlop={{ top: 14, bottom: 14, left: 4, right: 8 }}
+                    style={{ flexShrink: 3 }}
+                  >
+                    <Text numberOfLines={1} className="text-caption font-semibold text-foreground">
+                      {shownSuggestion}
+                    </Text>
+                  </Pressable>
+                </>
+              ) : null}
               <RecordChip record={record} animate={animate} inHeader hidden={expanded} />
             </View>
             {expanded ? (
               <ExerciseNotes pinned={exercise.pinnedNote} lastTime={exercise.lastNote} />
             ) : null}
           </Pressable>
-          {expanded ? progression : null}
         </View>
+        {expanded ? actions : null}
         {!readOnly ? (
           <Pressable
             accessibilityRole="button"
