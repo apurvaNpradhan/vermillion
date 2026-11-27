@@ -6,7 +6,6 @@ import { useThemeColor } from "heroui-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
-import { SessionGymChip } from "@/gym";
 import { OfflinePill } from "@/sync";
 
 import { MARKER_ENTERING, MARKER_EXITING } from "@/session/shared/motion";
@@ -68,21 +67,20 @@ function Clock({
 }
 
 /**
- * The top of the logging screen: a chevron that minimises the Session, its title, the clock
- * (derived from `started_at`, so it is right after the app was killed), the live volume and
- * counted sets, and Finish. The muscle-distribution icon joins in a later slice.
+ * The top of the logging screen, two lines. Line 1: a chevron that minimises the Session, its
+ * title, the menu and Finish. Line 2, plain muted text: the clock (derived from `started_at`, so it
+ * is right after the app was killed), the sets done and, last, the gym; the gym truncates first and
+ * is absent with one gym.
  */
 export function SessionHeader({
   finished,
   onMenu,
-  sessionId,
-  gymId,
+  gymName,
   title,
   startedAt,
   pausedAt,
   animate,
   pausedMs,
-  volume,
   sets,
   readOnly,
   onMinimise,
@@ -92,15 +90,14 @@ export function SessionHeader({
 }: {
   finished: boolean;
   onMenu: () => void;
-  sessionId: string;
-  gymId: string | null;
+  /** The Session's gym; null with one gym or "Any gym", where the header names none. */
+  gymName: string | null;
   title: string;
   startedAt: string;
   pausedAt: string | null;
   animate: boolean;
   pausedMs: number;
-  /** Volume with its unit, "4,250 kg". */
-  volume: string;
+  /** Counted sets done. */
   sets: number;
   /** Another device owns the Session: no Finish. */
   readOnly: boolean;
@@ -114,6 +111,7 @@ export function SessionHeader({
   const { t } = useTranslation();
   const { top } = useSafeAreaInsets();
   const foreground = useThemeColor("foreground");
+  const setsText = t("session__header_sets", { count: sets });
   return (
     <View
       className="flex-row items-center gap-2 bg-background px-3 pb-2"
@@ -149,14 +147,16 @@ export function SessionHeader({
           {finished ? null : <Text className="font-medium text-label text-muted">·</Text>}
           <Text
             numberOfLines={1}
+            accessibilityLabel={
+              gymName === null ? setsText : `${setsText}, ${t("gym__at", { gym: gymName })}`
+            }
             className="font-medium min-w-0 flex-shrink text-label text-muted"
             style={{ fontVariant: ["tabular-nums"] }}
           >
-            {t("session__header_stats", { volume, count: sets })}
+            {gymName === null ? setsText : `${setsText} · ${gymName}`}
           </Text>
           <OfflinePill />
         </View>
-        <SessionGymChip sessionId={sessionId} gymId={gymId} readOnly={readOnly || finished} />
         {banner ? (
           <Text numberOfLines={1} className="font-normal text-caption text-muted">
             {banner}

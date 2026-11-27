@@ -6,7 +6,7 @@ export { GymLimitRows } from "./gym-limit-rows";
 export { LoadLimitsSheet } from "./load-limits-sheet";
 export { SetupNoteChip } from "./setup-note-chip";
 export { useSessionGym } from "./use-session-gym";
-export { SessionGymChip } from "./session-gym-chip";
+export { SessionGymPicker, useSessionGymLabel } from "./session-gym-picker";
 export { MaxPrompt } from "./prompts/max-prompt";
 export { GymNameSheet } from "./gym-name-sheet";
 export { GymsScreen } from "./gyms-screen";

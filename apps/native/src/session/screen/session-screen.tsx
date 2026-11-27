@@ -27,6 +27,7 @@ import { useThemeColor } from "heroui-native";
 import {
   FireSimple,
   Gauge,
+  MapPin,
   GearSix,
   Info,
   Person,
@@ -73,7 +74,6 @@ import {
   askNotificationPermission,
   markNotificationPermissionAsked,
 } from "@/platform/notifications/permission-store";
-import { formatVolume } from "@/session/finish/summary";
 import { ruleInputOf, stallPrescription } from "@/session/store/derive";
 import { blockOf } from "@/session/logging/blocks";
 import { useAccordionScroll } from "@/session/logging/use-accordion-scroll";
@@ -92,7 +92,7 @@ import { SessionEffortSheet } from "@/session/sets/effort-sheet";
 import { OwnershipBanner } from "./ownership-banner";
 import { RestBar } from "@/session/rest/rest-bar";
 import { RestPermissionSheet } from "@/session/notifications/rest-permission-sheet";
-import { LoadLimitsSheet } from "@/gym";
+import { LoadLimitsSheet, SessionGymPicker, useSessionGymLabel } from "@/gym";
 import { SessionHeader } from "./session-header";
 import { ClockSheet } from "@/session/clock/clock-sheet";
 import { firstTickedAt } from "@/session/clock/clock-view";
@@ -191,7 +191,7 @@ const LoadedSession = memo(function LoadedSession({
   onMinimise,
   onFinished,
 }: SessionScreenProps & { store: SessionStore }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const phaseText = usePhaseText();
   const foreground = useThemeColor("foreground");
   const router = useRouter();
@@ -318,8 +318,6 @@ const LoadedSession = memo(function LoadedSession({
 
   const { setUnit, setProgressionRule } = useExerciseActions();
   const unitLabels = useExerciseUnitOptions(unit);
-  const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
-  const volume = `${formatVolume(stats.volume, unit, i18n.language)} ${unitName}`;
   // The banner reads the modifiers the Session started with, not the Program's plan now.
   const views = useSessionStore((state) => state.views);
   const phaseBanner = (() => {
@@ -351,6 +349,8 @@ const LoadedSession = memo(function LoadedSession({
   const [confirmRemove, setConfirmRemove] = useState<SessionExerciseDetail | null>(null);
   const [musclesOpen, setMusclesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [gymPickerOpen, setGymPickerOpen] = useState(false);
+  const { multiple: hasGyms, name: gymName } = useSessionGymLabel(sessionGymId);
   const [clockOpen, setClockOpen] = useState(false);
   const openClock = useCallback(() => {
     closeKeypad();
@@ -824,13 +824,11 @@ const LoadedSession = memo(function LoadedSession({
         animate={animate}
         finished={session.finishedAt !== null}
         onMenu={() => setSessionMenu(true)}
-        sessionId={session.id}
-        gymId={sessionGymId}
+        gymName={gymName}
         title={title}
         startedAt={session.startedAt}
         pausedAt={session.pausedAt}
         pausedMs={session.pausedMs}
-        volume={volume}
         sets={stats.sets}
         readOnly={readOnly}
         onMinimise={onMinimise}
@@ -966,6 +964,17 @@ const LoadedSession = memo(function LoadedSession({
             icon: GearSix,
             onPress: () => setSettingsOpen(true),
           },
+          ...(hasGyms && !readOnly && session.finishedAt === null
+            ? [
+                {
+                  key: "gym",
+                  label: t("gym__menu_item", { gym: gymName ?? t("gym__any") }),
+                  description: t("gym__menu_hint"),
+                  icon: MapPin,
+                  onPress: () => setGymPickerOpen(true),
+                } satisfies SwipeAction,
+              ]
+            : []),
           {
             key: "muscles",
             label: t("session__muscles"),
@@ -984,6 +993,12 @@ const LoadedSession = memo(function LoadedSession({
               ]
             : []),
         ]}
+      />
+      <SessionGymPicker
+        sessionId={session.id}
+        gymId={sessionGymId}
+        isOpen={gymPickerOpen}
+        onOpenChange={setGymPickerOpen}
       />
       <SessionSettingsSheet
         isOpen={settingsOpen}
