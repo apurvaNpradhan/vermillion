@@ -148,7 +148,7 @@ export const features = [
       "Delete your account from Settings.",
     ],
     screenshot: "history",
-    alt: "Training history grouped by week with imported workouts",
+    alt: "Training history with a month calendar of training days and workouts grouped by week",
   },
 ];
 
@@ -191,5 +191,9 @@ export const screenshots = [
     alt: "An exercise's progress chart and personal records",
     caption: "An exercise",
   },
-  { src: "/screenshots/history.webp", alt: "Training history grouped by week", caption: "History" },
+  {
+    src: "/screenshots/history.webp",
+    alt: "Training history with a month calendar and workouts grouped by week",
+    caption: "History",
+  },
 ];
