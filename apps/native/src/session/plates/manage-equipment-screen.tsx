@@ -111,11 +111,11 @@ export function ManageEquipmentScreen({ gymId }: { gymId?: string }) {
                       ]}
                     >
                       {(a11y) => (
-                        <View className="flex-row items-center gap-3 bg-surface px-4 py-3">
+                        <View className="flex-row items-center gap-3 bg-surface px-4">
                           {/* The swipe's actions go on the focusable node: TalkBack ignores them on a plain wrapper. */}
                           <Pressable
                             {...a11y}
-                            className="flex-1 rounded-lg active:bg-default"
+                            className="min-h-11 flex-1 justify-center rounded-lg py-3 active:bg-default"
                             accessibilityRole="button"
                             accessibilityLabel={t("plates__edit_item", { name: label(item) })}
                             onPress={() => openForm(item.kind, item.unit, item)}
