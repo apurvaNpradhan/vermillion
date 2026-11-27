@@ -11,10 +11,11 @@ import { describe, expect, it } from "vitest";
 
 import { addSessionExercises, addSet, tickSet, updateSet } from "./session-content-store";
 import { setupSessions, SQUAT, PLANK, pushWorkout, type Sessions } from "./session-fixtures";
-import { finishSession, startRest, startSession } from "./session-store";
+import { discardSession, finishSession, startRest, startSession } from "./session-store";
 import {
   ACTIVE_SESSIONS_SQL,
   EQUIPMENT_SQL,
+  FINISHED_OF_WORKOUT_SQL,
   EXERCISE_HISTORY_SQL,
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
@@ -30,6 +31,7 @@ import {
   parseActiveSessions,
   parseEquipment,
   parseExerciseHistories,
+  parseFinishedOfWorkout,
   parseFinishedSessions,
   parseSessionDetail,
 } from "./session-watch";
@@ -72,6 +74,61 @@ it.each(["top", "backoff", "myo"] as const)(
     expect(detail?.exercises[0]?.sets[0]).toMatchObject({ kind, rpe: 8, weightKg: 100, reps: 5 });
   },
 );
+
+describe("finished Sessions of a Workout", () => {
+  it("lists only that Workout's finished Sessions, latest first", async () => {
+    const s = await setupSessions();
+    const plan = await pushWorkout(s);
+    const day = daysAgo(2).slice(0, 10);
+    const first = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+    await finishSession(s.training, first, {
+      startedAt: `${day}T08:00:00Z`,
+      finishedAt: `${day}T09:00:00Z`,
+    });
+    const second = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+    await finishSession(s.training, second, {
+      startedAt: `${day}T17:00:00Z`,
+      finishedAt: `${day}T18:00:00Z`,
+    });
+    // Simulate the timestamp format of a finished Session received from PowerSync.
+    s.sqlite
+      .prepare("UPDATE training_session SET finished_at = ? WHERE id = ?")
+      .run(`${day} 18:00:00+00:00`, second);
+    await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+    await finishedSquat(s, daysAgo(3), [100]);
+    const deleted = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+    await finishSession(s.training, deleted, {
+      finishedAt: `${day}T19:00:00Z`,
+      startedAt: `${day}T18:30:00Z`,
+    });
+    await discardSession(s.training, deleted);
+    const foreign = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+    await finishSession(s.training, foreign, {
+      finishedAt: `${day}T20:00:00Z`,
+      startedAt: `${day}T19:30:00Z`,
+    });
+    s.sqlite
+      .prepare("UPDATE training_session SET user_id = ? WHERE id = ?")
+      .run("other-user", foreign);
+    const future = await startSession(s.training, { workoutId: plan.workoutId, derivedTitle });
+    await finishSession(s.training, future, {
+      finishedAt: `${day}T22:00:00Z`,
+      startedAt: `${day}T21:30:00Z`,
+    });
+    s.sqlite.prepare("UPDATE workout SET title = ? WHERE id = ?").run("Renamed", plan.workoutId);
+
+    const rows = parseFinishedOfWorkout(
+      s.sqlite.prepare(FINISHED_OF_WORKOUT_SQL).all(plan.workoutId, `${day}T21:00:00Z`),
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows.every((row) => row.workout_id === plan.workoutId)).toBe(true);
+    expect(rows[0]?.title).toBe("Renamed");
+    expect(rows[0]?.finished_at).toBe(`${day}T18:00:00.000Z`);
+    expect(Date.parse(rows[0]?.finished_at ?? "")).toBeGreaterThan(
+      Date.parse(rows[1]?.finished_at ?? ""),
+    );
+  });
+});
 
 describe("active Sessions", () => {
   it("lists every unfinished Session, newest first, with its counts and last tick", async () => {
@@ -529,6 +586,24 @@ describe("the History reader", () => {
     const reader = createFinishedHistoryReader({ from: daysAgo(20), to: daysAgo(0) });
     expect((await reader.refresh(read))?.map((row) => row.id)).toEqual([recent]);
   });
+
+  it("refreshes cached history after a Session's gym or phase changes", async () => {
+    const s = await setupSessions();
+    try {
+      const id = await finishedSquat(s, daysAgo(3), [100]);
+      const { read } = readerOf(s);
+      const reader = createFinishedHistoryReader();
+      await reader.refresh(read);
+
+      s.sqlite.prepare("UPDATE training_session SET gym_id = 'gym' WHERE id = ?").run(id);
+      expect((await reader.refresh(read))?.[0]?.gymId).toBe("gym");
+
+      s.sqlite.prepare("UPDATE training_session SET phase = 'deload' WHERE id = ?").run(id);
+      expect((await reader.refresh(read))?.[0]?.phase).toBe("deload");
+    } finally {
+      s.sqlite.close();
+    }
+  });
 });
 
 describe("per-Session set counts", () => {
@@ -587,7 +662,7 @@ describe("gym equipment", () => {
       { kind: "plate", weight_kg: 20, unit: "kg", label: null, count: 2, enabled: true },
     ] as const;
     await upsertEquipment(s.training, kit);
-    const items = parseEquipment(s.sqlite.prepare(EQUIPMENT_SQL).all());
+    const items = parseEquipment(s.sqlite.prepare(EQUIPMENT_SQL).all("", "1"));
     expect(items.map((item) => [item.kind, item.weightKg])).toEqual([
       ["bar", 20],
       ["bar", 15],
@@ -669,14 +744,16 @@ describe("Session detail queries", () => {
       WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS auto_warmups,
     (SELECT note FROM exercise_setting
       WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS pinned_note,
+    (SELECT unit FROM exercise_setting
+      WHERE exercise_id = se.exercise_id ORDER BY id LIMIT 1) AS unit,
     (SELECT se2.note FROM session_exercise se2
       JOIN training_session s2 ON s2.id = se2.session_id
       WHERE se2.exercise_id = se.exercise_id AND s2.id != s.id AND s2.finished_at IS NOT NULL
         AND s2.started_at < s.started_at
       ORDER BY s2.started_at DESC, s2.id DESC LIMIT 1) AS last_note`;
-  const COLUMNS = ["progression_per_set", "bar_id", "auto_warmups", "pinned_note"] as const;
+  const COLUMNS = ["progression_per_set", "bar_id", "auto_warmups", "pinned_note", "unit"] as const;
 
-  it("updates a running Session when its earlier finished exercise note is edited", async () => {
+  it("shows edited last notes and keeps the Session usable when a note is unreadable", async () => {
     const s = await setupSessions();
     const earlier = await finishedSquat(s, daysAgo(3), [100]);
     const active = await startSession(s.training, { workoutId: null, derivedTitle });
@@ -698,8 +775,15 @@ describe("Session detail queries", () => {
         [null, null],
         ["Belt on", "Belt on"],
       ]);
+
+      s.sqlite
+        .prepare("UPDATE session_exercise SET note = X'00' WHERE session_id = ?")
+        .run(earlier);
+      s.notifyTable("session_exercise");
+      expect(notes.at(-1)).toEqual([null, null]);
     } finally {
       stop();
+      s.sqlite.close();
     }
   });
 
@@ -714,6 +798,7 @@ describe("Session detail queries", () => {
       note: "Heels down",
       progression_per_set: true,
       auto_warmups: true,
+      unit: "lb",
     });
     // The local replica can briefly hold duplicate settings, for example after offline writes.
     s.sqlite
@@ -726,7 +811,7 @@ describe("Session detail queries", () => {
       const legacy = s.sqlite
         .prepare(
           SESSION_DETAIL_SQL.replace(
-            /es\.progression_per_set AS progression_per_set,[\s\S]*?es\.note AS pinned_note,/,
+            /es\.progression_per_set AS progression_per_set,[\s\S]*?es\.unit AS unit,/,
             `${LEGACY_COLUMNS},`,
           )
             .replace(/WITH first_setting AS \([\s\S]*?\)\n  SELECT/, "SELECT")

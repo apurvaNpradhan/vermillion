@@ -28,6 +28,8 @@ const workout: WorkoutDetail = {
   programId: null,
   title: "Push",
   note: null,
+  coverMediaId: null,
+  mainEntryId: null,
   exercises: [entry("a")],
 };
 

@@ -5,9 +5,15 @@ import { useTranslation } from "@/platform/i18n";
 import { useToday } from "@/platform/use-today";
 import { Button } from "@/platform/ui/button";
 import { FadeIn } from "@/platform/ui/fade-in";
-import { useActiveSessions, usePreviousSets, useStartSession } from "@/session";
+import { openSessionOf, useActiveSessions, usePreviousSets, useStartSession } from "@/session";
 import { usePreferences } from "@/preferences";
-import { calendarDay, historyForWorkout, sessionGoal } from "@workspace/shared";
+import {
+  calendarDay,
+  historyForWorkout,
+  sessionGoal,
+  resolveExerciseUnit,
+  workoutNumber,
+} from "@workspace/shared";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { homeWeek, lastWorkoutSession, sessionMinutes, weekSummary } from "./home-stats";
@@ -31,7 +37,7 @@ import { ANCHORED } from "@/platform/navigation/anchored";
 export function TrainingHome() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const { start, sheet } = useStartSession();
+  const { start, startSlot, sheet } = useStartSession({ resumeSameWorkout: true });
   const [weeksAgo, setWeeksAgo] = useState(0);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [direction, setDirection] = useState<-1 | 0 | 1>(0);
@@ -80,30 +86,26 @@ export function TrainingHome() {
   if (loading) return null;
 
   const resume = active.sessions[0];
+  const openOfCard = openSessionOf(active.sessions, workoutId);
 
   // ---- Next workout ----
   const slots = programState.program?.slots ?? [];
-  const nextIndex = next ? slots.findIndex((slot) => slot.id === next.id) : -1;
   const exercises = workout.status === "ready" ? workout.workout.exercises : [];
-  const hasWorkout = resume !== undefined || (workoutId !== null && workout.status === "ready");
-  const title = resume?.title ?? (next ? slotTitle(next, t) : (recent?.title ?? null));
-  const meta = resume
-    ? t("home__in_progress")
-    : exercises.length === 0
+  const hasWorkout = workoutId !== null && workout.status === "ready";
+  const title = next ? slotTitle(next, t) : (recent?.title ?? null);
+  const meta =
+    exercises.length === 0
       ? t("training__workout_empty_meta")
       : t("training__workout_meta", {
           count: exercises.length,
           minutes: estimateMinutes(exercises),
         });
-  const eyebrow = resume
-    ? null
-    : next
-      ? t(programState.program?.plannedWeeks ? "home__position_of" : "home__position", {
-          week: programState.week,
-          total: programState.program?.plannedWeeks,
-          day: nextIndex + 1,
-        })
-      : t("home__next_workout");
+  const eyebrow = next
+    ? t("run__progress", {
+        week: programState.week,
+        workout: workoutNumber(slots, next.id),
+      })
+    : t("home__next_workout");
   const heroExercises: NextWorkoutExercise[] =
     workout.status === "ready"
       ? workout.workout.exercises.flatMap((entry) => {
@@ -119,7 +121,13 @@ export function TrainingHome() {
             {
               id: entry.id,
               title: entry.exercise.title,
-              lastTopSet: top ? topSetText(top, entry.exercise.exerciseType) : null,
+              lastTopSet: top
+                ? topSetText(
+                    top,
+                    entry.exercise.exerciseType,
+                    resolveExerciseUnit(unit, entry.unit),
+                  )
+                : null,
             },
           ];
         })
@@ -168,6 +176,30 @@ export function TrainingHome() {
           setSelectedDay(null);
         }}
       />
+      {resume !== undefined && !hasWorkout ? null : (
+        <NextWorkoutCard
+          eyebrow={eyebrow}
+          title={hasWorkout ? title : null}
+          meta={meta}
+          exercises={heroExercises}
+          lastDuration={lastDuration}
+          workoutOpen={resume !== undefined}
+          resuming={openOfCard !== undefined}
+          resumesRun={resume === undefined && programState.paused && Boolean(next?.workoutId)}
+          onStart={() =>
+            openOfCard
+              ? router.push({ pathname: "/session/[id]", params: { id: openOfCard.id } })
+              : next?.workoutId && programState.run
+                ? void startSlot(next.workoutId, {
+                    runId: programState.run.id,
+                    slotId: next.id,
+                    cycle: programState.progress.cycle,
+                  })
+                : void start(workoutId)
+          }
+          onStartEmpty={() => void start(null)}
+        />
+      )}
       {viewingPast ? (
         <View className="gap-3 rounded-2xl bg-surface p-4">
           <Text className="font-semibold text-title-md text-foreground">
@@ -193,24 +225,9 @@ export function TrainingHome() {
             ))
           )}
         </View>
-      ) : (
-        <NextWorkoutCard
-          eyebrow={eyebrow}
-          title={hasWorkout ? title : null}
-          meta={meta}
-          exercises={heroExercises}
-          lastDuration={lastDuration}
-          resuming={resume !== undefined}
-          onStart={() =>
-            resume
-              ? router.push({ pathname: "/session/[id]", params: { id: resume.id } })
-              : void start(workoutId)
-          }
-          onStartEmpty={() => void start(null)}
-        />
-      )}
+      ) : null}
       <ThisWeekRow current={summary.current} previous={summary.previous} goal={goal} unit={unit} />
-      <TrainingNudges state={state} />
+      <TrainingNudges state={state} program={programState} />
       {hasWeight ? <WeightTrendCard weight={weight} /> : null}
       {sheet}
     </FadeIn>

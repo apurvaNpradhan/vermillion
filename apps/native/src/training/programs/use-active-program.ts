@@ -1,18 +1,23 @@
-import { activeRun, cycleState, runWeek } from "@workspace/shared";
+import { activeRun, cycleState, phaseFor, runPausedAt, runWeek } from "@workspace/shared";
 import {
   activateProgram,
   finishRun,
   keepGoing,
   runAgain,
+  skipSlot,
   stopProgram,
+  setRunPaused,
+  unskipSlot,
   watchRunState,
 } from "@workspace/sync";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { RunSlot } from "@workspace/shared";
+import { useAppToast } from "@/platform/ui/use-app-toast";
 import { useTranslation } from "@/platform/i18n";
 import { useLocalWatch } from "@/platform/local-watch/use-local-watch";
 import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
-import { useProgram } from "./use-program";
-import { useTrainingWrite } from "@/training/shared/use-training-write";
+import { useProgram } from "@/platform/training/use-program";
+import { UNDO_MS, useTrainingWrite } from "@/training/shared/use-training-write";
 
 /**
  * The active Run and what changes it: one local watch, no Program detail. Lists that only mark
@@ -22,12 +27,9 @@ export function useActiveRun() {
   const { t } = useTranslation();
   const [pendingProgramId, setPendingProgramId] = useState<string | null>(null);
   const { write, writeScope } = useTrainingWrite();
-  const subscribe = useCallback(
-    (...args: Parameters<typeof watchRunState>) => watchRunState(...args),
-    [],
-  );
-  const state = useLocalWatch(subscribe);
-  const run = activeRun(state.value?.runs ?? []);
+  const state = useLocalWatch(watchRunState);
+  const runs = state.value?.runs;
+  const run = useMemo(() => activeRun(runs ?? []), [runs]);
   const runId = run?.id ?? null;
   const runProgramId = run?.program_id ?? null;
   const activate = useCallback(
@@ -42,8 +44,16 @@ export function useActiveRun() {
     () => (runId ? write((db) => stopProgram(db, runId, writeScope), undefined) : undefined),
     [runId, write, writeScope],
   );
+  const paused = runPausedAt(run?.pauses ?? [], new Date());
+  const changePause = useCallback(
+    (next: boolean) =>
+      runId ? write((db) => setRunPaused(db, runId, next, writeScope), false) : undefined,
+    [runId, write, writeScope],
+  );
   return {
     run,
+    paused,
+    changePause,
     runs: state,
     runProgramId,
     loading: state.loading,
@@ -66,27 +76,109 @@ export function useActiveRun() {
   };
 }
 
+/** The Cycle state of `slots` for the Run `runId`, from what `useActiveRun` watched. */
+export function runProgress(
+  runs: ReturnType<typeof useActiveRun>["runs"],
+  runId: string | null,
+  slots: readonly { id: string; workoutId: string | null }[],
+) {
+  const value = runs.value;
+  return value?.runId === runId
+    ? cycleState(slots, value.sessions, value.skips)
+    : cycleState(slots, []);
+}
+
 export function useActiveProgram() {
+  const { t } = useTranslation();
   const { write, writeScope } = useTrainingWrite();
+  const { toast } = useAppToast();
   const timeZone = useDeviceTimeZone();
-  const { run, runs, runProgramId, loading, activate, stop, confirmationProps } = useActiveRun();
+  const {
+    run,
+    runs,
+    runProgramId,
+    loading,
+    activate,
+    stop,
+    paused,
+    changePause,
+    confirmationProps,
+  } = useActiveRun();
   const detail = useProgram(run?.program_id ?? "");
   const program = detail.status === "ready" ? detail.program : null;
-  const sessions = runs.value?.sessions.flatMap((s) => (s.runId === run?.id ? [s] : [])) ?? [];
-  const progress = cycleState(program?.slots ?? [], sessions);
-  const week = runWeek(run?.started_at ?? null, new Date(), timeZone);
+  const runId = run?.id ?? null;
+  const progress = useMemo(
+    () => runProgress(runs, runId, program?.slots ?? []),
+    [runs, runId, program?.slots],
+  );
+  const undoOffer = useRef<{ id: string; day: RunSlot } | null>(null);
+  const canUndo = useCallback(
+    (day: RunSlot) => day.runId !== runId || day.cycle >= progress.latestCountedCycle,
+    [runId, progress.latestCountedCycle],
+  );
+  const latestCanUndo = useRef(canUndo);
+  useEffect(() => {
+    latestCanUndo.current = canUndo;
+    const offer = undoOffer.current;
+    if (offer && !canUndo(offer.day)) toast.hide(offer.id);
+  }, [canUndo, toast]);
+  const unskip = useCallback(
+    (day: RunSlot) =>
+      latestCanUndo.current(day) ? write((db) => unskipSlot(db, day, writeScope), false) : false,
+    [write, writeScope],
+  );
+  const skip = useCallback(
+    async (day: RunSlot, title: string) => {
+      const id = await write((db) => skipSlot(db, day, writeScope), null);
+      if (id === null) return;
+      const label = t("run__skipped_toast", { title });
+      if (!latestCanUndo.current(day)) {
+        toast.show({ label });
+        return;
+      }
+      const toastId = toast.show({
+        label,
+        actionLabel: t("common__undo"),
+        duration: UNDO_MS,
+        onActionPress: ({ hide }) => {
+          hide();
+          // A press on an offered action still applies if a later Cycle just synced.
+          void write((db) => unskipSlot(db, day, writeScope), false);
+        },
+        onHide: () => {
+          if (undoOffer.current?.day === day) undoOffer.current = null;
+        },
+      });
+      if (toastId !== null) undoOffer.current = { id: toastId, day };
+    },
+    [write, writeScope, t, toast],
+  );
+  const now = new Date();
+  const week = runWeek(run?.started_at ?? null, now, timeZone, run?.pauses);
+  // The phase of this Run week, from the Program's pattern and the Deload weeks inserted into the Run.
+  const phase = phaseFor(program?.phasePlan ?? null, run, now, timeZone, runs.value?.phaseStarts);
+  /** Weeks to show as the Run's length: inserted Deloads replace planned weeks. */
+  const totalWeeks = program?.plannedWeeks ?? null;
   return {
     run,
     runProgramId,
     program,
     progress,
     week,
+    totalWeeks,
+    phase,
+    /** The counted Sessions of the Run with their phases, newest first. */
+    sessionPhases: runs.value?.phaseHistory,
+    paused,
+    changePause,
     loading,
     // The Run is known and, if there is one, so is its Program: the card can draw at once.
     ready: !loading && (run === null || detail.status !== "loading"),
     activate,
     stop,
     confirmationProps,
+    unskip,
+    skip,
     finish: () => run && write((db) => finishRun(db, run.id, writeScope), undefined),
     keep: () => run && write((db) => keepGoing(db, run.id, writeScope), undefined),
     again: () => run && write((db) => runAgain(db, run.id, run.program_id, writeScope), null),

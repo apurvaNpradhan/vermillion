@@ -1,3 +1,10 @@
+import {
+  MAX_WEIGHT_KG,
+  formatWeight,
+  parseWeight,
+  resolveExerciseUnit,
+  type WeightUnit,
+} from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,6 +13,8 @@ import {
   displayOfText,
   durationFromDigits,
   stepOf,
+  stepDoesNothing,
+  stepLabel,
   stepValue,
   textOfValue,
   valueOfText,
@@ -92,12 +101,14 @@ describe("what a cell shows while typing", () => {
 });
 
 describe("steps", () => {
-  it("steps by the equipment's smallest step: 2.5 kg / 5 lb on a barbell, 1 kg / 2.5 lb on a machine", () => {
+  it("uses loadable defaults for barbells, stacks and kettlebells", () => {
     expect(stepOf("weight", { unit: "kg", equipment: "barbell", incrementKg: null })).toBe(2.5);
     expect(stepOf("weight", { unit: "lb", equipment: "barbell", incrementKg: null })).toBe(5);
-    expect(stepOf("weight", { unit: "kg", equipment: "machine", incrementKg: null })).toBe(1);
+    expect(stepOf("weight", { unit: "kg", equipment: "machine", incrementKg: null })).toBe(2.5);
+    expect(stepOf("weight", { unit: "lb", equipment: "machine", incrementKg: null })).toBe(5);
     expect(stepOf("weight", { unit: "lb", equipment: null, incrementKg: null })).toBe(2.5);
-    expect(stepOf("weight", { unit: "kg", equipment: "kettlebell", incrementKg: null })).toBe(2);
+    expect(stepOf("weight", { unit: "kg", equipment: "kettlebell", incrementKg: null })).toBe(4);
+    expect(stepOf("weight", { unit: "lb", equipment: "kettlebell", incrementKg: null })).toBe(10);
     expect(stepOf("reps", { unit: "kg", equipment: "barbell", incrementKg: null })).toBe(1);
   });
 
@@ -118,7 +129,7 @@ describe("steps", () => {
     expect(stepValue("weight", 101, null, 1, bar)).toBe(102.5);
     expect(
       stepValue("weight", 20, null, 1, { unit: "kg", equipment: "machine", incrementKg: null }),
-    ).toBe(21);
+    ).toBe(22.5);
   });
 
   it("steps pounds in pounds and stores kilograms", () => {
@@ -129,6 +140,31 @@ describe("steps", () => {
       incrementKg: null,
     });
     expect(next / 0.45359237).toBeCloseTo(140, 2);
+  });
+
+  it.each<[WeightUnit, WeightUnit, string, string, string, string, string]>([
+    ["kg", "lb", "25", "30", "22.5", "2.5", "5"],
+    ["lb", "kg", "10", "12.5", "9", "1", "2.5"],
+  ])(
+    "uses the %s user's %s override at the dumbbell rack boundary",
+    (preferred, override, start, up, down, minus, plus) => {
+      const unit = resolveExerciseUnit(preferred, override);
+      const current = parseWeight(start, unit);
+      const context = { unit, equipment: "dumbbell", incrementKg: null } as const;
+      expect(formatWeight(stepValue("weight", current, null, 1, context), unit)).toBe(up);
+      expect(formatWeight(stepValue("weight", current, null, -1, context), unit)).toBe(down);
+      expect(stepLabel("weight", current, null, -1, context)).toBe(minus);
+      expect(stepLabel("weight", current, null, 1, context)).toBe(plus);
+    },
+  );
+
+  it("labels a step that cannot move the value as one to switch off", () => {
+    const bar = { unit: "kg", equipment: "barbell", incrementKg: null } as const;
+    const label = stepLabel("weight", MAX_WEIGHT_KG, null, 1, bar);
+    expect(label).toBe("0");
+    expect(stepDoesNothing(label)).toBe(true);
+    expect(stepDoesNothing(stepLabel("weight", 100, null, 1, bar))).toBe(false);
+    expect(stepDoesNothing("")).toBe(false);
   });
 
   it("keeps reps, duration and the rest in their ranges", () => {
@@ -142,4 +178,14 @@ describe("steps", () => {
     expect(stepValue("distance", 100, null, 1, any)).toBe(110);
     expect(stepValue("distance", 5, null, -1, any)).toBe(0);
   });
+});
+
+it.each([
+  { unit: "kg", lightest: "1" },
+  { unit: "lb", lightest: "2.5" },
+] as const)("can step down to zero from the lightest $unit dumbbell", ({ unit, lightest }) => {
+  const current = parseWeight(lightest, unit);
+  expect(
+    stepValue("weight", current, null, -1, { unit, equipment: "dumbbell", incrementKg: null }),
+  ).toBe(0);
 });

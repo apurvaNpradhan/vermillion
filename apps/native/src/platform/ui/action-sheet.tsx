@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { useSheetAnimation } from "./sheet-motion";
 import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheet } from "heroui-native";
@@ -16,11 +17,14 @@ const CLOSE_MS = 200;
  */
 function ActionSheetBody({
   title,
+  description,
   actions,
   isOpen,
   onOpenChange,
 }: {
   title: string;
+  /** A line under the title: what the sheet is about. */
+  description?: string;
   actions: SwipeAction[];
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -28,13 +32,18 @@ function ActionSheetBody({
   const animation = useSheetAnimation();
   return (
     <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent>
-          <View className="px-4">
+          <View className="gap-1 px-4">
             <BottomSheet.Title numberOfLines={1} className="font-semibold text-title-lg">
               {title}
             </BottomSheet.Title>
+            {description ? (
+              <BottomSheet.Description className="font-normal text-body text-muted">
+                {description}
+              </BottomSheet.Description>
+            ) : null}
           </View>
           <ListSection>
             {actions.map((action) => (
@@ -42,6 +51,7 @@ function ActionSheetBody({
                 key={action.key}
                 icon={action.icon}
                 title={action.label}
+                {...(action.description ? { description: action.description } : {})}
                 tone={action.tone}
                 accessory="none"
                 onPress={() => {
@@ -58,7 +68,7 @@ function ActionSheetBody({
             ))}
           </ListSection>
         </ScrollableSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

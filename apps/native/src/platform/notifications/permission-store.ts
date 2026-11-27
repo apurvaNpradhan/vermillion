@@ -32,9 +32,11 @@ export const notificationPermissionAsked = () => deviceStorage.get(ASKED_KEY) ==
 export const markNotificationPermissionAsked = () => deviceStorage.set(ASKED_KEY, "1");
 
 /** Shows the system dialog (once the user agreed to our explanation) and remembers the answer. */
-export async function askNotificationPermission(): Promise<void> {
+export async function askNotificationPermission(): Promise<NotificationPermission> {
   markNotificationPermissionAsked();
-  set(await requestNotificationPermission());
+  const permission = await requestNotificationPermission();
+  set(permission);
+  return permission;
 }
 
 /** The permission, shared by every screen that reads it. */

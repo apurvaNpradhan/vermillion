@@ -28,3 +28,15 @@ export function createToastGate() {
     },
   };
 }
+
+/** How long a toast with an action (Undo) stays up: long enough to read it and reach the button. */
+export const ACTION_TOAST_MS = 5000;
+
+/** Give actionable toasts at least the time it takes to read and reach the action. */
+export function toastDuration(config: {
+  actionLabel?: string;
+  duration?: number | "persistent";
+}): number | "persistent" | undefined {
+  if (config.actionLabel === undefined || config.duration === "persistent") return config.duration;
+  return Math.max(config.duration ?? 0, ACTION_TOAST_MS);
+}

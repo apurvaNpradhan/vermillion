@@ -87,3 +87,30 @@ export function watchLatestByMetric(db: AbstractPowerSyncDatabase, handlers: Han
 export function watchWeighInDays(db: AbstractPowerSyncDatabase, from: string, handlers: Handlers) {
   return watchMetric(db, "weight", handlers, from);
 }
+
+/** Average of all measurements on the latest day through each requested day, or the first day. */
+export async function readBodyweightsOnDates(
+  db: AbstractPowerSyncDatabase,
+  dates: readonly string[],
+): Promise<ReadonlyMap<string, number>> {
+  if (dates.length === 0) return new Map();
+  const rows = await db.getAll(
+    `WITH days AS (
+      SELECT date.value AS day, COALESCE(
+        (SELECT MAX(local_date) FROM body_measurement WHERE metric = 'weight' AND local_date <= date.value),
+        (SELECT MIN(local_date) FROM body_measurement WHERE metric = 'weight')
+      ) AS measured_day
+      FROM json_each(?) AS date
+    )
+    SELECT days.day, AVG(m.value) AS kg
+    FROM days JOIN body_measurement m ON m.metric = 'weight' AND m.local_date = days.measured_day
+    GROUP BY days.day LIMIT ?`,
+    [JSON.stringify(dates), dates.length],
+  );
+  return new Map(
+    z
+      .array(z.object({ day: z.string(), kg: z.number() }))
+      .parse(rows)
+      .map(({ day, kg }) => [day, kg]),
+  );
+}

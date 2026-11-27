@@ -1,4 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 import { Text } from "react-native";
@@ -55,7 +56,7 @@ function HeightSheet({ onClose }: { onClose: () => void }) {
         if (!open && !isSaving) onClose();
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
           animationConfigs={SHEET_SPRING}
@@ -109,7 +110,7 @@ function HeightSheet({ onClose }: { onClose: () => void }) {
             onDone={() => void form.handleSubmit()}
           />
         </BottomSheet.Content>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

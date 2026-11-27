@@ -9,8 +9,6 @@ import {
 import { appConfig } from "@/platform/app-config";
 import { ANCHORED } from "@/platform/navigation/anchored";
 
-const SITE_HOST = new URL(appConfig.urls.site).host;
-
 /** Protected stacks discard signed-out routes; keep the incoming destination until login and onboarding complete. */
 export function useAuthReturn(signedIn: boolean, appReady: boolean) {
   const router = useRouter();
@@ -20,9 +18,7 @@ export function useAuthReturn(signedIn: boolean, appReady: boolean) {
     void getInitialURL()
       .then((url) => {
         if (active)
-          setPending((current) =>
-            captureNativeReturnLocation(current, url, appConfig.scheme, SITE_HOST),
-          );
+          setPending((current) => captureNativeReturnLocation(current, url, appConfig.scheme));
       })
       .catch(() => undefined);
     return () => {
@@ -33,9 +29,7 @@ export function useAuthReturn(signedIn: boolean, appReady: boolean) {
     // Subscribe to events, not URL-string changes: the same link can be opened again after sign-out.
     const subscription = addEventListener("url", ({ url }) => {
       if (!signedIn)
-        setPending((current) =>
-          captureNativeReturnLocation(current, url, appConfig.scheme, SITE_HOST),
-        );
+        setPending((current) => captureNativeReturnLocation(current, url, appConfig.scheme));
     });
     return () => subscription.remove();
   }, [signedIn]);

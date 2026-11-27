@@ -6,10 +6,12 @@ import {
 } from "@workspace/sync";
 import { useTrainingWrite } from "@/training";
 import { useTranslation } from "@/platform/i18n";
+import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 
 export function useFinishSession() {
   const { write, writeScope } = useTrainingWrite();
   const { t } = useTranslation();
+  const timeZone = useDeviceTimeZone();
   return {
     edit: (id: string, input: FinishInput) =>
       write((db) => editFinishedSession(db, id, input, writeScope), false),
@@ -20,7 +22,7 @@ export function useFinishSession() {
         (db) =>
           logPastSession(
             db,
-            { workoutId, derivedTitle: t("session__past_title") },
+            { workoutId, derivedTitle: t("session__past_title"), timeZone },
             { startedAt },
             writeScope,
           ),

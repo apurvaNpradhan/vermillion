@@ -1,4 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import type { UiPreferences } from "@workspace/shared";
 import { BottomSheet, useThemeColor } from "heroui-native";
 import { Bell, Minus, Plus } from "phosphor-react-native";
@@ -11,8 +12,10 @@ import { ListRow } from "@/platform/ui/list";
 import { OptionSheet } from "@/platform/ui/option-sheet";
 import { useSheetPresent } from "@/platform/ui/use-sheet-present";
 import { usePreferences } from "@/preferences";
-import { getNotificationPermission } from "@/platform/notifications/permission";
-import { askNotificationPermission } from "@/platform/notifications/permission-store";
+import {
+  askNotificationPermission,
+  useNotificationPermission,
+} from "@/platform/notifications/permission-store";
 
 type ReminderKey = "weighInReminder" | "checkInReminder";
 function ReminderEditor({
@@ -33,7 +36,7 @@ function ReminderEditor({
   const setDraft = (value: typeof initial) => form.setFieldValue("reminder", value);
   const [weekdayOpen, setWeekdayOpen] = useState(false);
   const [explain, setExplain] = useState(false);
-  const [denied, setDenied] = useState(false);
+  const permission = useNotificationPermission();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const [hour = "08", minute = "00"] = draft.time.split(":");
@@ -43,16 +46,9 @@ function ReminderEditor({
       new Date(Date.UTC(2026, 10, 15 + index)),
     ),
   }));
-  const enable = async () => {
-    setBusy(true);
-    try {
-      const permission = await getNotificationPermission();
-      if (permission === "granted") setDraft({ ...draft, enabled: true });
-      else if (permission === "denied") setDenied(true);
-      else setExplain(true);
-    } finally {
-      setBusy(false);
-    }
+  const enable = () => {
+    if (permission === "granted") setDraft({ ...draft, enabled: true });
+    else if (permission === "undetermined") setExplain(true);
   };
   const save = async () => {
     setBusy(true);
@@ -78,7 +74,7 @@ function ReminderEditor({
           if (!open && !busy) onClose();
         }}
       >
-        <BottomSheet.Portal>
+        <SheetPortal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
             animationConfigs={SHEET_SPRING}
@@ -103,10 +99,8 @@ function ReminderEditor({
                   onPress={() => {
                     setBusy(true);
                     void askNotificationPermission()
-                      .then(getNotificationPermission)
                       .then((permission) => {
                         setDraft({ ...draft, enabled: permission === "granted" });
-                        setDenied(permission !== "granted");
                         setExplain(false);
                       })
                       .finally(() => setBusy(false));
@@ -122,14 +116,20 @@ function ReminderEditor({
               <>
                 <ListRow
                   title={t("body__reminder_enabled")}
-                  value={t(draft.enabled ? "session__setting_on" : "session__setting_off")}
+                  value={t(
+                    draft.enabled && permission === "granted"
+                      ? "session__setting_on"
+                      : draft.enabled || permission === "denied"
+                        ? "session__setting_denied"
+                        : "session__setting_off",
+                  )}
                   disabled={busy}
                   onPress={() => {
                     if (draft.enabled) setDraft({ ...draft, enabled: false });
-                    else void enable();
+                    else enable();
                   }}
                 />
-                {denied ? (
+                {permission === "denied" || (draft.enabled && permission === "undetermined") ? (
                   <Button variant="secondary" onPress={() => void Linking.openSettings()}>
                     <Button.Label>{t("body__reminder_open_settings")}</Button.Label>
                   </Button>
@@ -219,7 +219,7 @@ function ReminderEditor({
               </>
             )}
           </BottomSheet.Content>
-        </BottomSheet.Portal>
+        </SheetPortal>
       </BottomSheet>
       {kind === "checkInReminder" && sheet.isOpen ? (
         <OptionSheet
@@ -240,12 +240,14 @@ function ReminderEditor({
  */
 export function useBodyReminderRows() {
   const { preferences, isLoading } = usePreferences();
+  const permission = useNotificationPermission();
   const { t, i18n } = useTranslation();
   const [editing, setEditing] = useState<ReminderKey | null>(null);
   const ui = preferences.ui;
   const label = (kind: ReminderKey) => {
     const reminder = ui[kind];
     if (!reminder.enabled) return t("session__setting_off");
+    if (permission !== "granted") return t("session__setting_denied");
     const [hour = 0, minute = 0] = reminder.time.split(":").map(Number);
     const date = new Date(2026, 10, 15, hour, minute);
     const time = new Intl.DateTimeFormat(i18n.language, {

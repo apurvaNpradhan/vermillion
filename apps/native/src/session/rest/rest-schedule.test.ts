@@ -26,6 +26,13 @@ describe("planRestSchedule", () => {
     });
   });
 
+  it("replaces a pending notification on the first app launch after an upgrade", () => {
+    const held = [restNotificationId("s1")];
+    expect(plan([session()], held).schedule).toEqual([
+      { sessionId: "s1", title: "Push", endsAt: Date.parse(soon) },
+    ]);
+  });
+
   it("leaves a notification alone that is already scheduled for the stored end", () => {
     const held = [restNotificationId("s1")];
     expect(plan([session()], held, [["s1", Date.parse(soon)]])).toEqual({

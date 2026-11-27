@@ -1,6 +1,10 @@
 import {
   SET_FIELDS,
+  MAX_WEIGHT_KG,
   activeLighterWeek,
+  progresses,
+  resolveExerciseUnit,
+  snapshotModifiers,
   type PreviousSource,
   type EffortScale,
   type ExerciseBests,
@@ -9,11 +13,12 @@ import {
   type SetField,
   type LighterPeriod,
   type WeightUnit,
+  incrementInUnit,
 } from "@workspace/shared";
 import type { SessionExerciseDetail, SetPatch } from "@workspace/sync";
 import { useIsFocused } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { AppState } from "react-native";
+import { AppState, Keyboard } from "react-native";
 import { useStore } from "zustand";
 
 import { stallMemory, useStallVersion } from "@/exercise";
@@ -27,30 +32,43 @@ import { useSoundCues } from "@/session/settings/use-sound-cues";
 import { useStableHandler } from "@/session/shared/use-stable-handler";
 import { useStableValue } from "@/session/shared/use-stable-value";
 import type { DeriveInputs } from "@/session/store/derive";
-import type { SessionStore } from "@/session/store/session-store";
+import type { SessionState, SessionStore } from "@/session/store/session-store";
 
 import {
   applyKey,
-  stepOf,
+  stepLabel,
   stepValue,
   textOfValue,
   valueOfText,
   type EntryField,
+  type StepContext,
 } from "@/platform/ui/keypad-entry";
 import { cellOrder, nextCell, type CellRef } from "./keypad-entry";
 import type { PreviousSets } from "./use-previous-sets";
 import type { useOptimisticSession } from "./use-optimistic-session";
 import { dueTimers, timerTarget, timerView } from "@/session/timer/duration-timer";
-import { hasRequiredSetValues, historySettled } from "./history-gate";
+import { hasRequiredSetValues, historySettled, reviewsEditedSet } from "./history-gate";
+import { usePrescriptionRevisions } from "./use-prescription-revisions";
+import { useEntryGuard } from "./use-entry-guard";
 import { previewTick, savedSession, settleTick } from "./optimistic";
 import { tickedSetIsRecord, type createRecordBestsCache } from "./record-on-tick";
 import { restAfterTick } from "@/session/rest/rest-rules";
+import type { GymLoads, LoggedLoad } from "@/gym";
 import { loggedSetOf, patchFor, previousPatch, valueOfSet, type DisplayUnits } from "./set-values";
 
 type Actions = Pick<
   ReturnType<typeof useOptimisticSession>,
-  "tick" | "untick" | "updateValues" | "addExtraSet" | "awaitWrites"
+  | "tick"
+  | "savePrescription"
+  | "reviseSnapshot"
+  | "untick"
+  | "updateValues"
+  | "addExtraSet"
+  | "awaitWrites"
 >;
+
+type GuardField = "weight" | "reps";
+type ManualValues = Partial<Record<GuardField, number | null>>;
 
 /**
  * Everything the logging screen does that is not drawing: which set to highlight,
@@ -67,11 +85,15 @@ export function useLoggingState({
   recordBests,
   historyReady,
   historyFailed,
+  previousPreferencesReady,
+  prescriptionReady,
   unit,
   display,
   effortScale,
   bodyweightKg,
   weightIncrementKg,
+  weightIncrementUnit,
+  gym,
   lighterWeeks: rawLighterWeeks,
   recordAlerts,
   previousSource,
@@ -79,6 +101,8 @@ export function useLoggingState({
   readOnly,
   actions,
   onRestStarted,
+  onLoggedLoad,
+  sessionGymId,
 }: {
   store: SessionStore;
   editor: boolean;
@@ -87,11 +111,15 @@ export function useLoggingState({
   historyReady: boolean;
   /** The Previous lookup failed: sets with their own values can still be ticked. */
   historyFailed: boolean;
+  previousPreferencesReady: boolean;
+  prescriptionReady: boolean;
   unit: WeightUnit;
   display: DisplayUnits;
   effortScale: EffortScale;
   bodyweightKg: number | null;
   weightIncrementKg: number | null;
+  weightIncrementUnit?: WeightUnit | null;
+  gym: GymLoads;
   lighterWeeks: readonly LighterPeriod[];
   /** Whether a new Record shows its on-screen alert (its sound is the milestone sound's). */
   recordAlerts: boolean;
@@ -103,6 +131,9 @@ export function useLoggingState({
   actions: Actions;
   /** A Rest just started: the first time, the screen asks about notifications. */
   onRestStarted?: () => void;
+  sessionGymId: string | null;
+  /** A working set was ticked: what it was logged at and what the Ghost value offered. */
+  onLoggedLoad?: (input: LoggedLoad) => void;
 }) {
   const { t } = useTranslation();
   const sound = useSoundCues();
@@ -111,8 +142,19 @@ export function useLoggingState({
   const stallVersion = useStallVersion();
   const lighterWeeks = useStableValue(rawLighterWeeks);
   const shownDisplay = useStableValue(display);
-  const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
+  const unitNames = useMemo(
+    () => ({ kg: t("training__unit_kg"), lb: t("training__unit_lb") }),
+    [t],
+  );
   const lighter = activeLighterWeek(lighterWeeks, new Date()) !== null;
+  const phase = useStore(store, (state) => state.session.phase);
+  const testEntryId = useStore(store, (state) => state.session.phaseModifiers?.test_entry_id);
+  // How much of the last load this Session's phase asks for (0.9 in a Deload, 1 otherwise).
+  const phaseLoad = useStore(store, (state) =>
+    state.session.phase === null
+      ? 1
+      : snapshotModifiers(state.session.phase, state.session.phaseModifiers).modifiers.load,
+  );
   const badges = useCallback(
     (sets: readonly { kind: SetKind }[]) =>
       chipTexts(sets, {
@@ -130,13 +172,21 @@ export function useLoggingState({
     () => ({
       previous,
       historyFailed,
+      previousPreferencesReady,
+      prescriptionReady,
       previousSource,
       unit,
-      unitName,
+      unitNames,
       display: shownDisplay,
       weightIncrementKg,
+      weightIncrementUnit,
+      gym,
+      sessionGymId,
       lighterWeeks,
       lighter,
+      phaseLoad,
+      phase,
+      testEntryId,
       bodyweightKg,
       stallVersion,
       stallMemory,
@@ -145,13 +195,21 @@ export function useLoggingState({
     [
       previous,
       historyFailed,
+      previousPreferencesReady,
+      prescriptionReady,
       previousSource,
       unit,
-      unitName,
+      unitNames,
       shownDisplay,
       weightIncrementKg,
+      weightIncrementUnit,
+      gym,
+      sessionGymId,
       lighterWeeks,
       lighter,
+      phaseLoad,
+      phase,
+      testEntryId,
       bodyweightKg,
       stallVersion,
       badges,
@@ -169,16 +227,28 @@ export function useLoggingState({
   const blocks = useStore(store, (state) => state.blocks);
   const places = useStore(store, (state) => state.places);
   const views = useStore(store, (state) => state.views);
+  const savePrescription = actions.savePrescription;
+  const capturing = useRef(new Set<string>());
+  useEffect(() => {
+    if (readOnly || !historyReady || !prescriptionReady) return;
+    for (const [id, view] of views) {
+      if (!view.prescriptionDraft || capturing.current.has(id)) continue;
+      capturing.current.add(id);
+      void savePrescription(id, view.prescriptionDraft).finally(() => capturing.current.delete(id));
+    }
+  }, [readOnly, historyReady, prescriptionReady, views, savePrescription]);
+  usePrescriptionRevisions({
+    store,
+    views,
+    readOnly,
+    ready: historyReady && prescriptionReady,
+    revise: actions.reviseSnapshot,
+  });
   const exercises = useStore(store, (state) => state.session.exercises);
   const finished = useStore(store, (state) => state.session.finishedAt !== null);
   const currentSetId = useStore(store, (state) => state.currentSetId);
   const cell = useStore(store, (state) => state.cell);
   const refusal = useStore(store, (state) => (editor ? null : state.refusal));
-  // Keys change the text, not the cell. The sets screen draws the text in the row, so only a
-  // screen without rows follows it here.
-  const raw = useStore(store, (state) => (editor ? "" : state.raw));
-  const fresh = useStore(store, (state) => (editor ? true : state.fresh));
-
   const previousOf = useCallback(
     (setId: string) => {
       const at = views.get(found.get(setId)?.exercise.id ?? "")?.rows.get(setId);
@@ -214,21 +284,49 @@ export function useLoggingState({
 
   // ---- The keypad ----
   const setEntry = useCallback(
-    (next: { cell: CellRef; raw: string; fresh: boolean } | null) =>
+    (next: Parameters<ReturnType<SessionStore["getState"]>["setEntry"]>[0]) =>
       store.getState().setEntry(next),
     [store],
   );
+  const contextFor = useCallback(
+    (exercise: SessionExerciseDetail | undefined): StepContext => {
+      const equipment = exercise?.exercise?.equipment ?? "other";
+      const exerciseUnit = resolveExerciseUnit(unit, exercise?.unit);
+      return {
+        unit: exerciseUnit,
+        equipment,
+        grid: exercise ? gym.gridFor(exercise.exerciseId, equipment, exercise.unit) : null,
+        incrementKg: incrementInUnit(weightIncrementKg, weightIncrementUnit ?? unit, exerciseUnit),
+      };
+    },
+    [unit, gym, weightIncrementKg, weightIncrementUnit],
+  );
   const readEntry = useCallback(() => {
-    const { cell: current, raw: text, fresh: isFresh } = store.getState();
-    return current ? { cell: current, raw: text, fresh: isFresh } : null;
-  }, [store]);
+    const { cell, raw, fresh, draftValue, found } = store.getState();
+    if (!cell) return null;
+    const at = found.get(cell.setId);
+    if (!at) return null;
+    return { cell, raw, fresh, draftValue, set: at.set, context: contextFor(at.exercise) };
+  }, [store, contextFor]);
   const writer = useCoalescedWriter((patch: { setId: string; values: SetPatch }) =>
     actions.updateValues(patch.setId, patch.values),
   );
   const activeSetId = cell?.setId ?? null;
+  const activeExercise = activeSetId === null ? undefined : found.get(activeSetId)?.exercise;
+  const activeUnit = resolveExerciseUnit(unit, activeExercise?.unit);
+  const priorEntry = useRef<{ cell: CellRef | null; unit: WeightUnit }>({ cell: null, unit });
 
   /** Saves what is typed now, for a cell that is about to be left. */
   const { flush } = writer;
+  useLayoutEffect(() => {
+    const last = priorEntry.current;
+    priorEntry.current = { cell, unit: activeUnit };
+    // The queued write already holds kilograms. Close the old unit's draft if sync changes it.
+    if (cell?.field === "weight" && cell === last.cell && activeUnit !== last.unit) {
+      void flush();
+      setEntry(null);
+    }
+  }, [cell, activeUnit, flush, setEntry]);
   const { awaitWrites } = actions;
   const flushWrites = useCallback(async () => {
     await flush();
@@ -242,31 +340,131 @@ export function useLoggingState({
     return () => subscription.remove();
   }, [flush]);
 
+  // "Check this set". A live Session asks when a set is ticked; an edit to a ticked set, or in a
+  // finished Session, is saved as it is typed, so leaving the cell is when the edit is looked at.
+  const sessionId = useStore(store, (state) => state.session.id);
+  const guard = useEntryGuard(previous, unit, sessionId);
+  const askGuard = guard.ask;
+  const manualValues = useRef(new Map<string, ManualValues>());
+  const initialCellValue = useRef<number | null>(null);
+  const openCellRef = useRef<(setId: string, field: EntryField) => void>(() => undefined);
+  const applySwap = useCallback(
+    async (setId: string, weightKg: number, reps: number) => {
+      if (weightKg > MAX_WEIGHT_KG) return false;
+      if (!(await actions.updateValues(setId, { weight_kg: weightKg, reps }))) return false;
+      manualValues.current.delete(setId);
+      return true;
+    },
+    [actions.updateValues],
+  );
+  const reviewLeft = useCallback(
+    (proceed: () => void = () => undefined) => {
+      const state = store.getState();
+      const { cell, fresh, draftValue } = state;
+      if (!cell || fresh || draftValue === initialCellValue.current) return false;
+      const { setId, field } = cell;
+      if (field !== "weight" && field !== "reps") return false;
+      const at = state.found.get(setId);
+      if (
+        !at ||
+        !reviewsEditedSet({
+          sessionFinished: state.session.finishedAt !== null,
+          setTicked: at.set.completedAt !== null,
+        })
+      )
+        return false;
+      const manual = manualValues.current.get(setId);
+      if (!manual || manual[field] !== draftValue) return false;
+      return askGuard({
+        setId,
+        exercise: at.exercise,
+        kind: at.set.kind,
+        typed: {
+          weightKg:
+            field === "weight"
+              ? draftValue
+              : manual.weight === at.set.weightKg
+                ? at.set.weightKg
+                : null,
+          reps: field === "reps" ? draftValue : manual.reps === at.set.reps ? at.set.reps : null,
+        },
+        editedField: field,
+        suggestedKg:
+          state.session.finishedAt === null ? (lookupGhosts(setId).weight ?? null) : null,
+        proceed,
+        change: (changed) => openCellRef.current(setId, changed),
+        swap: async (weightKg, reps) => {
+          if (await applySwap(setId, weightKg, reps)) proceed();
+        },
+      });
+    },
+    [store, askGuard, applySwap, lookupGhosts],
+  );
+
   const openCell = useCallback(
     (setId: string, field: EntryField) => {
       if (readOnly) return;
+      const cell = store.getState().cell;
+      if (cell?.setId === setId && cell.field === field) return;
+      const asked = reviewLeft(() => openCellRef.current(setId, field));
       flush();
+      if (asked) {
+        setEntry(null);
+        return;
+      }
       const at = store.getState().found.get(setId);
       if (!at) return;
+      Keyboard.dismiss();
+      initialCellValue.current = valueOfSet(at.set, field);
       setEntry({
         cell: { setId, field },
-        raw: textOfValue(field, valueOfSet(at.set, field), unit),
+        raw: textOfValue(
+          field,
+          initialCellValue.current,
+          resolveExerciseUnit(unit, at.exercise.unit),
+        ),
         fresh: true,
       });
     },
-    [readOnly, flush, store, unit, actions, setEntry],
+    [readOnly, reviewLeft, flush, store, unit, setEntry],
   );
+  useLayoutEffect(() => {
+    openCellRef.current = openCell;
+  }, [openCell]);
   const closeKeypad = useCallback(() => {
+    reviewLeft();
     flush();
     setEntry(null);
-  }, [flush, setEntry]);
+  }, [reviewLeft, flush, setEntry]);
+  const reviewBeforeLeaving = useCallback(
+    (leave: () => void) => {
+      const asked = reviewLeft(leave);
+      void flush();
+      setEntry(null);
+      if (!asked) leave();
+    },
+    [reviewLeft, flush, setEntry],
+  );
+
+  const forgetFilledValues = useCallback((setId: string, patch: SetPatch) => {
+    const values = manualValues.current.get(setId);
+    if (!values) return;
+    if ("weight_kg" in patch) delete values.weight;
+    if ("reps" in patch) delete values.reps;
+  }, []);
 
   /** Writes a cell's value (null clears it); a ticked set must keep its values. */
   const commit = useCallback(
-    (target: CellRef, value: number | null) => {
+    (target: CellRef, value: number | null, manual = true) => {
       const state = store.getState();
       const at = state.found.get(target.setId);
       if (!at || (value === null && at.set.completedAt !== null)) return;
+      if (target.field === "weight" || target.field === "reps") {
+        const values = manualValues.current.get(target.setId) ?? {};
+        if (manual) values[target.field] = value;
+        else delete values[target.field];
+        manualValues.current.set(target.setId, values);
+      }
       const refusal = state.refusal;
       if (
         value !== null &&
@@ -294,49 +492,56 @@ export function useLoggingState({
       if (!current) return;
       const base = current.fresh ? "" : current.raw;
       const text =
-        current.fresh && key === "backspace" ? "" : applyKey(current.cell.field, base, key, unit);
+        current.fresh && key === "backspace"
+          ? ""
+          : applyKey(current.cell.field, base, key, current.context.unit);
       if (text === current.raw && !current.fresh) return;
-      setEntry({ cell: current.cell, raw: text, fresh: false });
-      commit(current.cell, valueOfText(current.cell.field, text, unit));
+      const value = valueOfText(
+        current.cell.field,
+        text,
+        current.context.unit,
+        current.context.grid?.capKg,
+      );
+      setEntry({ cell: current.cell, raw: text, fresh: false, draftValue: value });
+      commit(current.cell, value);
     },
-    [unit, commit, readEntry, setEntry],
+    [commit, readEntry, setEntry],
   );
 
   /** Puts a whole value into the cell being edited (the plate calculator's Use). */
   const putValue = useCallback(
     (value: number) => {
       const current = readEntry();
-      if (!current) return;
+      if (!current || current.cell.field !== "weight") return;
+      const kg = Math.min(value, current.context.grid?.capKg ?? value);
       setEntry({
         cell: current.cell,
-        raw: textOfValue(current.cell.field, value, unit),
+        raw: textOfValue("weight", kg, current.context.unit),
         fresh: false,
+        draftValue: kg,
       });
-      commit(current.cell, value);
+      commit(current.cell, kg, false);
     },
-    [unit, commit, readEntry, setEntry],
+    [commit, readEntry, setEntry],
   );
 
   const onStep = useCallback(
     (direction: 1 | -1) => {
       const current = readEntry();
       if (!current) return;
-      const at = store.getState().found.get(current.cell.setId);
-      if (!at) return;
       const field = current.cell.field;
-      const typed = current.fresh
-        ? valueOfSet(at.set, field)
-        : valueOfText(field, current.raw, unit);
+      const typed = current.fresh ? valueOfSet(current.set, field) : current.draftValue;
       const ghost = lookupGhosts(current.cell.setId)[field] ?? null;
-      const stepped = stepValue(field, typed, ghost, direction, {
-        unit,
-        equipment: at.exercise.exercise?.equipment ?? null,
-        incrementKg: weightIncrementKg,
+      const stepped = stepValue(field, typed, ghost, direction, current.context);
+      setEntry({
+        cell: current.cell,
+        raw: textOfValue(field, stepped, current.context.unit),
+        fresh: false,
+        draftValue: stepped,
       });
-      setEntry({ cell: current.cell, raw: textOfValue(field, stepped, unit), fresh: false });
       commit(current.cell, stepped);
     },
-    [store, unit, lookupGhosts, commit, weightIncrementKg, readEntry, setEntry],
+    [lookupGhosts, commit, readEntry, setEntry],
   );
 
   const next = useMemo(() => {
@@ -353,17 +558,15 @@ export function useLoggingState({
       : null;
   }, [cell, found, blocks]);
 
-  const stepText = useMemo(() => {
+  const stepText = (state: SessionState, direction: 1 | -1): string => {
+    const { cell } = state;
     if (!cell) return "";
-    const at = found.get(cell.setId);
-    return String(
-      stepOf(cell.field, {
-        unit,
-        equipment: at?.exercise.exercise?.equipment ?? null,
-        incrementKg: weightIncrementKg,
-      }),
-    );
-  }, [cell, found, unit, weightIncrementKg]);
+    const at = state.found.get(cell.setId);
+    if (!at) return "";
+    const current = state.fresh ? valueOfSet(at.set, cell.field) : state.draftValue;
+    const ghost = state.views.get(at.exercise.id)?.rows.get(cell.setId)?.ghosts[cell.field] ?? null;
+    return stepLabel(cell.field, current, ghost, direction, contextFor(at.exercise));
+  };
 
   const onNext = useCallback(() => {
     if (!next) return closeKeypad();
@@ -391,14 +594,13 @@ export function useLoggingState({
       const at = state.found.get(setId);
       if (!at) return false;
       const settled = historySettled({
-        loaded: previous.has(at.exercise.exerciseId),
+        loaded:
+          Boolean(at.exercise.prescription) ||
+          (prescriptionReady && previous.has(at.exercise.exerciseId)),
         failed: historyFailed,
       });
       const latest = at.set;
-      if (
-        !settled &&
-        (!editor || !hasRequiredSetValues(at.exercise.type, (field) => valueOfSet(latest, field)))
-      )
+      if (!settled && !hasRequiredSetValues(at.exercise.type, (field) => valueOfSet(latest, field)))
         return false;
       const block = state.blocks.find((entry) =>
         entry.members.some((member) => member.id === at.exercise.id),
@@ -456,6 +658,28 @@ export function useLoggingState({
       }
       if (result.rest && store.getState().session.rest?.startedAt === result.rest.startedAt)
         onRestStarted?.();
+      const suggestedKg = used.weight ?? null;
+      const loggedKg = latest.weightKg ?? suggestedKg;
+      if (onLoggedLoad && state.session.finishedAt === null && progresses(at.set.kind)) {
+        const loggedReps = latest.reps ?? used.reps ?? null;
+        onLoggedLoad({
+          sessionId: state.session.id,
+          exerciseId: at.exercise.exerciseId,
+          equipment: at.exercise.exercise?.equipment ?? "other",
+          suggestedKg,
+          loggedKg,
+          outcome: at.exercise.prescription?.sets.find(({ id }) => id === setId)?.outcome ?? null,
+          workoutExerciseId: at.exercise.sourceWorkoutExerciseId,
+          sets: at.exercise.sets.map((set) => ({
+            kind: set.kind,
+            completed: set.id === setId || set.completedAt !== null,
+            reps: set.id === setId ? loggedReps : set.reps,
+            target: set.target,
+            suggestedReps:
+              at.exercise.prescription?.sets.find(({ id }) => id === set.id)?.ghosts.reps ?? null,
+          })),
+        });
+      }
 
       const prior =
         countWarmups || at.set.kind !== "warmup" ? recordBests?.get(at.exercise.exerciseId) : null;
@@ -501,12 +725,14 @@ export function useLoggingState({
       store,
       editor,
       historyFailed,
+      prescriptionReady,
       actions,
       previous,
       recordBests,
       bodyweightKg,
       countWarmups,
       onRestStarted,
+      onLoggedLoad,
       sound,
     ],
   );
@@ -515,19 +741,70 @@ export function useLoggingState({
     async (setId: string) => {
       if (readOnly) return;
       const savingEdits = flush();
-      setEntry(null);
       const state = store.getState();
       const at = state.found.get(setId);
+      const proceed = () => {
+        const current = store.getState();
+        const latest = current.found.get(setId);
+        if (
+          !at ||
+          !latest ||
+          at.set.completedAt !== latest.set.completedAt ||
+          state.session.finishedAt !== current.session.finishedAt
+        )
+          return;
+        current.setRefusal(null);
+        if (editor) current.setFocusedExercise(latest.exercise.id);
+        if (latest.set.completedAt !== null) {
+          if (editor) return actions.untick(setId);
+          return;
+        }
+        return tickWith(setId, lookupGhosts(setId), undefined, savingEdits);
+      };
+      const reviewedEdit = reviewLeft(() => void proceed());
+      setEntry(null);
+      if (reviewedEdit) return;
       if (!at) return;
-      state.setRefusal(null);
-      if (editor) state.setFocusedExercise(at.exercise.id);
-      if (at.set.completedAt !== null) {
-        if (editor) await actions.untick(setId);
+      const manual = manualValues.current.get(setId);
+      if (state.session.finishedAt !== null || at.set.completedAt !== null || !manual) {
+        await proceed();
         return;
       }
-      await tickWith(setId, lookupGhosts(setId), undefined, savingEdits);
+      // Flushing applies the optimistic edit synchronously. A remote or app-filled value
+      // must not inherit that manual edit.
+      const asked = askGuard({
+        setId,
+        exercise: at.exercise,
+        kind: at.set.kind,
+        typed: {
+          weightKg: manual.weight === at.set.weightKg ? at.set.weightKg : null,
+          reps: manual.reps === at.set.reps ? at.set.reps : null,
+        },
+        suggestedKg: lookupGhosts(setId).weight ?? null,
+        proceed: () => void proceed(),
+        change: (field) => openCell(setId, field),
+        swap: async (weightKg, reps) => {
+          if (await applySwap(setId, weightKg, reps)) {
+            await tickWith(setId, lookupGhosts(setId));
+          }
+        },
+      });
+      if (!asked) await proceed();
     },
-    [readOnly, flush, actions, lookupGhosts, tickWith, store, setEntry, editor],
+    [
+      readOnly,
+      flush,
+      actions,
+      lookupGhosts,
+      tickWith,
+      store,
+      setEntry,
+      editor,
+      askGuard,
+      openCell,
+      reviewLeft,
+      applySwap,
+    ],
   );
 
   // ---- Duration timers ----
@@ -538,29 +815,42 @@ export function useLoggingState({
       const state = store.getState();
       const at = state.found.get(setId);
       if (!at || state.session.finishedAt !== null || at.set.completedAt !== null) return;
+      const run = async () => {
+        const current = store.getState();
+        const set = current.found.get(setId)?.set;
+        if (
+          !set ||
+          current.session.finishedAt !== null ||
+          set.completedAt !== null ||
+          set.timerStartedAt !== at.set.timerStartedAt
+        )
+          return;
+        if (set.timerStartedAt === null) {
+          await actions.updateValues(setId, { timer_started_at: new Date().toISOString() });
+        } else if (timerTarget(set) !== null) {
+          // A countdown that is stopped early is cancelled, not logged.
+          await actions.updateValues(setId, { timer_started_at: null });
+        } else {
+          // A stopwatch logs what it counted.
+          const pausedAt = current.session.pausedAt;
+          const elapsed = timerView(
+            set.timerStartedAt,
+            null,
+            pausedAt === null ? Date.now() : Date.parse(pausedAt),
+          ).elapsed;
+          await tickWith(
+            setId,
+            { ...lookupGhosts(setId), duration: Math.max(1, elapsed) },
+            undefined,
+            savingEdits,
+          );
+        }
+      };
+      const asked = reviewLeft(() => void run());
       setEntry(null);
-      if (at.set.timerStartedAt === null) {
-        await actions.updateValues(setId, { timer_started_at: new Date().toISOString() });
-      } else if (timerTarget(at.set) !== null) {
-        // A countdown that is stopped early is cancelled, not logged.
-        await actions.updateValues(setId, { timer_started_at: null });
-      } else {
-        // A stopwatch logs what it counted.
-        const pausedAt = state.session.pausedAt;
-        const elapsed = timerView(
-          at.set.timerStartedAt,
-          null,
-          pausedAt === null ? Date.now() : Date.parse(pausedAt),
-        ).elapsed;
-        await tickWith(
-          setId,
-          { ...lookupGhosts(setId), duration: Math.max(1, elapsed) },
-          undefined,
-          savingEdits,
-        );
-      }
+      if (!asked) await run();
     },
-    [store, readOnly, flush, actions, tickWith, lookupGhosts, setEntry],
+    [store, readOnly, flush, actions, tickWith, lookupGhosts, reviewLeft, setEntry],
   );
 
   // A countdown that reaches zero ticks its set by itself, also when the app was in the background
@@ -607,19 +897,20 @@ export function useLoggingState({
       const source = lookupPrevious(setId);
       const at = store.getState().found.get(setId);
       if (!source || !at || readOnly) return;
-      if (store.getState().cell?.setId === setId) closeKeypad();
-      else void flush();
+      void flush();
+      if (store.getState().cell?.setId === setId) setEntry(null);
       const patch = previousPatch(
         source,
         at.exercise.type,
         at.exercise.logEffort && at.set.kind !== "warmup",
       );
       if (Object.keys(patch).length === 0) return;
+      forgetFilledValues(setId, patch);
       const wrote = await actions.updateValues(setId, patch);
       const current = store.getState();
       if (wrote && current.refusal?.setId === setId) current.setRefusal(null);
     },
-    [lookupPrevious, store, readOnly, closeKeypad, flush, actions],
+    [lookupPrevious, store, readOnly, setEntry, flush, actions, forgetFilledValues],
   );
   const onCopySets = useCallback(
     async (setId: string, mode: "previous" | "remaining") => {
@@ -631,17 +922,22 @@ export function useLoggingState({
           ? {
               setId: typing.cell.setId,
               field: typing.cell.field,
-              value: valueOfText(typing.cell.field, typing.raw, unit),
+              value: typing.draftValue,
             }
           : null;
       flush();
       const at = store.getState().found.get(setId);
       if (!at) return;
       const updates = copySetUpdates(at.exercise, setId, mode, lookupPrevious(setId), draft);
-      await Promise.all(updates.map(({ id, patch }) => actions.updateValues(id, patch)));
+      await Promise.all(
+        updates.map(({ id, patch }) => {
+          forgetFilledValues(id, patch);
+          return actions.updateValues(id, patch);
+        }),
+      );
       store.getState().setRefusal(null);
     },
-    [readOnly, flush, store, lookupPrevious, actions, unit, readEntry],
+    [readOnly, flush, store, lookupPrevious, actions, readEntry, forgetFilledValues],
   );
   const onKindSelected = useCallback(
     (setId: string, kind: SetKind) => void actions.updateValues(setId, { kind }),
@@ -669,6 +965,7 @@ export function useLoggingState({
   const stableOnKindSelected = useStableHandler(onKindSelected);
   const stableAddSet = useStableHandler(addSet);
   const stableCloseKeypad = useStableHandler(closeKeypad);
+  const stableReviewBeforeLeaving = useStableHandler(reviewBeforeLeaving);
   const stableOnKey = useStableHandler(onKey);
   const stableOnStep = useStableHandler(onStep);
   const stablePutValue = useStableHandler(putValue);
@@ -689,17 +986,9 @@ export function useLoggingState({
     refusal,
     activeSetId,
     activeField: cell?.field ?? null,
-    /**
-     * What is typed in the cell being edited, or undefined when nothing has been typed yet. The
-     * saved set trails it while typing pauses are coalesced into one write. Only a screen without
-     * rows follows it.
-     */
-    typedValue: cell && !fresh ? valueOfText(cell.field, raw, unit) : undefined,
     readTypedValue: () => {
       const current = readEntry();
-      return current && !current.fresh
-        ? valueOfText(current.cell.field, current.raw, unit)
-        : undefined;
+      return current && !current.fresh ? current.draftValue : undefined;
     },
     hasNext: next !== null,
     stepText,
@@ -719,6 +1008,9 @@ export function useLoggingState({
     found,
     flush,
     flushWrites,
+    /** The "Check this set" dialog; the screen renders it once. */
+    guardDialog: guard.dialog,
+    reviewBeforeLeaving: stableReviewBeforeLeaving,
     /** Whether typed values still wait to be written (the keypad coalesces them). */
     editsPending: writer.busy,
   };

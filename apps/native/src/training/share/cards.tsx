@@ -1,3 +1,4 @@
+import { resolveExerciseUnit } from "@workspace/shared";
 import { View } from "react-native";
 import type { MuscleLoad } from "@workspace/shared";
 import type { WorkoutDetail, ProgramPlan } from "@workspace/sync";
@@ -6,7 +7,7 @@ import { ExerciseThumbnail } from "@/exercise";
 import { MediaImage } from "@/media";
 import { CardText, useImageSettle, type CardContext } from "@/share";
 import { useTranslation } from "@/platform/i18n";
-import { displayTitle } from "@/training/workouts/derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { estimateMinutes } from "@/training/workouts/estimate";
 import {
   summariseWorking,
@@ -22,6 +23,20 @@ export function PlanMap({ loads, width }: { loads: MuscleLoad[]; width: number }
     if (isBodyGroup(load.muscle) && max > 0) intensity[load.muscle] = load.sets / max;
   return (
     <BodyMapPair intensity={intensity} gap={20} maxFigureWidth={width / 2} style={{ width }} />
+  );
+}
+
+function WorkoutCardCover({ mediaId, fallback }: { mediaId: string; fallback: React.ReactNode }) {
+  const settle = useImageSettle();
+  return (
+    <MediaImage
+      mediaId={mediaId}
+      variant="full"
+      localOnly
+      size={200}
+      fallback={fallback}
+      onSettled={settle}
+    />
   );
 }
 
@@ -48,6 +63,7 @@ export function WorkoutCard({
   const rows = cardRows(workout.exercises);
   const compact = rows.items.length > 9;
   const height = compact ? 82 : rows.items.length > 6 ? 106 : 142;
+  const map = <PlanMap loads={planLoads([workout])} width={200} />;
   const working = workout.exercises.reduce((sum, entry) => sum + setCounts(entry.sets).working, 0);
   return (
     <View style={{ flex: 1 }}>
@@ -85,7 +101,11 @@ export function WorkoutCard({
             {t("share__plan_minutes", { minutes: estimateMinutes(workout.exercises) })}
           </CardText>
         </View>
-        <PlanMap loads={planLoads([workout])} width={200} />
+        {workout.coverMediaId ? (
+          <WorkoutCardCover mediaId={workout.coverMediaId} fallback={map} />
+        ) : (
+          map
+        )}
       </View>
       <View style={{ borderTopWidth: 2, borderTopColor: palette.hairline }}>
         {rows.items.map(({ entry, place }) => {
@@ -93,7 +113,7 @@ export function WorkoutCard({
           const summary = summariseWorking(
             entry.sets,
             entry.exercise?.exerciseType ?? "weight_reps",
-            prefs,
+            { ...prefs, weightUnit: resolveExerciseUnit(prefs.weightUnit, entry.unit) },
             labels,
           );
           const detail = [summary.text, toggles.weights ? summary.weight : null, summary.effort]

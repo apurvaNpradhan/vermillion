@@ -1,0 +1,6 @@
+Android snapshot excerpt after relaunch and Resume Upper A, November 27, 2026.
+The same snapshot showed "Heavier: Set 1 beat the target by 3 reps."
+
+@e58 [button] "Set 2, Weight (kg), 90"
+@e67 [button] "Set 3, Weight (kg), 90"
+@e76 [button] "Set 4, Weight (kg), 90"

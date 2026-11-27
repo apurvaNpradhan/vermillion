@@ -3,13 +3,13 @@ import { ShareComposer, type ShareTemplate, type ShareToggle } from "@/share";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { useWorkout } from "@/training/workouts/use-workout";
-import { useProgram } from "@/training/programs/use-program";
+import { useProgram } from "@/platform/training/use-program";
 import { usePlanShareData } from "./use-plan-share-data";
 import { useSummaryLabels } from "@/training/workouts/use-summary-labels";
 import { useTrainingPreferences } from "@/training/shared/use-training-preferences";
 import { ProgramCover, ProgramOverview, WorkoutCard } from "./cards";
 import { workoutDays } from "./plan-data";
-import { displayTitle } from "@/training/workouts/derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 
 function ShareStatus({ loading, onClose }: { loading: boolean; onClose: () => void }) {
   const { t } = useTranslation();
@@ -61,7 +61,6 @@ export function WorkoutShareScreen({ id, onClose }: { id: string; onClose: () =>
       title={t("share__title_workout")}
       templates={templates}
       toggles={toggles}
-      linkSource={{ target: { kind: "workout", id }, weights: "weights" }}
     />
   );
 }
@@ -117,7 +116,6 @@ export function ProgramShareScreen({ id, onClose }: { id: string; onClose: () =>
       templates={templates}
       toggles={toggles}
       photo={cover ? { render: () => <ProgramCover mediaId={cover} /> } : undefined}
-      linkSource={{ target: { kind: "program", id }, weights: "weights" }}
     />
   );
 }

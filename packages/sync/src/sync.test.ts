@@ -82,14 +82,18 @@ describe("powerSyncSchema", () => {
       "body_measurement",
       "device_owner",
       "exercise",
+      "exercise_pin",
       "exercise_setting",
+      "gym",
       "gym_equipment",
+      "gym_exercise_setting",
       "history_import_receipt",
       "install_meta",
       "media",
       "program",
       "program_run",
       "program_slot",
+      "program_slot_skip",
       "progress_photo",
       "rejected_writes",
       "session_exercise",
@@ -103,12 +107,16 @@ describe("powerSyncSchema", () => {
     const synced = [
       "body_measurement",
       "exercise",
+      "exercise_pin",
       "exercise_setting",
+      "gym",
       "gym_equipment",
+      "gym_exercise_setting",
       "media",
       "program",
       "program_run",
       "program_slot",
+      "program_slot_skip",
       "progress_photo",
       "session_exercise",
       "session_photo",
@@ -151,7 +159,11 @@ describe("powerSyncSchema", () => {
     expect(indexed("training_session")).toContainEqual(["started_at"]);
     expect(indexed("training_session")).toContainEqual(["finished_at"]);
     expect(indexed("training_session")).toContainEqual(["import_fingerprint"]);
+    expect(indexed("exercise_pin")).toContainEqual(["exercise_id"]);
     expect(indexed("exercise_setting")).toContainEqual(["exercise_id"]);
+    expect(indexed("gym_equipment")).toContainEqual(["gym_id"]);
+    expect(indexed("gym_exercise_setting")).toContainEqual(["exercise_id", "gym_id"]);
+    expect(indexed("training_session")).toContainEqual(["gym_id"]);
   });
 
   it("has the training stream columns and the upload-only markers", () => {
@@ -174,14 +186,19 @@ describe("powerSyncSchema", () => {
       expect(names.filter((name) => !writeOnly.includes(name)).sort(), table).toEqual(
         listed.sort(),
       );
-      if (table !== "program_run") expect(names, table).toEqual(expect.arrayContaining(writeOnly));
+      // Runs and Slot skips are never restored by Undo, so they carry no marker.
+      if (table !== "program_run" && table !== "program_slot_skip")
+        expect(names, table).toEqual(expect.arrayContaining(writeOnly));
     }
     expect(checked.sort()).toEqual([
       "exercise_setting",
+      "gym",
       "gym_equipment",
+      "gym_exercise_setting",
       "program",
       "program_run",
       "program_slot",
+      "program_slot_skip",
       "session_exercise",
       "session_photo",
       "session_set",

@@ -10,16 +10,26 @@ describe("filter state", () => {
     expect(toggled([], "chest")).toEqual(["chest"]);
   });
 
-  it("clears the facets but keeps the search and the sort", () => {
+  it("clears the facets and keeps the search and picker order", () => {
     const cleared = withoutFacets({
       search: "bench",
       muscles: ["chest"],
       includeSecondary: true,
+      primaryDetail: "upper_chest",
+      pinnedOnly: true,
+      pinnedFirst: true,
       equipment: ["barbell"],
+      availableOnly: true,
       show: "custom",
       sort: "popular",
     });
-    expect(cleared).toEqual({ ...DEFAULT_LIBRARY_FILTERS, search: "bench", sort: "popular" });
+    const { lacking: _, ...defaults } = DEFAULT_LIBRARY_FILTERS;
+    expect(cleared).toEqual({
+      ...defaults,
+      availableOnly: false,
+      search: "bench",
+      pinnedFirst: true,
+    });
   });
 
   it("chunks into rows, the last one possibly short", () => {

@@ -17,6 +17,7 @@ import { useRecordBests } from "./use-record-bests";
 import { usePreviousSets } from "./use-previous-sets";
 import { useSessionActions } from "@/session/screen/use-session-actions";
 import { useAutoWarmups } from "@/session/warmups/use-auto-warmups";
+import { useGymLoads, useLoggedLoad } from "@/gym";
 
 /**
  * The store of one live Session, made with its screen and fed by the database's watch. Changes the
@@ -66,6 +67,11 @@ export function useSessionLoggingIn(store: SessionStore, editor = false) {
     retry: retryHistory,
   } = usePreviousSets(libraryIds);
 
+  // The Session's gym sets caps, steps, the setup note, the kit and the warm-up rounding; a Session
+  // with none reads the gym trained at. Its history reads this gym only (none: every gym).
+  const sessionGymId = session.gymId ?? null;
+  const gym = useGymLoads(sessionGymId);
+  const onLoggedLoad = useLoggedLoad(gym);
   const { recordAlerts, sounds, soundMilestones } = preferences.ui;
   const recordBests = useRecordBests(
     session,
@@ -89,11 +95,16 @@ export function useSessionLoggingIn(store: SessionStore, editor = false) {
     recordBests,
     historyReady,
     historyFailed,
+    previousPreferencesReady: !preferencesLoading,
+    prescriptionReady: !preferencesLoading && !weight.loading && gym.ready === true,
     unit,
     display,
     effortScale,
     bodyweightKg,
     weightIncrementKg: preferences.ui.weightIncrementKg,
+    weightIncrementUnit: preferences.ui.weightIncrementUnit,
+    gym,
+    sessionGymId,
     lighterWeeks: preferences.ui.lighterWeeks,
     recordAlerts,
     previousSource: preferences.ui.previousSource,
@@ -101,6 +112,7 @@ export function useSessionLoggingIn(store: SessionStore, editor = false) {
     readOnly,
     actions,
     onRestStarted,
+    onLoggedLoad,
   });
 
   const { warmupSteps, warmupRounding } = preferences.ui;
@@ -120,15 +132,18 @@ export function useSessionLoggingIn(store: SessionStore, editor = false) {
     historyReady,
     unit,
     weightIncrementKg: preferences.ui.weightIncrementKg,
+    weightIncrementUnit: preferences.ui.weightIncrementUnit,
     warmupSettings,
     readOnly,
     actions,
     editsPending: logging.editsPending,
     flushEdits: logging.flush,
+    gym,
   });
 
   return {
     session,
+    sessionGymId,
     actions,
     addWarmups,
     preferences,

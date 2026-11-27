@@ -1,4 +1,5 @@
 import { mountOnOpen } from "@/platform/ui/mount-on-open";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import type { ReactNode } from "react";
 import { View } from "react-native";
@@ -24,7 +25,7 @@ function SheetShellBody({
   const { bottom } = useSafeAreaInsets();
   return (
     <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
           animationConfigs={SHEET_SPRING}
@@ -42,7 +43,7 @@ function SheetShellBody({
           </View>
           {children}
         </BottomSheet.Content>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

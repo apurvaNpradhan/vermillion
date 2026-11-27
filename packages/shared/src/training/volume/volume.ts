@@ -64,8 +64,25 @@ export function sessionTotals(
   return totals;
 }
 
-/** Brzycki: weight × 36 / (37 − reps) for 1 to 12 reps; null for any other count or a 0 weight. */
-export function estimatedOneRepMax(weight: number, reps: number): number | null {
+/** The lowest effort a set can be logged at: 4 reps are left in reserve there. */
+const MAX_RESERVE = 4;
+
+/** Reps left in the tank at an effort: 10 − RPE, 0 with none logged, at most 4 (RPE 6). */
+export function repsInReserve(rpe: number | null | undefined): number {
+  return rpe == null ? 0 : Math.min(MAX_RESERVE, Math.max(0, 10 - rpe));
+}
+
+/**
+ * Brzycki: weight × 36 / (37 − reps) for 1 to 12 reps; null for any other count or a 0 weight.
+ * With the set's effort logged, the reps left in reserve count as reps (8 at RPE 8 is a 10-rep
+ * set), up to 12; a set logged to failure, or with no effort, is its reps alone.
+ */
+export function estimatedOneRepMax(
+  weight: number,
+  reps: number,
+  rpe?: number | null,
+): number | null {
   if (!Number.isInteger(reps) || reps < 1 || reps > 12 || weight <= 0) return null;
-  return (weight * 36) / (37 - reps);
+  const capacity = Math.min(12, reps + repsInReserve(rpe));
+  return (weight * 36) / (37 - capacity);
 }

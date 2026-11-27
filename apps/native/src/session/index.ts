@@ -14,6 +14,7 @@ export { parseReportKey } from "./report/report-period";
 export { SessionDetailScreen } from "./history/session-detail-screen";
 export { LogPastScreen } from "./history/log-past-screen";
 export { useActiveSessions } from "./lifecycle/use-active-sessions";
+export { openSessionOf } from "./lifecycle/open-session-of";
 export { formatElapsed } from "./timer/clock";
 export { doneSummary } from "./finish/summary";
 
@@ -22,4 +23,7 @@ export { sessionRecords } from "./finish/session-records";
 export { usePreviousSets } from "./logging/use-previous-sets";
 export { previewProgression } from "./logging/preview-progression";
 
+export { ReminderHost } from "./reminders/reminder-host";
+export { useReminderRows } from "./reminders/use-reminder-rows";
+export { useRestAlertRows } from "./settings/use-rest-alert-rows";
 export { WorkoutLiveHost } from "./notifications/workout-live-host";

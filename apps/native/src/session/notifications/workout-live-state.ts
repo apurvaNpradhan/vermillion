@@ -1,4 +1,12 @@
-import { lighterPeriodSchema, sessionActiveSeconds } from "@workspace/shared";
+import {
+  DEFAULT_PREVIOUS_SOURCE,
+  PREVIOUS_SOURCES,
+  SET_KIND_KEYS,
+  WEIGHT_UNITS,
+  lighterPeriodSchema,
+  sessionActiveSeconds,
+  resolveExerciseUnit,
+} from "@workspace/shared";
 import { z } from "zod";
 import type { TFunction } from "i18next";
 import type { Ghosts, WeightUnit } from "@workspace/shared";
@@ -9,8 +17,15 @@ import { formatElapsed } from "../timer/clock";
 export const liveOptionsSchema = z.object({
   weightUnit: z.enum(["kg", "lb"]),
   weightIncrementKg: z.number().positive().nullable(),
+  weightIncrementUnit: z.enum(WEIGHT_UNITS).nullable().optional(),
   lighterWeeks: z.array(lighterPeriodSchema).default([]),
+  previousSource: z.enum(PREVIOUS_SOURCES).default(DEFAULT_PREVIOUS_SOURCE),
+  /** The body weight on the Session's day, which the stalled-lift verdict scores weighted lifts with. */
+  bodyweightKg: z.number().positive().nullable().default(null),
+  timeZone: z.string().optional(),
+  countWarmups: z.boolean().optional(),
   soundOn: z.boolean(),
+  vibrate: z.boolean().default(true),
 });
 export const liveActionSchema = z.object({
   sessionId: z.string(),
@@ -57,8 +72,12 @@ export function workoutLiveState(input: {
   const { session, t } = input;
   const action = currentAction(input);
   const current = action.current;
+  const exercise = session.exercises.find((entry) => entry.id === current?.exerciseRowId);
+  const unit = resolveExerciseUnit(input.unit, exercise?.unit);
   const set = current
-    ? t("session__live_set", { index: current.index + 1, total: current.total })
+    ? current.position
+      ? t("session__live_set", { index: current.position.number, total: current.position.total })
+      : t(SET_KIND_KEYS[current.kind])
     : t("session__live_all_done");
   const paused = session.pausedAt !== null;
   const rest = action.phase === "rest" && !paused;
@@ -78,8 +97,8 @@ export function workoutLiveState(input: {
             set,
             values: valuesText(
               current.values,
-              input.unit,
-              t(input.unit === "kg" ? "training__unit_kg" : "training__unit_lb"),
+              unit,
+              t(unit === "kg" ? "training__unit_kg" : "training__unit_lb"),
               current.type,
             ),
           })
@@ -89,7 +108,9 @@ export function workoutLiveState(input: {
           next:
             action.next.kind === "exercise"
               ? action.next.title
-              : t("session__live_set_number", { index: action.next.number }),
+              : action.next.number === null
+                ? t(SET_KIND_KEYS[action.next.setKind])
+                : t("session__live_set_number", { index: action.next.number }),
         })
       : "",
     restOver: current ? t("session__live_rest_over", { set }) : t("session__live_rest_over_last"),

@@ -1,17 +1,20 @@
+import { prepareWorkoutEntry } from "@/platform/training/workout-suggestion";
 import { haptic } from "@/platform/haptics";
 import {
-  historyForWorkout,
   isCounted,
   sessionDurationSeconds,
   sessionTotals,
-  stalledSessions,
   KG_PER_LB,
+  resolveExerciseUnit,
+  loadCutRange,
+  plannedLoadFactors,
 } from "@workspace/shared";
 import { useRouter } from "expo-router";
-import { Note, ShareNetwork, Timer } from "phosphor-react-native";
+import { Note, PencilSimple, ShareNetwork, Timer } from "phosphor-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
+import { usePhaseText } from "@/platform/phase-text";
 import { useSubtleColor } from "@/platform/theme";
 import { useThemeColor } from "heroui-native";
 import { ExerciseHeading, StalledNote, stallMemory, useStallVersion } from "@/exercise";
@@ -19,11 +22,17 @@ import { SectionHeader } from "@/platform/ui/section-header";
 import { ScrollPage } from "@/platform/ui/page";
 import { Button } from "@/platform/ui/button";
 import { LineChart } from "@/platform/ui/charts/chart";
+import { useGymLoads } from "@/gym";
 import { usePreviousSets, useStartSession, formatElapsed, previewProgression } from "@/session";
 import { useHomeTraining } from "@/training/home/use-home-training";
 import { lastDoneLabel } from "@/platform/last-done";
 import { doneSummary } from "@/session";
+import { useActiveProgram } from "@/training/programs/use-active-program";
 import { useWorkout } from "./use-workout";
+import { displayTitle } from "@/platform/training/derived-title";
+import { WorkoutTile } from "@/training/shared/workout-tile";
+import { RenameWorkoutSheet } from "./rename-workout-sheet";
+import { useWorkoutActions } from "./use-workout-actions";
 import { usePreferences } from "@/preferences";
 import { formatClock } from "@/training/targets/rest";
 import { plannedColumns, plannedRows } from "@/training/sets/set-text-rows";
@@ -40,6 +49,9 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   const foreground = useThemeColor("foreground");
   const columnHeader = useColumnHeaders();
   const { preferences, isLoading: preferencesLoading } = usePreferences();
+  const gym = useGymLoads();
+  const phaseText = usePhaseText();
+  const active = useActiveProgram();
   const state = useWorkout(id);
   const history = useHomeTraining(id);
   const previousHistory = usePreviousSets(
@@ -48,6 +60,9 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
   const stallVersion = useStallVersion();
   const { start, sheet } = useStartSession();
   const [metric, setMetric] = useState<"volume" | "reps" | "duration">("volume");
+  const [renaming, setRenaming] = useState(false);
+  const [renameBaseline, setRenameBaseline] = useState<string | null>(null);
+  const actions = useWorkoutActions();
   const sessions = history.sessions.filter((s) => s.workoutId === id);
   const last = sessions[0];
   const date = (value: string) =>
@@ -80,8 +95,8 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
           : sessionTotals(s.sets, history.bodyweightKg).volume /
             (history.weightUnit === "lb" ? KG_PER_LB : 1),
   }));
-  const unit = history.weightUnit;
-  const unitLabel = t(unit === "lb" ? "training__unit_lb" : "training__unit_kg");
+  const userUnit = history.weightUnit;
+  const unitLabel = t(userUnit === "lb" ? "training__unit_lb" : "training__unit_kg");
   const shortDate = (at: number) =>
     new Intl.DateTimeFormat(i18n.language, {
       month: "short",
@@ -94,64 +109,126 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
       })
     : t("workout__never_done");
   const ready = state.status === "ready" ? state.workout : null;
+  const shownTitle = ready
+    ? displayTitle(
+        ready.title,
+        ready.exercises.flatMap((entry) => (entry.exercise ? [entry.exercise.primaryMuscle] : [])),
+        (key) => t(key),
+      )
+    : t("training__workout");
   const now = new Date();
   const bodyweightKg = previousHistory.bodyweightOn(now.toISOString());
-  const exerciseHistory = (ready?.exercises ?? []).map((entry) => {
-    const history = historyForWorkout(
-      previousHistory.history.get(entry.exerciseId) ?? [],
-      preferences.ui.previousSource === "same_workout" ? id : null,
-    );
-    const lastSessionId = history[0]?.id ?? null;
-    const type = entry.exercise?.exerciseType ?? "weight_reps";
-    const count = stalledSessions(history, type, {
-      bodyweightKg,
-      lighterWeeks: preferences.ui.lighterWeeks,
-    });
-    return {
-      entry,
-      history,
-      type,
-      count,
-      lastSessionId,
-      memory: stallMemory(entry.exerciseId, lastSessionId),
-    };
-  });
+  // This week's phase, when the Workout belongs to the active Run's Program: its targets are
+  // shown as the Session will start with them. The Workout itself is unchanged.
+  const week =
+    ready && ready.programId !== null && active.run?.program_id === ready.programId
+      ? active.phase
+      : null;
+  const exerciseHistory =
+    ready?.exercises.map((original) => {
+      const history = previousHistory.history.get(original.exerciseId) ?? [];
+      const { entry, prescribed } = prepareWorkoutEntry(
+        ready,
+        original,
+        history,
+        {
+          gymId: gym.gymId,
+          grid: gym.gridFor(
+            original.exerciseId,
+            original.exercise?.equipment ?? "other",
+            original.unit,
+          ),
+        },
+        {
+          previousSource: preferences.ui.previousSource,
+          unit: userUnit,
+          weightIncrementKg: preferences.ui.weightIncrementKg,
+          weightIncrementUnit: preferences.ui.weightIncrementUnit,
+          lighterWeeks: preferences.ui.lighterWeeks,
+          bodyweightKg,
+          stallMemory,
+        },
+        week,
+        now,
+      );
+      return {
+        entry,
+        original,
+        unit: prescribed.unit,
+        history,
+        type: entry.exercise?.exerciseType ?? "weight_reps",
+        prescribed,
+      };
+    }) ?? [];
   const progression =
     previousHistory.ready && !preferencesLoading
-      ? exerciseHistory.flatMap(({ entry, history, count, memory }) => {
-          const preview = previewProgression(
-            entry,
-            history,
-            {
-              weightUnit: unit,
-              weightIncrementKg: preferences.ui.weightIncrementKg,
-              lighterWeeks: preferences.ui.lighterWeeks,
-              deload: count > 0 && memory.applied,
-            },
-            now,
-          );
+      ? exerciseHistory.flatMap(({ entry, unit, history, prescribed }) => {
+          const preview = previewProgression(entry, prescribed, history);
           return preview && entry.exercise
-            ? [{ id: entry.id, title: entry.exercise.title, preview }]
+            ? [
+                {
+                  id: entry.id,
+                  title: entry.exercise.title,
+                  preview,
+                  unit,
+                  type: entry.exercise.exerciseType,
+                },
+              ]
             : [];
         })
       : [];
+  const loadCuts =
+    week && week.modifiers.load < 1
+      ? loadCutRange(
+          exerciseHistory.flatMap(({ entry, original }) => {
+            const preview = progression.find(({ id: entryId }) => entryId === entry.id)?.preview;
+            const factors = preview?.suggestion.outcomes.flatMap((outcome) =>
+              outcome?.reason === "deload" && outcome.loadFactor !== undefined
+                ? [outcome.loadFactor]
+                : [],
+            );
+            return factors?.length ? factors : plannedLoadFactors(original.sets, entry.sets);
+          }),
+        )
+      : undefined;
   return (
     <>
       <ScrollPage
         back
-        title={ready ? (ready.title ?? t("training__workout")) : t("training__workout")}
+        title={shownTitle}
+        onTitlePress={
+          ready
+            ? () => {
+                setRenameBaseline(ready.title);
+                setRenaming(true);
+              }
+            : undefined
+        }
+        titleHint={t("training__rename_hint")}
         actions={
           ready ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("share__share")}
-              className="h-11 w-11 items-center justify-center"
-              onPress={() =>
-                router.push({ pathname: "/share/[kind]/[id]", params: { kind: "workout", id } })
-              }
-            >
-              <ShareNetwork size={24} color={foreground} />
-            </Pressable>
+            <View className="flex-row">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("training__edit_workout")}
+                className="h-11 w-11 items-center justify-center"
+                onPress={() =>
+                  router.push({ pathname: "/train/workout/[id]/edit", params: { id } })
+                }
+              >
+                <PencilSimple size={24} color={foreground} />
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("share__share")}
+                className="h-11 w-11 items-center justify-center"
+                onPress={() =>
+                  router.push({ pathname: "/share/[kind]/[id]", params: { kind: "workout", id } })
+                }
+              >
+                <ShareNetwork size={24} color={foreground} />
+              </Pressable>
+            </View>
           ) : undefined
         }
       >
@@ -164,28 +241,55 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
         ) : (
           <View className="gap-8">
             <View className="gap-4">
-              {history.failed ? (
-                <Button variant="secondary" onPress={history.retry}>
-                  {t("training__retry")}
-                </Button>
-              ) : (
-                <Text className="font-normal text-body text-muted">
-                  {history.loading
-                    ? null
-                    : t("workout__subtitle", {
-                        exercises: t("workout__exercise_count", { count: ready.exercises.length }),
-                        last: lastText,
-                      })}
-                </Text>
-              )}
+              <View className="flex-row items-center gap-3">
+                <WorkoutTile
+                  title={shownTitle}
+                  size={56}
+                  coverMediaId={ready.coverMediaId}
+                  exercises={ready.exercises.flatMap((entry) =>
+                    entry.exercise ? [entry.exercise] : [],
+                  )}
+                />
+                <View className="flex-1">
+                  {history.failed ? (
+                    <Button variant="secondary" onPress={history.retry}>
+                      {t("training__retry")}
+                    </Button>
+                  ) : (
+                    <Text className="font-normal text-body text-muted">
+                      {history.loading
+                        ? null
+                        : t("workout__subtitle", {
+                            exercises: t("workout__exercise_count", {
+                              count: ready.exercises.length,
+                            }),
+                            last: lastText,
+                          })}
+                    </Text>
+                  )}
+                </View>
+              </View>
               <Button onPress={() => void start(id)}>
                 <Button.Label>{t("session__start")}</Button.Label>
               </Button>
-              <WorkoutProgressionPreview
-                exercises={progression}
-                unit={unit}
-                unitLabel={unitLabel}
-              />
+              {week ? (
+                <Text className="font-normal text-caption text-muted">
+                  {t("phase__preview_note", {
+                    banner:
+                      phaseText.banner(
+                        week.phase,
+                        week.modifiers,
+                        week.testTop,
+                        // The effort shift shows only where the Workout has effort targets.
+                        ready.exercises.some((item) =>
+                          item.sets.some((set) => set.effort_min !== undefined),
+                        ),
+                        loadCuts,
+                      ) ?? phaseText.name(week.phase),
+                  })}
+                </Text>
+              ) : null}
+              <WorkoutProgressionPreview exercises={progression} />
               {ready.note ? (
                 <Text className="font-normal text-body text-muted">{ready.note}</Text>
               ) : null}
@@ -241,7 +345,9 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                   router.push({ pathname: "/train/workout/[id]/edit", params: { id } })
                 }
               />
-              {exerciseHistory.map(({ entry, history, type, count, lastSessionId, memory }) => {
+              {exerciseHistory.map(({ entry, history, type, prescribed }) => {
+                const unit = resolveExerciseUnit(userUnit, entry.unit);
+                const unitLabel = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
                 const sets =
                   history[0]?.sets.flatMap((set) =>
                     set.exercise_id === entry.exerciseId && isCounted(set) ? [set] : [],
@@ -277,13 +383,14 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                         )
                       }
                     />
-                    {count > 0 && lastSessionId && (!memory.dismissed || memory.applied) ? (
+                    {prescribed.stall ? (
                       <StalledNote
                         key={stallVersion}
                         exerciseId={entry.exerciseId}
-                        latestSessionId={lastSessionId}
-                        count={count}
-                        applied={memory.applied}
+                        latestSessionId={prescribed.stall.latestSessionId}
+                        count={prescribed.stall.count}
+                        missed={prescribed.stall.missed}
+                        applied={prescribed.stall.applied}
                       />
                     ) : null}
                     {entry.restSeconds !== null ? (
@@ -302,10 +409,23 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
                         </Text>
                       </View>
                     ) : null}
-                    <SetTextTable
-                      headers={columns.map((column) => columnHeader(column, unit, scale))}
-                      rows={rows}
-                    />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={entry.exercise?.title ?? t("training__workout")}
+                      accessibilityHint={t("training__edit_sets_hint")}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/train/workout/[id]/[entry]",
+                          params: { id, entry: entry.id },
+                        })
+                      }
+                      className="active:opacity-70"
+                    >
+                      <SetTextTable
+                        headers={columns.map((column) => columnHeader(column, unit, scale))}
+                        rows={rows}
+                      />
+                    </Pressable>
                     {sets.length ? (
                       <Text className="font-normal px-1 text-caption text-muted">
                         {t("workout__previous", {
@@ -335,6 +455,15 @@ export function WorkoutPreviewScreen({ id }: { id: string }) {
         )}
       </ScrollPage>
       {sheet}
+      {ready ? (
+        <RenameWorkoutSheet
+          isOpen={renaming}
+          onOpenChange={setRenaming}
+          value={renameBaseline}
+          placeholder={shownTitle}
+          onSave={(next) => void actions.update(id, { title: next })}
+        />
+      ) : null}
     </>
   );
 }

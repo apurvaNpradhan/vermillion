@@ -5,8 +5,11 @@ import { memo, useMemo } from "react";
 import { useTranslation } from "@/platform/i18n";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
-import { displayTitle } from "@/training/workouts/derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { PlanRow } from "@/training/shared/plan-row";
+import { WorkoutTile } from "@/training/shared/workout-tile";
+
+const TILE = 44;
 
 /**
  * A flat workout row: its title, the exercises on one muted line and when it was last done. A
@@ -100,6 +103,14 @@ export const WorkoutRow = memo(function WorkoutRow({
     <PlanRow
       title={title}
       lines={[exercises, lastDone]}
+      tile={
+        <WorkoutTile
+          title={title}
+          size={TILE}
+          coverMediaId={workout.coverMediaId}
+          exercises={workout.exercises}
+        />
+      }
       menuLabel={t("training__workout_menu")}
       onOpen={() => onOpen(workout.id)}
       actions={swipe}

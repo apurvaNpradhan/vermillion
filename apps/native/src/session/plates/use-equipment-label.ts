@@ -1,7 +1,7 @@
-import { formatWeight } from "@workspace/shared";
 import type { EquipmentRow } from "@workspace/sync";
 
 import { useTranslation } from "@/platform/i18n";
+import { formatEquipmentWeight } from "./plate-view";
 
 /**
  * Names a bar or plate in its own unit, with no stray spaces: "Olympic 20 kg", "20 kg", "EZ 10
@@ -12,7 +12,7 @@ export function useEquipmentLabel(): (item: EquipmentRow) => string {
   return (item) => {
     if (item.kind === "bar" && item.weightKg === 0) return t("plates__no_bar_label");
     const weight = t("plates__weight", {
-      weight: formatWeight(item.weightKg, item.unit),
+      weight: formatEquipmentWeight(item.weightKg, item.unit),
       unit: item.unit,
     });
     const name = item.label?.trim();

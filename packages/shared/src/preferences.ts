@@ -1,9 +1,11 @@
 import { z } from "zod";
 
 import { BODY_METRICS, DEFAULT_TRACKED_METRICS } from "./body";
+import { DISMISSED_HINTS_MAX, HINT_IDS } from "./hints";
 import { localeSchema } from "./locale";
 import {
   DEFAULT_REST_SECONDS,
+  MAX_WEIGHT_KG,
   DEFAULT_WEEK_START,
   EFFORT_SCALES,
   TRAINING_LIMITS,
@@ -49,10 +51,59 @@ export const timezoneSchema = z.string().max(64).refine(isTimeZone, "Must be an 
 const reminderTime = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const weighInReminder = z.object({ enabled: z.boolean(), time: reminderTime });
 const checkInReminder = weighInReminder.extend({ weekday: z.number().int().min(1).max(7) });
+/** Weekdays use Expo's numbering: Sunday is 1, Saturday is 7. */
+const reminderWeekday = z.number().int().min(1).max(7);
+/** `weekdays` null follows the setup answer (sessions per week) until the user picks days. */
+const trainingReminder = weighInReminder.extend({
+  weekdays: z.array(reminderWeekday).max(7).nullable(),
+});
+
+/**
+ * What the "Is this the max on this machine?" prompt remembers per gym and exercise (`key` is
+ * `<gym id>:<exercise id>`): the weight the user keeps lowering the suggestion to, how many
+ * Sessions did, the last of them, and whether the question was answered or dismissed for good.
+ */
+export const capPromptSchema = z.object({
+  key: z.string().max(80),
+  kg: z.number().min(0).max(MAX_WEIGHT_KG),
+  count: z.number().int().min(0).max(1000),
+  sessionId: z.string().max(40).nullable(),
+  dismissed: z.boolean(),
+});
+export type CapPrompt = z.infer<typeof capPromptSchema>;
+
+/**
+ * What the step and rep-range prompts remember (`key` is `<gym id>:<exercise id>:step` for a step,
+ * `<workout exercise id>:range` for a rep range): the step in kilograms, or the rep count, the
+ * lifter keeps choosing over the suggestion, how many Sessions did, the last of them, and whether
+ * the question was dismissed for good. A rep range also remembers the planned range it was seen
+ * beating (`rangeMin` to `rangeMax`). The newest entries are kept, dismissals longest.
+ */
+export const OVERRIDE_PROMPTS_MAX = 100;
+export const OVERRIDE_PROMPT_KINDS = ["step", "range"] as const;
+export const overridePromptSchema = z.object({
+  key: z.string().max(120),
+  kind: z.enum(OVERRIDE_PROMPT_KINDS),
+  value: z.number().min(0).max(MAX_WEIGHT_KG),
+  count: z.number().int().min(0).max(1000),
+  sessionId: z.string().max(40).nullable(),
+  dismissed: z.boolean(),
+  rangeMin: z.number().int().min(1).max(999).optional(),
+  rangeMax: z.number().int().min(1).max(999).optional(),
+});
+export type OverridePrompt = z.infer<typeof overridePromptSchema>;
+export type OverridePromptKind = (typeof OVERRIDE_PROMPT_KINDS)[number];
+
+/** Answered stack-step prompts kept (newest last); older answers drop off first. */
+export const STEP_PROMPTS_MAX = 500;
 
 const uiFields = {
   weighInReminder,
   checkInReminder,
+  trainingReminder,
+  reportReminder: z.object({ enabled: z.boolean() }),
+  restVibration: z.boolean(),
+  cueVolume: z.number().int().min(0).max(100),
   avatarMediaId: z.uuid().nullable(),
   lengthUnit: z.enum(["cm", "in"]),
   heightCm: z.number().min(100).max(250).nullable(),
@@ -71,8 +122,9 @@ const uiFields = {
   supersetScroll: z.boolean(),
   recordAlerts: z.boolean(),
   sidebarCollapsed: z.boolean(),
-  dismissedHints: z.array(z.string().max(100)).max(100),
+  dismissedHints: z.array(z.string().max(100)).max(DISMISSED_HINTS_MAX),
   weightIncrementKg: z.number().positive().max(100).nullable(),
+  weightIncrementUnit: z.enum(WEIGHT_UNITS).nullable(),
   weightUnit: z.enum(WEIGHT_UNITS),
   effortScale: z.enum(EFFORT_SCALES),
   defaultRestSeconds: z.number().int().min(0).max(REST_SECONDS_MAX),
@@ -97,6 +149,10 @@ const uiFields = {
     .nullable(),
   trainingExperience: z.enum(TRAINING_EXPERIENCES).nullable(),
   trainingPlace: z.enum(TRAINING_PLACES).nullable(),
+  activeGymId: z.uuid().nullable(),
+  capPrompts: z.array(capPromptSchema).max(100),
+  stepPrompts: z.array(z.string().max(80)).max(STEP_PROMPTS_MAX),
+  overridePrompts: z.array(overridePromptSchema).max(OVERRIDE_PROMPTS_MAX),
 };
 export const uiPreferencesSchema = z
   .object({
@@ -106,6 +162,17 @@ export const uiPreferencesSchema = z
       weekday: 1,
       time: "09:00",
     }),
+    // Notifications: both off until the user turns them on; the report one fires on the 1st.
+    trainingReminder: uiFields.trainingReminder.default({
+      enabled: false,
+      weekdays: null,
+      time: "18:00",
+    }),
+    // Sent at the training reminder's time.
+    reportReminder: uiFields.reportReminder.default({ enabled: false }),
+    // The Rest-end buzz, and how loud the sound cues are (0 to 100).
+    restVibration: uiFields.restVibration.default(true),
+    cueVolume: uiFields.cueVolume.default(100),
     lengthUnit: uiFields.lengthUnit.optional(),
     avatarMediaId: uiFields.avatarMediaId.default(null),
     heightCm: uiFields.heightCm.default(null),
@@ -130,6 +197,7 @@ export const uiPreferencesSchema = z
     sidebarCollapsed: uiFields.sidebarCollapsed.default(false),
     dismissedHints: uiFields.dismissedHints.default([]),
     weightIncrementKg: uiFields.weightIncrementKg.default(null),
+    weightIncrementUnit: uiFields.weightIncrementUnit.optional(),
     weightUnit: uiFields.weightUnit.default("kg"),
     effortScale: uiFields.effortScale.default("rpe"),
     defaultRestSeconds: uiFields.defaultRestSeconds.default(DEFAULT_REST_SECONDS),
@@ -154,6 +222,11 @@ export const uiPreferencesSchema = z
     // first bars and plates); null means never answered.
     trainingExperience: uiFields.trainingExperience.default(null).catch(null),
     trainingPlace: uiFields.trainingPlace.default(null).catch(null),
+    // The gym the user trains at now; an unknown or deleted id reads as the first gym.
+    activeGymId: uiFields.activeGymId.default(null).catch(null),
+    capPrompts: uiFields.capPrompts.default([]).catch([]),
+    stepPrompts: uiFields.stepPrompts.default([]).catch([]),
+    overridePrompts: uiFields.overridePrompts.default([]).catch([]),
   })
   // A stored `restSound: false` becomes `soundRest: false`; the legacy key is never returned.
   .transform(({ restSound, soundRest, ...rest }) => ({
@@ -182,6 +255,8 @@ export const updatePreferencesSchema = z.object({
   locale: localeSchema.nullable().optional(),
   timezone: timezoneSchema.nullable().optional(),
   ui: uiPreferencesPatchSchema.optional(),
+  /** Dismiss one hint or replay this round's hints. Applied after an explicit `ui` patch. */
+  hintDismissal: z.enum([...HINT_IDS, "reset"]).optional(),
   /**
    * Per-muscle goal edits, merged into `ui.muscleGoals` one muscle at a time: a goal sets that
    * muscle, `null` resets it to the default. Unlike `ui.muscleGoals` (the whole map, which

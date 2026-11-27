@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { KG_PER_LB } from "../vocabulary/format";
+import type { LoadGrid } from "../progress/load-grid";
+import { KG_PER_LB, formatWeight, parseWeight, weightAtMost } from "../vocabulary/format";
 import type { ExerciseType, Equipment } from "../../exercise/vocabulary";
 import type { WeightUnit } from "../vocabulary/vocabulary";
 import { nearestBarLoadKg, smallestBarStepKg, type LoadPlate } from "../plates/plates";
@@ -9,13 +10,14 @@ import { nearestBarLoadKg, smallestBarStepKg, type LoadPlate } from "../plates/p
 export type WarmupSet = { weightKg: number; reps: number };
 
 /**
- * How much the user can load. A barbell with a known bar loads in plate pairs; everything else
- * (dumbbells, machines, kettlebells, a barbell with no bar) rounds to a step, `stepKg`, which
- * defaults to 2.5 kg or 5 lb.
+ * What the user can load. Exercise ranges take priority. Without them, a barbell with a known
+ * bar loads in plate pairs and other lifts round to `stepKg`, defaulting to 2.5 kg or 5 lb.
  */
 export type WarmupLoading = {
   bar: { weightKg: number; plates: readonly LoadPlate[] } | null;
   stepKg?: number | null;
+  grid?: LoadGrid | null;
+  capKg?: number | null;
 };
 
 /** One adjustable step of the ramp: a share of the working weight, for some reps. */
@@ -82,7 +84,7 @@ export function warmupRamp(input: {
   loading: WarmupLoading;
   /** The adjustable steps; the default ramp when absent. */
   steps?: readonly WarmupStep[];
-  /** `increment` rounds every load to the step, even on a bar; `equipment` is the default. */
+  /** Without exercise ranges, `increment` uses the fixed step even on a bar. */
   rounding?: WarmupRounding;
 }): WarmupSet[] {
   const { workingKg, exerciseType, equipment, unit, loading } = input;
@@ -96,10 +98,19 @@ export function warmupRamp(input: {
 
   let round: (kg: number) => number;
   let opener: WarmupSet;
-  if (bar) {
+  if (loading.grid && (!fixed || loading.grid.source === "gym")) {
+    const grid = loading.grid;
+    round = (kg) => grid.nearest(kg);
+    opener = {
+      weightKg: round(workingKg * OPENER.barless.fraction),
+      reps: OPENER.barless.reps,
+    };
+  } else if (bar) {
     const step = smallestBarStepKg(bar.plates);
     if (step === null || workingKg <= bar.weightKg + step + SAME) return [];
-    round = fixed ? (kg) => roundToStep(kg, stepKg) : (kg) => nearestBarLoadKg(kg, bar, bar.plates);
+    round = fixed
+      ? (kg) => roundToStep(kg, stepKg)
+      : (kg) => nearestBarLoadKg(roundToStep(kg, DEFAULT_STEP[unit]), bar, bar.plates);
     opener = { weightKg: bar.weightKg, reps: OPENER.bar.reps };
   } else {
     if (workingKg <= 2 * stepKg + SAME) return [];
@@ -110,6 +121,7 @@ export function warmupRamp(input: {
     };
   }
 
+  const gymCap = loading.capKg ?? loading.grid?.capKg;
   const ramp: WarmupSet[] = [];
   const candidates: { weightKg: number; reps: number; cap: number }[] = [
     { ...opener, cap: 1 },
@@ -123,6 +135,11 @@ export function warmupRamp(input: {
     const last = ramp.at(-1);
     if (candidate.weightKg <= SAME || candidate.weightKg >= workingKg - SAME) continue;
     if (candidate.weightKg > workingKg * cap + SAME) continue;
+    if (gymCap != null && candidate.weightKg > gymCap) continue;
+    const shownKg = parseWeight(formatWeight(candidate.weightKg, unit), unit);
+    if (gymCap != null && shownKg !== null && shownKg > gymCap)
+      candidate.weightKg = weightAtMost(candidate.weightKg, unit, gymCap);
+    if (candidate.weightKg <= SAME) continue;
     if (last && candidate.weightKg <= last.weightKg + SAME) continue;
     ramp.push(candidate);
   }

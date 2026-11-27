@@ -22,7 +22,7 @@ import type { RowView } from "@/session/store/derive";
 import { SET_TONES, formatEffortRange } from "@/training";
 
 import { hasRequiredSetValues } from "@/session/logging/history-gate";
-import { displayOfText, valueOfText } from "@/platform/ui/keypad-entry";
+import { displayOfText } from "@/platform/ui/keypad-entry";
 import type { CellRef } from "@/session/logging/keypad-entry";
 import {
   formatCell,
@@ -36,12 +36,14 @@ import { useNow } from "@/session/shared/use-now";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { RecordChip } from "./record-chip";
 import { SetCell } from "./set-cell";
+import { effortCellOf } from "./effort-cell";
+import { setCapLabel } from "./set-cap-label";
 import { TICK_MS } from "@/session/shared/motion";
 import { DONE_TINT_ALPHA, withAlpha } from "./row-tint";
 import { TickMark } from "./tick-mark";
 
 /** The cell being edited and what is typed into it. `fresh`: the next key replaces the text. */
-export type ActiveEntry = { cell: CellRef; raw: string; fresh: boolean };
+export type ActiveEntry = { cell: CellRef; raw: string; fresh: boolean; draftValue: number | null };
 
 /** The completed-row tint fades in and out like the tick. */
 const TINT_TRANSITION: CSSTransitionProperties = {
@@ -55,6 +57,8 @@ export type Refusal = { setId: string; fields: readonly SetField[] };
 
 export type SetRowProps = {
   historyReady: boolean;
+  /** Previous has been read; until then its column is blank, not "–". */
+  previousReady: boolean;
   editingFinished: boolean;
   /** The Inline timer preference: a running timer still shows, but none can be started. */
   set: SessionSetDetail;
@@ -77,6 +81,8 @@ export type SetRowProps = {
   onCell: (setId: string, field: SetField) => void;
   onTick: (setId: string) => void;
   onKind: (setId: string) => void;
+  onSwipeOpen?: () => void;
+  onLimits: (setId: string) => void;
   onEffort: (setId: string) => void;
   onPrevious: (setId: string) => void;
   onRemove: (setId: string) => Promise<boolean>;
@@ -119,7 +125,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   const {
     set,
     type,
-    row: { badge, number, previous, ghosts, canRemove },
+    row: { badge, previous, ghosts, canRemove },
     logEffort,
     unit,
     display,
@@ -130,6 +136,11 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   } = props;
   const { t } = useTranslation();
   const subtle = useSubtleColor();
+  // What the row shows: the working number, or the kind's name for a warm-up and the like.
+  const setLabel =
+    set.kind === "working"
+      ? t("session__set_number", { number: badge })
+      : t(SET_KIND_KEYS[set.kind]);
   const accent = useActionColor();
   const onAccent = useOnActionColor();
   const danger = useThemeColor("danger");
@@ -137,14 +148,23 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   const faint = useThemeColor("muted");
   const fields: readonly SetField[] = SET_FIELDS[type];
   const ticked = set.completedAt !== null;
+  const weighted = type === "weight_reps" || type === "bodyweight_weighted_reps";
   // The whole row takes the accent at 15%; unticked it is the same colour fully transparent, so
   // the transition fades the tint instead of passing through grey.
   const tint = withAlpha(accent, DONE_TINT_ALPHA);
   const transparent = withAlpha(accent, 0);
   // What is typed since the cell was opened; nothing until the first key.
-  const raw = entry && !entry.fresh ? entry.raw : null;
   const activeField = entry?.cell.field;
-  const draftValue = activeField && raw !== null ? valueOfText(activeField, raw, unit) : undefined;
+  const draftValue = entry && !entry.fresh ? entry.draftValue : undefined;
+  const capLabel =
+    weighted && set.kind !== "warmup"
+      ? setCapLabel({
+          capKg: props.row.capKg,
+          kg: (activeField === "weight" ? draftValue : null) ?? set.weightKg ?? ghosts.weight,
+          reps: (activeField === "reps" ? draftValue : null) ?? set.reps ?? previous?.reps,
+          repMax: set.target?.reps_max ?? set.target?.reps_min,
+        })
+      : null;
   const waitingForPrevious =
     !ticked &&
     !props.historyReady &&
@@ -197,7 +217,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
           ink={ink}
           faint={faint}
           disabled={readOnly}
-          label={t("training__cell_label", { number, field: header(field, editing) })}
+          label={t("session__cell_label", { set: setLabel, field: header(field, editing) })}
           onPress={() => props.onCell(set.id, field)}
         >
           {running && set.timerStartedAt !== null ? (
@@ -217,7 +237,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
                 : target === null
                   ? "session__timer_stop"
                   : "session__timer_cancel",
-              { number },
+              { set: setLabel },
             )}
             onPress={() => {
               haptic.tick();
@@ -236,9 +256,18 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
     );
   };
 
-  const rpeText = (rpe: number) => formatEffortRange(rpe, rpe, effortScale);
-  const effortValue = set.rpe === null ? null : rpeText(set.rpe);
-  const effortGhost = ghosts.rpe ?? null;
+  const effortCell = effortCellOf({
+    logged: set.rpe,
+    target: ghosts.rpe === undefined ? (set.target?.effort_min ?? null) : ghosts.rpe,
+    ticked,
+    current: props.current,
+  });
+  const effortText =
+    effortCell.kind === "logged" || effortCell.kind === "target"
+      ? formatEffortRange(effortCell.value, effortCell.value, effortScale)
+      : effortCell.kind === "dash"
+        ? "–"
+        : "";
 
   const row = (a11y?: SwipeA11yProps) => (
     <Animated.View
@@ -260,14 +289,27 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       <Pressable
         {...a11y}
         accessibilityRole="button"
-        accessibilityLabel={t("training__set_kind_change", {
-          number,
-          kind: t(SET_KIND_KEYS[set.kind]),
-        })}
+        accessibilityLabel={
+          set.kind === "working"
+            ? t("training__set_kind_change", { number: badge, kind: t(SET_KIND_KEYS[set.kind]) })
+            : t("training__set_kind_change_named", { kind: t(SET_KIND_KEYS[set.kind]) })
+        }
         disabled={readOnly}
         onPress={() => {
           haptic.tick();
           props.onKind(set.id);
+        }}
+        accessibilityActions={
+          weighted && !readOnly
+            ? [
+                { name: "limits", label: t("gym__limits_action") },
+                ...(a11y?.accessibilityActions ?? []),
+              ]
+            : a11y?.accessibilityActions
+        }
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === "limits") props.onLimits(set.id);
+          else a11y?.onAccessibilityAction(event);
         }}
         hitSlop={4}
         className="h-10 w-10 items-center justify-center rounded-lg active:bg-default"
@@ -279,20 +321,21 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
         </Text>
       </Pressable>
       <Pressable
+        accessible={props.previousReady}
         accessibilityRole="button"
         accessibilityLabel={
           previousText === null
             ? t("session__previous_none")
             : t("session__previous_copy", { value: previousText })
         }
-        disabled={readOnly || previous === null || previousText === null}
+        disabled={readOnly || !props.previousReady || previous === null || previousText === null}
         onPress={() => {
           haptic.tick();
           props.onPrevious(set.id);
         }}
         className="h-10 min-w-0 flex-[1.3] items-center justify-center rounded-lg px-1 active:bg-default"
       >
-        {!props.historyReady ? (
+        {!props.previousReady ? (
           <View className="h-3 w-10" />
         ) : (
           <Text
@@ -309,19 +352,25 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       {hasEffortColumn && set.kind !== "warmup" ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("training__effort_cell_label", {
-            number,
-            value: effortValue ?? t("training__effort_none"),
-          })}
+          accessibilityLabel={t(
+            effortCell.kind === "target"
+              ? "session__effort_target_label"
+              : "session__effort_cell_label",
+            {
+              set: setLabel,
+              value:
+                effortText === "" || effortText === "–" ? t("training__effort_none") : effortText,
+            },
+          )}
           disabled={readOnly}
           onPress={() => props.onEffort(set.id)}
           className="h-10 w-11 items-center justify-center rounded-lg active:bg-default"
         >
           <Text
-            className={`font-normal text-body ${effortValue === null ? "text-muted" : "text-foreground"}`}
+            className={`font-normal text-body ${effortCell.kind === "logged" ? "text-foreground" : "text-muted"}`}
             style={{ fontVariant: ["tabular-nums"] }}
           >
-            {effortValue ?? (effortGhost === null ? "–" : rpeText(effortGhost))}
+            {effortText}
           </Text>
         </Pressable>
       ) : null}
@@ -333,10 +382,11 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
             busy: waitingForPrevious && !readOnly,
             disabled: readOnly || waitingForPrevious,
           }}
-          accessibilityLabel={t(
-            readOnly ? "session__set_number" : ticked ? "session__untick_set" : "session__tick_set",
-            { number },
-          )}
+          accessibilityLabel={
+            readOnly
+              ? setLabel
+              : t(ticked ? "session__untick_set" : "session__tick_set", { set: setLabel })
+          }
           accessibilityHint={
             waitingForPrevious && !readOnly ? t("session__set_waiting_for_previous") : undefined
           }
@@ -360,7 +410,6 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       key: "copy",
       label: t("session__copy_previous"),
       icon: Copy,
-      iconOnly: true,
       onPress: () => props.onCopySets(set.id, "previous"),
     });
   if (props.row.canFillRemaining)
@@ -368,7 +417,6 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       key: "fill",
       label: t("session__fill_remaining"),
       icon: Rows,
-      iconOnly: true,
       onPress: () => props.onCopySets(set.id, "remaining"),
     });
   if (canRemove)
@@ -377,18 +425,18 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       label: t("training__remove"),
       icon: Trash,
       tone: "danger",
-      iconOnly: true,
       onPress: () => void props.onRemove(set.id),
     });
   return (
     <View>
       {!readOnly && actions.length > 0 ? (
-        <SwipeRow actions={actions} motion={false}>
+        <SwipeRow actions={actions} motion={false} onOpen={props.onSwipeOpen}>
           {(a11y) => row(a11y)}
         </SwipeRow>
       ) : (
         row()
       )}
+      {capLabel ? <Text className="px-3 pb-1 text-caption text-muted">{t(capLabel)}</Text> : null}
       {refusal ? (
         <View className="flex-row items-center gap-1.5 px-3">
           <WarningCircle size={16} color={danger} />

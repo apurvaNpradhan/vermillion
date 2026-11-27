@@ -94,12 +94,20 @@ export function AvatarPicker({ showIdentity = true }: { showIdentity?: boolean }
       {showIdentity ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("settings__open_profile", { name: user?.name ?? "" })}
+          accessibilityLabel={
+            user?.name
+              ? t("settings__open_profile", { name: user.name })
+              : t("settings__profile_title")
+          }
           onPress={() => router.navigate("/settings/profile")}
           className="items-center gap-0.5 active:opacity-80"
         >
-          <Text className="font-semibold text-title-md text-foreground">{user?.name ?? " "}</Text>
-          <Text className="font-normal text-caption text-muted">{user?.email ?? " "}</Text>
+          <Text className="font-semibold text-title-md text-foreground">
+            {user?.name || t("settings__profile_title")}
+          </Text>
+          {user?.email ? (
+            <Text className="font-normal text-caption text-muted">{user.email}</Text>
+          ) : null}
         </Pressable>
       ) : null}
       <ActionSheet

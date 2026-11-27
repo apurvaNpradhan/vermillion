@@ -1,4 +1,10 @@
-import { DEFAULT_LIBRARY_FILTERS, type LibraryFilters } from "@workspace/sync";
+import { hasActiveFilters, type LibraryFilters } from "@workspace/sync";
+
+export type LibraryFilterState = Omit<LibraryFilters, "lacking"> & { availableOnly: boolean };
+
+export function hasActiveFacets(filters: LibraryFilterState): boolean {
+  return filters.availableOnly || hasActiveFilters({ ...filters, lacking: [] });
+}
 
 /** `values` with `value` added, or removed when it is already there. */
 export function toggled<T extends string>(values: readonly T[], value: T): T[] {
@@ -6,13 +12,16 @@ export function toggled<T extends string>(values: readonly T[], value: T): T[] {
 }
 
 /** The filters with every facet cleared; the search text and the sort stay. */
-export function withoutFacets(filters: LibraryFilters): LibraryFilters {
+export function withoutFacets(filters: LibraryFilterState): LibraryFilterState {
   return {
     ...filters,
-    muscles: DEFAULT_LIBRARY_FILTERS.muscles,
-    includeSecondary: DEFAULT_LIBRARY_FILTERS.includeSecondary,
-    equipment: DEFAULT_LIBRARY_FILTERS.equipment,
-    show: DEFAULT_LIBRARY_FILTERS.show,
+    muscles: [],
+    primaryDetail: null,
+    pinnedOnly: false,
+    includeSecondary: false,
+    equipment: [],
+    availableOnly: false,
+    show: "all",
   };
 }
 

@@ -1,4 +1,4 @@
-import type { SyncFailureCode } from "@workspace/shared";
+import { SYNC_LIMITS, type SyncFailureCode } from "@workspace/shared";
 import { z } from "zod";
 
 import { SyncRejection } from "../platform/sync/handler";
@@ -74,3 +74,21 @@ export function checkPut<Row extends { deletedAt: Date | null }>(
     throw new SyncRejection("SYNC_ROW_DELETED");
   }
 }
+
+/**
+ * A column that travels as JSON text (SQLite stores it that way): the text is parsed, then
+ * checked by `schema`. Anything else is a permanent refusal when passed to {@link accept}.
+ */
+export const jsonText = <T extends z.ZodType>(schema: T) =>
+  z
+    .string()
+    .max(SYNC_LIMITS.maxValueBytes)
+    .transform((text, ctx) => {
+      try {
+        return JSON.parse(text);
+      } catch {
+        ctx.addIssue({ code: "custom", error: "Not JSON" });
+        return z.NEVER;
+      }
+    })
+    .pipe(schema);

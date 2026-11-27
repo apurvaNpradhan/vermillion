@@ -28,6 +28,7 @@ export const media = pgTable(
     thumbBytes: integer("thumb_bytes").notNull(),
     createdAt: createdAt(),
     deletedAt: deletedAt(),
+    coverUnreferencedAt: timestamp("cover_unreferenced_at", { withTimezone: true, mode: "date" }),
     /** Set by the purge job once the objects of a deleted media are gone from the bucket. */
     objectsPurgedAt: timestamp("objects_purged_at", { withTimezone: true, mode: "date" }),
   },

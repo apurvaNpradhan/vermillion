@@ -17,6 +17,7 @@ const REJECTION_KEYS = new Map<string, TranslationKey>([
   ["TRAINING_SLOT_PROGRAM_MISMATCH", "sync__rejected_code_training_slot"],
   ["TRAINING_INVALID_SETS", "sync__rejected_code_training_sets"],
   ["TRAINING_LIMIT_REACHED", "sync__rejected_code_training_limit"],
+  ["RUN_DELOAD_LOGGED", "sync__rejected_code_deload_logged"],
   ["RUN_NOT_FOUND", "sync__rejected_code_run_missing"],
   ["RUN_PROGRAM_NOT_FOUND", "sync__rejected_code_run_program"],
   ["RUN_SLOT_PROGRAM_MISMATCH", "sync__rejected_code_run_slot"],

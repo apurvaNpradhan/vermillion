@@ -6,6 +6,11 @@ export type PickOptions = {
   exclude?: readonly string[];
   /** Replace: the exercise being swapped out; "Swap for" suggestions for it sit above the list. */
   swapFor?: string;
+  /**
+   * The Session whose gym ranks the swap suggestions and powers the "Available here" filter.
+   * With no Session gym the picker uses the active gym.
+   */
+  sessionId?: string;
 };
 
 /** Whether `id` may be picked at all (not excluded). Archived is decided by the row. */

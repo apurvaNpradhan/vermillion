@@ -1,5 +1,6 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from "expo-audio";
 
+import { cueGain } from "./sound-volume";
 import type { SoundCue } from "./sound-rules";
 
 /** The generated marimba cues (assets/sounds/CREDITS.md, tools/sounds/). Metro resolves each `require` to an asset id. */
@@ -54,13 +55,14 @@ export function preloadSoundCues(): void {
   void load();
 }
 
-/** Plays a cue from the start. Never throws. */
-export function playSoundCue(cue: SoundCue): void {
+/** Plays a cue from the start at `volume` (0 to 100 percent). Never throws. */
+export function playSoundCue(cue: SoundCue, volume = 100): void {
   void (async () => {
     const loaded = await load();
     const player = loaded?.get(cue);
     if (!player) return;
     try {
+      player.volume = cueGain(volume);
       await player.seekTo(0);
       player.play();
     } catch (error) {

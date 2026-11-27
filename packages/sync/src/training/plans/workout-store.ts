@@ -23,7 +23,7 @@ import {
 } from "../store-common";
 // ---- Workouts ----
 
-const workoutFields = workoutInput.pick({ title: true, note: true }).partial();
+const workoutFields = workoutInput.pick({ title: true, note: true, main_entry_id: true }).partial();
 export type WorkoutPatch = z.infer<typeof workoutFields>;
 
 /** Creates an empty Workout, standalone or inside a Program of the Device owner. */
@@ -60,6 +60,7 @@ export async function updateWorkout(
       program_id: current.program_id,
       title: current.title,
       note: current.note,
+      main_entry_id: current.main_entry_id,
       ...changes,
     });
     await tx.update(workout).set(changes).where(eq(workout.id, id));

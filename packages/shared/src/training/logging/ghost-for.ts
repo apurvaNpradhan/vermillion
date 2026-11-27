@@ -1,4 +1,4 @@
-import { progresses, type SuggestedSet } from "../progress/progression";
+import type { SuggestedSet } from "../progress/progression";
 import type { SetField } from "../../exercise/vocabulary";
 import type { SetValues } from "./logged-set";
 import type { PlannedSet } from "../plans/planned-sets";
@@ -22,9 +22,11 @@ export function ghostFor(
   suggestion?: SuggestedSet | null,
   repeated = false,
 ): number | null {
-  if (suggestion && (!target || progresses(target.kind))) {
+  if (suggestion && target?.kind !== "warmup") {
     if (field === "weight" && suggestion.weightKg !== null) return suggestion.weightKg;
     if (field === "reps" && suggestion.reps !== null) return suggestion.reps;
+    if (field === "duration" && suggestion.durationS != null) return suggestion.durationS;
+    if (field === "distance" && suggestion.distanceM != null) return suggestion.distanceM;
   }
   if (field === "rpe") return target?.effort_min ?? null;
   if (field === "reps") {

@@ -1,11 +1,13 @@
-import { useRouter } from "expo-router";
+import { SLOT_STATE_KEYS, slotLabel, stripState } from "@/training/train/strip-state";
 import { Check, Repeat } from "phosphor-react-native";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
+import { workoutNumber } from "@workspace/shared";
 import { Text, View } from "react-native";
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
+import { DayMark } from "@/platform/ui/day-mark";
 import { SectionHeader } from "@/platform/ui/section-header";
 import { useStartSession } from "@/session";
 import type { useActiveProgram } from "@/training/programs/use-active-program";
@@ -19,22 +21,15 @@ export function ActiveProgramCard({
   state: ReturnType<typeof useActiveProgram>;
 }) {
   const { t } = useTranslation();
-  const router = useRouter();
-  const { program, run, progress, week } = state;
-  const { start, sheet } = useStartSession();
+  const { program, run, progress, week, totalWeeks, paused } = state;
+  const { startSlot, sheet } = useStartSession();
   if (!program || !run) return null;
   const next = program.slots.find((s) => s.id === progress.next?.id);
-  const position = next ? program.slots.findIndex((slot) => slot.id === next.id) + 1 : 0;
-  const progressText = program.plannedWeeks
-    ? t("run__progress_of", { week, total: program.plannedWeeks, workout: position })
-    : t("run__progress", { week, workout: position });
+  const position = workoutNumber(program.slots, next?.id);
+  const progressText = t("run__progress", { week, workout: position });
   return (
     <View className="gap-3">
-      <SectionHeader
-        title={t("run__active")}
-        actionLabel={t("run__change")}
-        onAction={() => router.push("/train/programs")}
-      />
+      <SectionHeader title={t("run__active")} />
       <View className="flex-row items-center gap-3">
         <ProgramTile title={program.title} size={40} coverMediaId={program.coverMediaId} />
         <View className="flex-1">
@@ -42,56 +37,33 @@ export function ActiveProgramCard({
             {program.title}
           </Text>
           <Text className="font-normal text-caption text-muted">
-            {position > 0
-              ? progressText
-              : program.plannedWeeks
-                ? t("run__week_of", { week, total: program.plannedWeeks })
-                : t("run__week", { week })}
+            {paused
+              ? t("run__paused")
+              : position > 0
+                ? progressText
+                : totalWeeks
+                  ? t("run__week_of", { week, total: totalWeeks })
+                  : t("run__week", { week })}
           </Text>
         </View>
       </View>
-      <View
-        className="flex-row flex-wrap gap-2"
-        accessibilityLabel={t("run__cycle", { cycle: progress.cycle })}
-      >
-        {program.slots.map((slot) => {
-          const trained = progress.trained.has(slot.id);
-          const rest = slot.workoutId === null;
-          const next = progress.next?.id === slot.id;
+      <View className="flex-row flex-wrap">
+        {program.slots.map((slot, index) => {
+          const state = stripState(slot, progress);
           return (
             <View
               key={slot.id}
               accessible
-              accessibilityLabel={t("run__slot_state", {
-                title: slotTitle(slot, t),
-                state: t(trained ? "run__trained" : next ? "run__up_next" : "run__untrained"),
-              })}
-              className={
-                rest
-                  ? "h-7 w-7 self-center items-center justify-center rounded-full bg-default opacity-40"
-                  : trained
-                    ? "h-10 w-10 items-center justify-center rounded-full bg-foreground"
-                    : next
-                      ? "h-10 w-10 items-center justify-center rounded-full border-2 border-foreground bg-default"
-                      : "h-10 w-10 items-center justify-center rounded-full bg-default"
-              }
+              accessibilityLabel={slotLabel(
+                t,
+                { day: index + 1, state, title: slotTitle(slot, t) },
+                t(SLOT_STATE_KEYS[state]),
+              )}
+              className="h-11 w-11 items-center justify-center gap-1"
             >
-              {rest ? (
-                <View
-                  className={
-                    trained
-                      ? "size-1.5 rounded-full bg-background"
-                      : "size-1.5 rounded-full bg-muted"
-                  }
-                />
-              ) : (
-                <Text
-                  className={
-                    trained
-                      ? "text-label font-semibold text-background"
-                      : "text-label text-foreground"
-                  }
-                >
+              <DayMark state={state} />
+              {state === "rest" ? null : (
+                <Text className="text-caption text-muted">
                   {slotTitle(slot, t).slice(0, 1).toLocaleUpperCase()}
                 </Text>
               )}
@@ -101,13 +73,25 @@ export function ActiveProgramCard({
       </View>
       {next?.workoutId ? (
         <View className="flex-row items-center justify-between gap-3">
-          <Text numberOfLines={1} className="font-normal flex-1 text-body text-foreground">
-            {t("run__next", { title: slotTitle(next, t) })}
-          </Text>
+          <View className="min-w-0 flex-1">
+            <Text numberOfLines={1} className="font-normal text-body text-foreground">
+              {t("run__next", { title: slotTitle(next, t) })}
+            </Text>
+            {paused ? (
+              <Text className="text-caption text-muted">{t("run__start_resumes")}</Text>
+            ) : null}
+          </View>
           <Button
             size="sm"
             className="rounded-full px-4"
-            onPress={() => void start(next.workoutId)}
+            onPress={() => {
+              if (next.workoutId)
+                void startSlot(next.workoutId, {
+                  runId: run.id,
+                  slotId: next.id,
+                  cycle: progress.cycle,
+                });
+            }}
           >
             <Button.Label>{t("training__start")}</Button.Label>
           </Button>
@@ -124,23 +108,24 @@ export function ActiveProgramCard({
  */
 export function RunEndOffer({ state }: { state: ReturnType<typeof useActiveProgram> }) {
   const { t } = useTranslation();
-  const { program, run, week } = state;
+  const { run, week, totalWeeks, paused } = state;
   const [endOpen, setEndOpen] = useState(false);
   const offered = useRef<string | null>(null);
   useFocusEffect(
     useCallback(() => {
       if (
         run &&
-        program?.plannedWeeks &&
+        !paused &&
+        totalWeeks &&
         run.started_at &&
         !run.continued_at &&
-        week > program.plannedWeeks &&
+        week > totalWeeks &&
         offered.current !== run.id
       ) {
         offered.current = run.id;
         setEndOpen(true);
       }
-    }, [run, program, week]),
+    }, [run, totalWeeks, week, paused]),
   );
   return (
     <ActionSheet

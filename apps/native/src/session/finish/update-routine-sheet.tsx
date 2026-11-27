@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet, useThemeColor } from "heroui-native";
 import { CaretDown, CaretUp } from "phosphor-react-native";
 import { useState } from "react";
@@ -52,7 +53,7 @@ export function UpdateRoutineSheet({
         if (!open && !busy) onKeep();
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay isCloseOnPress={!busy} />
         <ScrollableSheetContent
           size="tall"
@@ -139,7 +140,7 @@ export function UpdateRoutineSheet({
             </View>
           ) : null}
         </ScrollableSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

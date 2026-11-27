@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
@@ -9,7 +10,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
 import { useSubtleColor } from "@/platform/theme";
+import { ListRow, ListSection } from "@/platform/ui/list";
 import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
+import type { SwipeAction } from "@/platform/ui/swipe-row";
 
 import { SET_TONES } from "./set-tones";
 
@@ -22,6 +25,8 @@ const HINTS = {
   backoff: "training__set_type_backoff_hint",
   myo: "training__set_type_myo_hint",
 } as const;
+/** Roughly the sheet's closing animation. */
+const CLOSE_MS = 200;
 const BADGES = {
   working: "1",
   warmup: "training__chip_warmup",
@@ -40,6 +45,7 @@ function SetTypeSheetBody({
   warmupsAllowed,
   title,
   workingAllowed = true,
+  extras,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -49,6 +55,8 @@ function SetTypeSheetBody({
   /** Overrides the "Set type" title, e.g. when the sheet adds a set. */
   title?: string;
   workingAllowed?: boolean;
+  /** Actions for the set under the kinds (Fill remaining, Remove…); each closes the sheet first. */
+  extras?: readonly SwipeAction[];
 }) {
   const animation = useSheetAnimation();
   const { t } = useTranslation();
@@ -56,7 +64,7 @@ function SetTypeSheetBody({
   const subtle = useSubtleColor();
   return (
     <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <FixedSheetContent
           fraction={0.8}
@@ -106,9 +114,32 @@ function SetTypeSheetBody({
                     </Pressable>,
                   ],
             )}
+            {extras?.length ? (
+              <ListSection>
+                {extras.map((action) => (
+                  <ListRow
+                    key={action.key}
+                    icon={action.icon}
+                    title={action.label}
+                    tone={action.tone}
+                    accessory="none"
+                    onPress={() => {
+                      onOpenChange(false);
+                      // After the sheet is gone, so an action that opens another sheet does not
+                      // animate in while this one is still leaving.
+                      if (animation) {
+                        requestAnimationFrame(() => requestAnimationFrame(action.onPress));
+                      } else {
+                        setTimeout(action.onPress, CLOSE_MS);
+                      }
+                    }}
+                  />
+                ))}
+              </ListSection>
+            ) : null}
           </BottomSheetScrollView>
         </FixedSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

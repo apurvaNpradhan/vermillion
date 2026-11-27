@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 import { deviceStorage } from "@/platform/storage";
 
-import { readStallMemory, writeStallMemory } from "./stall-state";
+import { readStallMemory } from "./stall-state";
 
 const key = (exerciseId: string) =>
   `device.stall.${exerciseId.replaceAll(/[^A-Za-z0-9._-]/g, "_")}`;
@@ -23,15 +23,11 @@ export const useStallVersion = () => useSyncExternalStore(subscribe, () => versi
 export const stallMemory = (exerciseId: string, latestSessionId: string | null) =>
   readStallMemory(deviceStorage.get(key(exerciseId)), latestSessionId);
 
-/** Dismiss the note, or apply (or undo) today's deload, for an exercise's latest Session. */
-export function changeStall(
-  exerciseId: string,
-  latestSessionId: string,
-  change: Partial<{ dismissed: boolean; applied: boolean }>,
-): void {
+/** Dismiss the note for this exercise and baseline Session. */
+export function dismissStall(exerciseId: string, latestSessionId: string): void {
   deviceStorage.set(
     key(exerciseId),
-    writeStallMemory(deviceStorage.get(key(exerciseId)), latestSessionId, change),
+    JSON.stringify({ sessionId: latestSessionId, dismissed: true }),
   );
   version += 1;
   for (const listener of listeners) listener();

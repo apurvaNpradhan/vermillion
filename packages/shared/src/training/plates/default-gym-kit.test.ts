@@ -15,20 +15,22 @@ describe("defaultGymKit", () => {
     ]);
   });
 
-  it("is the lb kit: bars 45, 35, 25, 0 and 55 (Trap), plates 45 down to 2.5, stored in kg", () => {
+  it("is the lb kit: bars 45, 35, 25, 0 and 55 (Trap), plates 45 down to 1.25, stored in kg", () => {
     const kit = defaultGymKit("lb");
     const inPounds = (kind: "bar" | "plate") =>
       kit
         .filter((item) => item.kind === kind)
         .map((item) => Math.round((item.weight_kg / KG_PER_LB) * 1000) / 1000);
     expect(inPounds("bar")).toEqual([45, 35, 25, 0, 55]);
-    expect(inPounds("plate")).toEqual([45, 35, 25, 10, 5, 2.5]);
+    expect(inPounds("plate")).toEqual([45, 35, 25, 10, 5, 2.5, 1.25]);
   });
 
-  it("is enabled, unlimited, tagged with its unit and valid", () => {
+  it("starts fractional plates disabled and keeps the rest enabled", () => {
     for (const unit of ["kg", "lb"] as const) {
       for (const item of defaultGymKit(unit)) {
-        expect(item).toMatchObject({ unit, enabled: true, count: null });
+        expect(item).toMatchObject({ unit, count: null });
+        const fractional = unit === "kg" ? 0.5 : 1.25 * KG_PER_LB;
+        expect(item.enabled).toBe(item.weight_kg !== fractional);
         expect(gymEquipmentInput.safeParse(item).success).toBe(true);
       }
     }

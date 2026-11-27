@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { TRAINING_LIMITS, supersetPlaces } from "@workspace/shared";
+import { TRAINING_LIMITS, mainEntryOf, supersetPlaces } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
 import {
@@ -8,18 +8,18 @@ import {
   FloppyDisk,
   Link,
   LinkBreak,
-  LinkSimple,
   ListPlus,
   PlayCircle,
   Plus,
   PencilSimple,
   ShareNetwork,
+  Star,
   Swap,
   Trash,
   WarningCircle,
 } from "phosphor-react-native";
 import { useMemo, useState } from "react";
-import { Keyboard, Pressable, Text, View, type ScrollView } from "react-native";
+import { Pressable, Text, View, type ScrollView } from "react-native";
 import { CaretDown, CaretUp } from "phosphor-react-native";
 import Animated, { useAnimatedRef, useScrollOffset } from "react-native-reanimated";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -37,11 +37,10 @@ import { EmptyState } from "@/platform/ui/empty-state";
 import { Page, ScrollPage } from "@/platform/ui/page";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
-import { displayTitle } from "./derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { useCoalescedWriter } from "@/training/shared/use-coalesced-writer";
 import { useProgramActions } from "@/training/programs/use-program-actions";
 import { useWorkout } from "./use-workout";
-import { useShareLinkAction } from "@/share";
 import { useWorkoutActions } from "./use-workout-actions";
 import { AddToProgramSheet } from "@/training/rotation/add-to-program-sheet";
 import { CompactRow } from "@/training/reorder/compact-row";
@@ -50,6 +49,7 @@ import { SavedTextField } from "@/training/targets/saved-text-field";
 import { EditorKeypadProvider } from "@/training/sets/editor-keypad";
 import { WorkoutExerciseRow } from "./workout-exercise-row";
 import { WorkoutNote } from "./workout-note";
+import { WorkoutCoverSection } from "./workout-cover-section";
 
 /** Where the editor sends the user. */
 export type WorkoutEditorProps = {
@@ -106,11 +106,9 @@ function LoadedEditor({
   const { t } = useTranslation();
   const foreground = useThemeColor("foreground");
   const actions = useWorkoutActions();
-  const { shareLink } = useShareLinkAction();
   const programActions = useProgramActions();
   const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [editingDetails, setEditingDetails] = useState(false);
   const [showMore, setShowMore] = useState(false);
   const [programSheet, setProgramSheet] = useState(false);
   const pickExercises = usePickExercises("train");
@@ -176,21 +174,11 @@ function LoadedEditor({
       router.push({ pathname: "/share/[kind]/[id]", params: { kind: "workout", id: workout.id } });
     },
   };
-  const shareAsLink: SwipeAction = {
-    key: "share-link",
-    label: t("share__share_link"),
-    icon: LinkSimple,
-    onPress: () => {
-      writer.flush();
-      void shareLink({ kind: "workout", id: workout.id });
-    },
-  };
   // A Workout of a Program leaves it only by a copy; a standalone one can be copied into one.
   const menu: SwipeAction[] =
     workout.programId === null
       ? [
           share,
-          shareAsLink,
           {
             key: "duplicate",
             label: t("training__duplicate"),
@@ -215,7 +203,6 @@ function LoadedEditor({
         ]
       : [
           share,
-          shareAsLink,
           {
             key: "standalone",
             label: t("training__save_standalone"),
@@ -234,6 +221,12 @@ function LoadedEditor({
     rowIndex >= 0 &&
     rowIndex < workout.exercises.length - 1 &&
     (rowPlace === "none" || rowPlace === "last");
+  // The main lift is a Test week's one top set: the first exercise unless the user chose another.
+  const mainId = mainEntryOf(
+    workout.exercises.map((entry) => entry.id),
+    workout.mainEntryId,
+  );
+  const isMain = rowMenu !== null && rowMenu.id === mainId;
   const rowActions: SwipeAction[] = rowMenu
     ? [
         {
@@ -245,6 +238,16 @@ function LoadedEditor({
             onOpenExercise(rowMenu.id);
           },
         },
+        ...(isMain || !workout.exercises.some((entry) => entry.id === rowMenu.id)
+          ? []
+          : [
+              {
+                key: "main",
+                label: t("phase__make_main"),
+                icon: Star,
+                onPress: () => void actions.update(workout.id, { main_entry_id: rowMenu.id }),
+              },
+            ]),
         ...(canJoin
           ? [
               {
@@ -339,32 +342,16 @@ function LoadedEditor({
             >
               <View className="px-4">{header}</View>
               <View className="gap-3 px-4">
-                {editingDetails ? (
-                  <>
-                    <SavedTextField
-                      label={t("training__name_label")}
-                      value={workout.title}
-                      onText={(next) => writer.queue({ title: next })}
-                      placeholder={title}
-                      maxLength={TRAINING_LIMITS.titleMax}
-                      returnKeyType="next"
-                    />
-                    <WorkoutNote
-                      value={workout.note}
-                      onText={(next) => writer.queue({ note: next })}
-                    />
-                    <Button
-                      variant="secondary"
-                      onPress={() => {
-                        writer.flush();
-                        Keyboard.dismiss();
-                        setEditingDetails(false);
-                      }}
-                    >
-                      <Button.Label>{t("training__effort_done")}</Button.Label>
-                    </Button>
-                  </>
-                ) : null}
+                <WorkoutCoverSection workout={workout} title={title} />
+                <SavedTextField
+                  label={t("training__name_label")}
+                  value={workout.title}
+                  onText={(next) => writer.queue({ title: next })}
+                  placeholder={title}
+                  maxLength={TRAINING_LIMITS.titleMax}
+                  returnKeyType="next"
+                />
+                <WorkoutNote value={workout.note} onText={(next) => writer.queue({ note: next })} />
               </View>
               <Pressable
                 accessibilityRole="button"
@@ -384,9 +371,6 @@ function LoadedEditor({
               </Pressable>
               {showMore ? (
                 <View className="gap-3 px-4">
-                  {workout.note && !editingDetails ? (
-                    <Text className="font-normal text-body text-muted">{workout.note}</Text>
-                  ) : null}
                   <View className="flex-row items-center gap-4">
                     <BodyMapPair
                       primary={muscles.primary}
@@ -487,12 +471,6 @@ function LoadedEditor({
               writer.flush();
               onStart(workout.id);
             },
-          },
-          {
-            key: "rename",
-            label: t("training__edit_details"),
-            icon: PencilSimple,
-            onPress: () => setEditingDetails(true),
           },
           ...menu,
         ]}

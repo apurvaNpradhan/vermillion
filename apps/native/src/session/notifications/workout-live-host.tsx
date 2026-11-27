@@ -1,6 +1,9 @@
+import { useStallVersion } from "@/exercise";
 import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
+import { useGymLoads } from "@/gym";
 import { usePreferences } from "@/preferences";
+import { useWeight } from "@/body";
 import { useActiveSessions } from "@/session/lifecycle/use-active-sessions";
 import { useInstallId } from "@/session/shared/use-install-id";
 import { useSession } from "@/session/screen/use-session";
@@ -10,11 +13,26 @@ import { restSoundOn } from "@/session/settings/rest-sound";
 
 function SessionLive({ id, installId }: { id: string | null; installId: string }) {
   const state = useSession(id);
+  const stallVersion = useStallVersion();
   const permission = useNotificationPermission();
-  const { preferences } = usePreferences();
-  const { weightUnit, weightIncrementKg, lighterWeeks, sounds, soundRest } = preferences.ui;
+  const { preferences, timeZone, isLoading: preferencesLoading } = usePreferences();
+  const {
+    weightUnit,
+    weightIncrementKg,
+    weightIncrementUnit,
+    lighterWeeks,
+    previousSource,
+    countWarmups,
+    bodyweightKg,
+    sounds,
+    soundRest,
+    restVibration,
+  } = preferences.ui;
   const soundOn = restSoundOn({ sounds, soundRest });
   const session = state.status === "ready" ? state.session : null;
+  const { bodyweightOn, loading: weightLoading } = useWeight();
+  const sessionGymId = session?.gymId ?? null;
+  const gym = useGymLoads(sessionGymId);
   const loading = id !== null && state.status === "loading";
   // A different Session or a new install invalidates in-flight work for the old one.
   useEffect(() => dismissWorkoutLive, [id, installId]);
@@ -25,7 +43,14 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
     return () => subscription.remove();
   }, []);
   useEffect(() => {
-    if (loading || permission === "unknown") return;
+    if (
+      loading ||
+      preferencesLoading ||
+      weightLoading ||
+      gym.ready !== true ||
+      permission === "unknown"
+    )
+      return;
     if (
       permission !== "granted" ||
       !session ||
@@ -35,16 +60,44 @@ function SessionLive({ id, installId }: { id: string | null; installId: string }
       dismissWorkoutLive();
       return;
     }
-    refreshWorkoutLive(session, { weightUnit, weightIncrementKg, lighterWeeks, soundOn });
+    refreshWorkoutLive(
+      session,
+      {
+        weightUnit,
+        weightIncrementKg,
+        weightIncrementUnit,
+        lighterWeeks,
+        previousSource,
+        // The weigh-in of the Session's day, as on the screen: Done ticks what the screen shows.
+        bodyweightKg: session ? bodyweightOn(session.startedAt) : bodyweightKg,
+        timeZone,
+        countWarmups,
+        soundOn,
+        vibrate: restVibration,
+      },
+      { gym, sessionGymId },
+    );
   }, [
     loading,
+    preferencesLoading,
+    weightLoading,
+    stallVersion,
     session,
     installId,
     permission,
     weightUnit,
     weightIncrementKg,
+    weightIncrementUnit,
     lighterWeeks,
+    previousSource,
+    bodyweightKg,
+    timeZone,
+    countWarmups,
+    bodyweightOn,
+    gym,
+    sessionGymId,
     soundOn,
+    restVibration,
   ]);
   return null;
 }

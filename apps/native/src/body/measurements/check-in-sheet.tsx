@@ -1,4 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -146,7 +147,7 @@ function CheckInForm({
           if (!open && !busy) onClose();
         }}
       >
-        <BottomSheet.Portal>
+        <SheetPortal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
             animationConfigs={SHEET_SPRING}
@@ -221,6 +222,15 @@ function CheckInForm({
             {!entry ? (
               <Text className="font-normal text-caption text-muted">{t("body__ghost_hint")}</Text>
             ) : null}
+            {entry ? (
+              <Button
+                variant="danger-soft"
+                isDisabled={busy}
+                onPress={() => void actions.remove(entry).then(onClose)}
+              >
+                <Button.Label>{t("body__delete")}</Button.Label>
+              </Button>
+            ) : null}
             {actions.error || photoActions.error ? (
               <Text accessibilityRole="alert" className="font-normal text-body text-danger">
                 {actions.error || photoActions.error}
@@ -290,7 +300,7 @@ function CheckInForm({
               }}
             />
           </BottomSheet.Content>
-        </BottomSheet.Portal>
+        </SheetPortal>
       </BottomSheet>
       {entry || onlyMetric || !sheet.isOpen ? null : (
         <PhotoSlotSheet
@@ -323,7 +333,7 @@ export function CheckInSheet(props: {
           if (!open) props.onClose();
         }}
       >
-        <BottomSheet.Portal>
+        <SheetPortal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
             animationConfigs={SHEET_SPRING}
@@ -336,7 +346,7 @@ export function CheckInSheet(props: {
               <Button.Label>{t("training__retry")}</Button.Label>
             </Button>
           </BottomSheet.Content>
-        </BottomSheet.Portal>
+        </SheetPortal>
       </BottomSheet>
     );
   return <CheckInForm {...props} state={state} />;

@@ -1,6 +1,7 @@
 import type { AbstractPowerSyncDatabase } from "@powersync/common";
 import { wrapPowerSyncWithDrizzle } from "@powersync/drizzle-driver";
 import {
+  applyHintDismissal,
   experienceWarmupSteps,
   isLocale,
   TARGET_MUSCLES,
@@ -105,8 +106,9 @@ export async function savePreferences(
   database: PreferencesDatabase,
   input: UpdatePreferences,
   scope: PreferencesScope,
+  derive?: (current: Preferences) => UpdatePreferences,
 ) {
-  const patch = updatePreferencesSchema.parse(input);
+  const fixedPatch = updatePreferencesSchema.parse(input);
   return wrapPowerSyncWithDrizzle(database, { schema: drizzleSchema }).transaction(async (tx) => {
     if (scope.installId !== undefined) {
       const [install] = await tx
@@ -132,7 +134,15 @@ export async function savePreferences(
       .where(eq(userPreferences.user_id, owner.user_id))
       .orderBy(desc(userPreferences.id))
       .limit(1);
+    const patch = derive
+      ? updatePreferencesSchema.parse(derive(readPreferencesRow(row)))
+      : fixedPatch;
+    if (Object.keys(patch).length === 0) return;
     const merged = { ...sparseUi(row?.ui), ...patch.ui };
+    if (patch.hintDismissal !== undefined) {
+      const dismissed = applyHintDismissal(merged.dismissedHints ?? [], patch.hintDismissal);
+      if (dismissed) merged.dismissedHints = dismissed;
+    }
     const experience = patch.ui?.trainingExperience;
     if (experience && patch.ui?.warmupSteps === undefined) {
       const steps = experienceWarmupSteps(experience, readPreferencesRow(row).ui.warmupSteps);
@@ -154,7 +164,7 @@ export async function savePreferences(
     const values = {
       ...(patch.locale !== undefined ? { locale: patch.locale } : {}),
       ...(patch.timezone !== undefined ? { timezone: patch.timezone } : {}),
-      ...(patch.ui || patch.muscleGoalChanges ? { ui } : {}),
+      ...(patch.ui || patch.muscleGoalChanges || patch.hintDismissal !== undefined ? { ui } : {}),
     };
     // Only what this write changed goes up; `writtenAt` keeps two equal writes from collapsing.
     const dirty = JSON.stringify({ ...patch, writtenAt: new Date().toISOString() });

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { Mark } from "../components/mark.tsx";
-import { en, features, site } from "../content/en.ts";
+import { en, features, promises, site } from "../content/en.ts";
 import { pageHead } from "../page-head.ts";
 
 export const Route = createFileRoute("/")({
@@ -63,20 +63,33 @@ function Landing() {
                   <p className="label">{feature.label}</p>
                   <h3>{feature.title}</h3>
                   <p>{feature.body}</p>
+                  <ul className="feature-points">
+                    {feature.points.map((point) => (
+                      <li key={point}>{point}</li>
+                    ))}
+                  </ul>
                 </div>
-                {feature.screenshot ? (
-                  <img
-                    src={`/screenshots/${feature.screenshot}.webp`}
-                    alt={feature.alt ?? ""}
-                    width={540}
-                    height={1157}
-                    loading="lazy"
-                  />
-                ) : null}
+                <img
+                  src={`/screenshots/${feature.screenshot}.webp`}
+                  alt={feature.alt}
+                  width={540}
+                  height={1157}
+                  loading="lazy"
+                />
               </li>
             ))}
           </ul>
         </div>
+      </section>
+
+      <section className="promises wrap" aria-labelledby="promises-title">
+        <p className="label">{promises.label}</p>
+        <h2 id="promises-title">{promises.title}</h2>
+        <ul className="promise-list">
+          {promises.items.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
       </section>
 
       <section className="install wrap" aria-labelledby="install-title">

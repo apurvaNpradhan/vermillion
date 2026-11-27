@@ -1,13 +1,7 @@
 import { BottomSheet, Switch } from "heroui-native";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { useForm } from "@tanstack/react-form";
-import {
-  gymEquipmentInput,
-  KG_PER_LB,
-  parseWeight,
-  formatWeight,
-  type GymEquipmentInput,
-  type WeightUnit,
-} from "@workspace/shared";
+import { gymEquipmentInput, type GymEquipmentInput, type WeightUnit } from "@workspace/shared";
 import type { EquipmentRow } from "@workspace/sync";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { Barbell, Trash } from "phosphor-react-native";
@@ -16,13 +10,19 @@ import { Keyboard, Pressable, Text, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTranslation } from "@/platform/i18n";
+import { EquipmentHereSection, useGyms } from "@/gym";
 import { TextField } from "@/platform/forms/text-field";
 import { Button } from "@/platform/ui/button";
 import { ScrollPage } from "@/platform/ui/page";
 import { ListSection, ListRow } from "@/platform/ui/list";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 import { SwipeGroup, SwipeRow } from "@/platform/ui/swipe-row";
-import { kitGroups, missingKitItems } from "./plate-view";
+import {
+  formatEquipmentWeight,
+  parseEquipmentWeight,
+  kitGroups,
+  missingKitItems,
+} from "./plate-view";
 import { useEquipmentLabel } from "./use-equipment-label";
 import { useEquipment } from "./use-plates";
 
@@ -34,9 +34,11 @@ type FormTarget = {
 };
 
 /** The user's bars and plates by unit; a Back button returns to wherever it was opened from. */
-export function ManageEquipmentScreen() {
+export function ManageEquipmentScreen({ gymId }: { gymId?: string }) {
   const { t } = useTranslation();
-  const state = useEquipment();
+  const state = useEquipment(true, gymId);
+  const { multiple, activeGymId, nameOf } = useGyms();
+  const gymName = nameOf(gymId ?? activeGymId);
   const label = useEquipmentLabel();
   const groups = kitGroups(state.rows, state.unit);
   const [target, setTarget] = useState<FormTarget | null>(null);
@@ -47,12 +49,19 @@ export function ManageEquipmentScreen() {
   };
   return (
     <>
-      <ScrollPage title={t("plates__manage")} back backFallback="/">
+      <ScrollPage
+        title={multiple && gymName ? t("plates__manage_at", { gym: gymName }) : t("plates__manage")}
+        back
+        backFallback="/"
+      >
         {state.failed ? <Button onPress={state.retry}>{t("plates__retry")}</Button> : null}
+        {/* With several gyms the gym's own page holds this; with one it lives here. */}
+        {multiple ? null : <EquipmentHereSection gymId={gymId} />}
         {!state.loading && !state.failed && state.rows.length === 0 ? (
           <EmptyState
             icon={Barbell}
             title={t("plates__empty")}
+            description={t("plates__empty_hint")}
             action={{
               label: t("plates__add_kit", { unit: state.unit }),
               onPress: () => void state.addKit(state.unit),
@@ -102,12 +111,11 @@ export function ManageEquipmentScreen() {
                       ]}
                     >
                       {(a11y) => (
-                        <View
-                          {...a11y}
-                          className="flex-row items-center gap-3 bg-surface px-4 py-3"
-                        >
+                        <View className="flex-row items-center gap-3 bg-surface px-4">
+                          {/* The swipe's actions go on the focusable node: TalkBack ignores them on a plain wrapper. */}
                           <Pressable
-                            className="flex-1 rounded-lg active:bg-default"
+                            {...a11y}
+                            className="min-h-11 flex-1 justify-center rounded-lg py-3 active:bg-default"
                             accessibilityRole="button"
                             accessibilityLabel={t("plates__edit_item", { name: label(item) })}
                             onPress={() => openForm(item.kind, item.unit, item)}
@@ -143,6 +151,7 @@ export function ManageEquipmentScreen() {
         target={target}
         save={state.save}
         edit={state.edit}
+        remove={state.remove}
         onClose={() => setFormOpen(false)}
       />
     </>
@@ -155,27 +164,31 @@ function CustomEquipmentSheet({
   target,
   edit,
   save,
+  remove,
   onClose,
 }: {
   isOpen: boolean;
   target: FormTarget | null;
   save: ReturnType<typeof useEquipment>["save"];
   edit: ReturnType<typeof useEquipment>["edit"];
+  remove: ReturnType<typeof useEquipment>["remove"];
   onClose: () => void;
 }) {
   const { bottom } = useSafeAreaInsets();
   const keyboardHeight = useKeyboardState((keyboard) => keyboard.height);
+  // Closing from a button changes `isOpen` without a sheet event, so dismiss the keyboard here too.
+  const close = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
   return (
     <BottomSheet
       isOpen={isOpen}
       onOpenChange={(open) => {
-        if (!open) {
-          Keyboard.dismiss();
-          onClose();
-        }
+        if (!open) close();
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
           bottomInset={keyboardHeight}
@@ -196,11 +209,12 @@ function CustomEquipmentSheet({
               unit={target.unit}
               edit={edit}
               save={save}
-              close={onClose}
+              remove={remove}
+              close={close}
             />
           ) : null}
         </BottomSheet.Content>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }
@@ -211,6 +225,7 @@ function CustomEquipmentForm({
   kind,
   unit,
   save,
+  remove,
   close,
 }: {
   kind: GymEquipmentInput["kind"];
@@ -218,29 +233,26 @@ function CustomEquipmentForm({
   item?: EquipmentRow;
   save: ReturnType<typeof useEquipment>["save"];
   edit: ReturnType<typeof useEquipment>["edit"];
+  remove: ReturnType<typeof useEquipment>["remove"];
   close: () => void;
 }) {
   const { t } = useTranslation();
   const [error, setError] = useState(false);
   const form = useForm({
     defaultValues: {
-      weight: item ? formatWeight(item.weightKg, unit) : "",
+      weight: item ? formatEquipmentWeight(item.weightKg, unit) : "",
       name: item?.label ?? "",
       pairs: item?.count?.toString() ?? "",
     },
     onSubmit: async ({ value }) => {
-      const parsedWeight = parseWeight(value.weight, unit);
-      const weight =
-        parsedWeight === null
-          ? null
-          : unit === "lb"
-            ? Number(formatWeight(parsedWeight, unit)) * KG_PER_LB
-            : parsedWeight;
+      const weight = parseEquipmentWeight(value.weight, unit);
       const parsed = gymEquipmentInput.safeParse({
         kind,
         unit,
         weight_kg:
-          item && value.weight === formatWeight(item.weightKg, unit) ? item.weightKg : weight,
+          item && value.weight === formatEquipmentWeight(item.weightKg, unit)
+            ? item.weightKg
+            : weight,
         label: value.name.trim() || null,
         count: kind === "plate" && value.pairs.trim() ? Number(value.pairs) : null,
         enabled: item?.enabled ?? true,
@@ -256,7 +268,7 @@ function CustomEquipmentForm({
       }
       const saved = item
         ? await edit(item.id, {
-            ...(value.weight !== formatWeight(item.weightKg, unit)
+            ...(value.weight !== formatEquipmentWeight(item.weightKg, unit)
               ? { weight_kg: parsed.data.weight_kg }
               : {}),
             ...(kind === "bar" && value.name !== (item.label ?? "")
@@ -312,6 +324,17 @@ function CustomEquipmentForm({
           </Button>
         )}
       </form.Subscribe>
+      {item ? (
+        <Button
+          variant="danger-soft"
+          onPress={() => {
+            void remove(item);
+            close();
+          }}
+        >
+          {t("plates__delete")}
+        </Button>
+      ) : null}
       <Button variant="ghost" onPress={close}>
         {t("plates__cancel")}
       </Button>

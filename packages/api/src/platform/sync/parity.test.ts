@@ -72,6 +72,25 @@ const expectation: Expectation = {
       },
     },
 
+    program_slot_skip: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        run_id: { type: "uuid", notNull: true, default: null },
+        slot_id: { type: "uuid", notNull: true, default: null },
+        cycle: { type: "integer", notNull: true, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        program_slot_skip_user_id_live_idx:
+          "CREATE INDEX program_slot_skip_user_id_live_idx ON public.program_slot_skip USING btree (user_id) WHERE (deleted_at IS NULL)",
+        program_slot_skip_run_idx:
+          "CREATE INDEX program_slot_skip_run_idx ON public.program_slot_skip USING btree (run_id, cycle)",
+      },
+    },
+
     session_photo: {
       columns: {
         id: { type: "uuid", notNull: true, default: null },
@@ -152,6 +171,7 @@ const expectation: Expectation = {
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
         cover_media_id: { type: "uuid", notNull: false, default: null },
         sessions_per_week: { type: "smallint", notNull: false, default: null },
+        phase_plan: { type: "jsonb", notNull: false, default: null },
       },
       indexes: {
         program_user_id_live_idx:
@@ -165,9 +185,11 @@ const expectation: Expectation = {
         program_id: { type: "uuid", notNull: false, default: null },
         title: { type: "text", notNull: false, default: null },
         note: { type: "text", notNull: false, default: null },
+        cover_media_id: { type: "uuid", notNull: false, default: null },
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+        main_entry_id: { type: "uuid", notNull: false, default: null },
       },
       indexes: {
         workout_user_id_live_idx:
@@ -228,6 +250,7 @@ const expectation: Expectation = {
         program_id: { type: "uuid", notNull: false, default: null },
         run_id: { type: "uuid", notNull: false, default: null },
         slot_id: { type: "uuid", notNull: false, default: null },
+        gym_id: { type: "uuid", notNull: false, default: null },
         cycle: { type: "integer", notNull: false, default: null },
         title: { type: "text", notNull: true, default: null },
         title_derived: { type: "boolean", notNull: true, default: "true" },
@@ -244,6 +267,8 @@ const expectation: Expectation = {
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+        phase: { type: "text", notNull: false, default: null },
+        phase_modifiers: { type: "jsonb", notNull: false, default: null },
       },
       indexes: {
         session_user_id_live_idx:
@@ -268,6 +293,8 @@ const expectation: Expectation = {
         superset_group: { type: "uuid", notNull: false, default: null },
         log_effort: { type: "boolean", notNull: true, default: "false" },
         warmup_key: { type: "text", notNull: false, default: null },
+        stall_deload: { type: "boolean", notNull: false, default: null },
+        prescription: { type: "jsonb", notNull: false, default: null },
         repeated: { type: "boolean", notNull: true, default: "false" },
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
@@ -321,6 +348,7 @@ const expectation: Expectation = {
         label: { type: "text", notNull: false, default: null },
         count: { type: "integer", notNull: false, default: null },
         enabled: { type: "boolean", notNull: true, default: "true" },
+        gym_id: { type: "uuid", notNull: false, default: null },
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
@@ -328,6 +356,58 @@ const expectation: Expectation = {
       indexes: {
         gym_equipment_user_id_live_idx:
           "CREATE INDEX gym_equipment_user_id_live_idx ON public.gym_equipment USING btree (user_id) WHERE (deleted_at IS NULL)",
+        gym_equipment_gym_id_live_idx:
+          "CREATE INDEX gym_equipment_gym_id_live_idx ON public.gym_equipment USING btree (gym_id) WHERE (deleted_at IS NULL)",
+      },
+    },
+    gym: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        name: { type: "text", notNull: true, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+        unavailable_equipment: { type: "jsonb", notNull: true, default: "'[]'::jsonb" },
+        dumbbell_max_kg: { type: "double precision", notNull: false, default: null },
+      },
+      indexes: {
+        gym_user_id_live_idx:
+          "CREATE INDEX gym_user_id_live_idx ON public.gym USING btree (user_id, created_at, id) WHERE (deleted_at IS NULL)",
+      },
+    },
+    gym_exercise_setting: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        gym_id: { type: "uuid", notNull: true, default: null },
+        exercise_id: { type: "uuid", notNull: true, default: null },
+        load_ranges: { type: "jsonb", notNull: true, default: "'[]'::jsonb" },
+        setup_note: { type: "text", notNull: false, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        gym_exercise_setting_user_id_live_idx:
+          "CREATE INDEX gym_exercise_setting_user_id_live_idx ON public.gym_exercise_setting USING btree (user_id) WHERE (deleted_at IS NULL)",
+        gym_exercise_setting_live_idx:
+          "CREATE UNIQUE INDEX gym_exercise_setting_live_idx ON public.gym_exercise_setting USING btree (user_id, gym_id, exercise_id) WHERE (deleted_at IS NULL)",
+      },
+    },
+    exercise_pin: {
+      columns: {
+        id: { type: "uuid", notNull: true, default: null },
+        user_id: { type: "text", notNull: true, default: null },
+        exercise_id: { type: "uuid", notNull: true, default: null },
+        created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
+        deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+      },
+      indexes: {
+        exercise_pin_user_exercise_uidx:
+          "CREATE UNIQUE INDEX exercise_pin_user_exercise_uidx ON public.exercise_pin USING btree (user_id, exercise_id)",
+        exercise_pin_exercise_id_idx:
+          "CREATE INDEX exercise_pin_exercise_id_idx ON public.exercise_pin USING btree (exercise_id)",
       },
     },
     exercise_setting: {
@@ -336,9 +416,11 @@ const expectation: Expectation = {
         user_id: { type: "text", notNull: true, default: null },
         exercise_id: { type: "uuid", notNull: true, default: null },
         bar_id: { type: "uuid", notNull: false, default: null },
+        unit: { type: "text", notNull: false, default: null },
         log_effort: { type: "boolean", notNull: true, default: "false" },
         progression_per_set: { type: "boolean", notNull: true, default: "false" },
         auto_warmups: { type: "boolean", notNull: true, default: "false" },
+        progression_rule: { type: "jsonb", notNull: false, default: null },
         note: { type: "text", notNull: false, default: null },
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
@@ -364,6 +446,9 @@ const expectation: Expectation = {
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         updated_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+        inserted_deloads: { type: "jsonb", notNull: false, default: null },
+        undone_deloads: { type: "jsonb", notNull: false, default: null },
+        pauses: { type: "jsonb", notNull: false, default: null },
       },
       indexes: {
         program_run_user_id_live_idx:
@@ -384,6 +469,7 @@ const expectation: Expectation = {
         thumb_bytes: { type: "integer", notNull: true, default: null },
         created_at: { type: "timestamp with time zone", notNull: true, default: "now()" },
         deleted_at: { type: "timestamp with time zone", notNull: false, default: null },
+        cover_unreferenced_at: { type: "timestamp with time zone", notNull: false, default: null },
         objects_purged_at: { type: "timestamp with time zone", notNull: false, default: null },
       },
       indexes: {
@@ -409,18 +495,23 @@ const expectation: Expectation = {
       "body_measurement(id, user_id, metric, value, measured_at, local_date, source, created_at, updated_at, deleted_at)",
       "notes(id, user_id, title, body, created_at, updated_at, deleted_at)",
       "exercise(id, user_id, title, primary_muscle, secondary_muscles, equipment, exercise_type, is_full_bodyweight, rank, search_terms, aka, instructions, video_key, thumbnail_key, retired_at, created_at, updated_at, image_media_id, primary_detail, secondary_detail)",
-      "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at, cover_media_id, sessions_per_week)",
-      "workout(id, user_id, program_id, title, note, created_at, updated_at, deleted_at)",
+      "program(id, user_id, title, description, planned_weeks, cover_key, created_at, updated_at, deleted_at, cover_media_id, sessions_per_week, phase_plan)",
+      "workout(id, user_id, program_id, title, note, created_at, updated_at, deleted_at, cover_media_id, main_entry_id)",
       "workout_exercise(id, user_id, workout_id, exercise_id, position, rest_seconds, note, superset_group, sets, created_at, updated_at, deleted_at)",
-      "program_run(id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at, updated_at, deleted_at)",
+      // The publication includes all table columns. The stream drops undone_deloads.
+      "program_run(id, user_id, program_id, activated_at, started_at, finished_at, outcome, continued_at, created_at, updated_at, deleted_at, inserted_deloads, pauses, undone_deloads)",
       "program_slot(id, user_id, program_id, workout_id, position, created_at, updated_at, deleted_at)",
-      "training_session(id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, updated_at, deleted_at, workout_structure, import_batch_id, import_fingerprint, import_content, paused_at, paused_ms)",
-      "session_exercise(id, user_id, session_id, exercise_id, exercise_title, exercise_type, source_workout_exercise_id, position, rest_seconds, note, superset_group, log_effort, created_at, updated_at, deleted_at, warmup_key, repeated, workout_swap_fragment)",
+      "program_slot_skip(id, user_id, run_id, slot_id, cycle, created_at, updated_at, deleted_at)",
+      "training_session(id, user_id, workout_id, program_id, run_id, slot_id, cycle, title, title_derived, note, started_at, finished_at, duration_s, device_id, rest_set_id, rest_started_at, rest_ends_at, created_at, updated_at, deleted_at, workout_structure, import_batch_id, import_fingerprint, import_content, paused_at, paused_ms, gym_id, phase, phase_modifiers)",
+      "session_exercise(id, user_id, session_id, exercise_id, exercise_title, exercise_type, source_workout_exercise_id, position, rest_seconds, note, superset_group, log_effort, created_at, updated_at, deleted_at, warmup_key, repeated, workout_swap_fragment, stall_deload, prescription)",
       "session_set(id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, target, created_at, updated_at, deleted_at, generated_warmup)",
-      "gym_equipment(id, user_id, kind, weight_kg, unit, label, count, enabled, created_at, updated_at, deleted_at)",
-      "exercise_setting(id, user_id, exercise_id, bar_id, log_effort, created_at, updated_at, deleted_at, progression_per_set, auto_warmups, note)",
+      "gym(id, user_id, name, created_at, updated_at, deleted_at, unavailable_equipment, dumbbell_max_kg)",
+      "gym_equipment(id, user_id, kind, weight_kg, unit, label, count, enabled, created_at, updated_at, deleted_at, gym_id)",
+      "gym_exercise_setting(id, user_id, gym_id, exercise_id, load_ranges, setup_note, created_at, updated_at, deleted_at)",
+      "exercise_pin(id, user_id, exercise_id, created_at, deleted_at)",
+      "exercise_setting(id, user_id, exercise_id, bar_id, log_effort, created_at, updated_at, deleted_at, progression_per_set, auto_warmups, note, unit, progression_rule)",
       "session_photo(id, user_id, session_id, media_id, position, created_at, updated_at, deleted_at)",
-      "media(id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at, deleted_at, objects_purged_at)",
+      "media(id, user_id, kind, mime, width, height, bytes, thumb_bytes, created_at, deleted_at, objects_purged_at, cover_unreferenced_at)",
       "progress_photo(id, user_id, media_id, pose, taken_at, local_date, created_at, updated_at, deleted_at)",
       "user_preferences(id, user_id, locale, timezone, ui, created_at, updated_at)",
     ],
@@ -458,11 +549,20 @@ describe("server schema parity", () => {
     expect([...new Set(streams.map((stream) => stream.name))].sort()).toEqual([
       "exercise_catalog",
       "my_body",
+      "my_exercise_pins",
       "my_library",
       "my_media",
       "my_preferences",
       "my_training",
     ]);
+    expect(streams.find((stream) => stream.name === "my_exercise_pins")).toMatchObject({
+      table: "exercise_pin",
+      columns: ["id", "user_id", "exercise_id", "created_at"],
+    });
+    const grants = await client.query(
+      "SELECT has_table_privilege('powersync_replication', 'exercise_pin', 'SELECT') AS granted",
+    );
+    expect(grants.rows).toEqual([{ granted: true }]);
     // my_training is one subscription over the plan tables and the session tables.
     expect(
       streams
@@ -471,10 +571,13 @@ describe("server schema parity", () => {
         .sort(),
     ).toEqual([
       "exercise_setting",
+      "gym",
       "gym_equipment",
+      "gym_exercise_setting",
       "program",
       "program_run",
       "program_slot",
+      "program_slot_skip",
       "session_exercise",
       "session_photo",
       "session_set",

@@ -1,11 +1,5 @@
 import { useWeight } from "@/body";
-import {
-  addsLoad,
-  SET_FIELDS,
-  type Equipment,
-  type WeekStart,
-  type WeightUnit,
-} from "@workspace/shared";
+import { addsLoad, SET_FIELDS, type WeekStart, type WeightUnit } from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
 import { Text, View } from "react-native";
 
@@ -68,9 +62,7 @@ export function ExerciseNumbers({
   unit,
   timezone,
   weekStart,
-  equipment,
-  weightIncrementKg,
-  progressionPerSet,
+  gymId,
 }: {
   sessions: FinishedSession[];
   exerciseId: string;
@@ -79,9 +71,7 @@ export function ExerciseNumbers({
   unit: WeightUnit;
   timezone: string | null;
   weekStart: WeekStart;
-  equipment: Equipment;
-  weightIncrementKg: number | null;
-  progressionPerSet: boolean;
+  gymId?: string | null;
 }) {
   const weight = useWeight();
   const sessions = weight.withBodyweight(rawSessions);
@@ -110,7 +100,6 @@ export function ExerciseNumbers({
     bodyweightKg === null &&
     weight.entries.length === 0 &&
     (type === "bodyweight_reps" || type === "bodyweight_assisted_reps" || addsLoad(type));
-  const settings = { weightUnit: unit, weightIncrementKg, progressionPerSet };
   return (
     <View className="gap-6 px-4">
       <ExerciseStatTiles
@@ -165,13 +154,7 @@ export function ExerciseNumbers({
         addsLoad(type) ||
         type === "reps_only" ||
         type === "bodyweight_reps" ? (
-          <NextTimeLine
-            sessions={sessions}
-            exerciseId={exerciseId}
-            type={type}
-            equipment={equipment}
-            settings={settings}
-          />
+          <NextTimeLine exerciseId={exerciseId} type={type} gymId={gymId} />
         ) : null}
       </View>
       <ExerciseRecords

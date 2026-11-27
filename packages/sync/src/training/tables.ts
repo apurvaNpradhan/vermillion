@@ -1,4 +1,15 @@
-import type { ExerciseType, PlannedSet, SetKind, WeightUnit } from "@workspace/shared";
+import type {
+  ExerciseType,
+  LoadRange,
+  Phase,
+  PhasePlan,
+  PhaseSnapshot,
+  PlannedSet,
+  Prescription,
+  RuleConfig,
+  SetKind,
+  WeightUnit,
+} from "@workspace/shared";
 import { index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /**
@@ -18,6 +29,8 @@ export const program = sqliteTable(
     planned_weeks: integer("planned_weeks"),
     sessions_per_week: integer("sessions_per_week"),
     cover_media_id: text("cover_media_id"),
+    /** The week phases as JSON; null is none. Validated by `phasePlanSchema` on write. */
+    phase_plan: text("phase_plan", { mode: "json" }).$type<PhasePlan | null>(),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },
@@ -32,6 +45,9 @@ export const workout = sqliteTable(
     program_id: text("program_id"),
     title: text("title"),
     note: text("note"),
+    cover_media_id: text("cover_media_id"),
+    /** The main lift's `workout_exercise` id; null (or one no longer there) is the first. */
+    main_entry_id: text("main_entry_id"),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
   },
@@ -96,6 +112,12 @@ export const session = sqliteTable(
     program_id: text("program_id"),
     run_id: text("run_id"),
     slot_id: text("slot_id"),
+    /** The gym trained at; null is any gym. A deleted gym reads as null (the server nulls it). */
+    gym_id: text("gym_id"),
+    /** The phase of the Run week it started in; Test and Deload are never a baseline. */
+    phase: text("phase").$type<Phase>(),
+    /** The phase's modifiers as JSON when the Session started; null with no phase. */
+    phase_modifiers: text("phase_modifiers", { mode: "json" }).$type<PhaseSnapshot | null>(),
     cycle: integer("cycle"),
     title: text("title").notNull(),
     title_derived: integer("title_derived", { mode: "boolean" }).notNull().default(true),
@@ -122,10 +144,12 @@ export const session = sqliteTable(
   },
   (table) => [
     index("session_started_at_idx").on(table.started_at),
+    index("session_workout_started_idx").on(table.workout_id, table.started_at, table.id),
     index("session_import_batch_idx").on(table.import_batch_id, table.id),
     index("session_import_fingerprint_idx").on(table.import_fingerprint),
-    index("session_run_id_idx").on(table.run_id),
+    index("session_run_id_idx").on(table.run_id, table.started_at, table.id),
     index("session_finished_at_idx").on(table.finished_at),
+    index("session_gym_id_idx").on(table.gym_id),
   ],
 );
 
@@ -144,6 +168,8 @@ export const sessionExercise = sqliteTable(
     exercise_title: text("exercise_title").notNull(),
     exercise_type: text("exercise_type").$type<ExerciseType>().notNull(),
     source_workout_exercise_id: text("source_workout_exercise_id"),
+    stall_deload: integer("stall_deload", { mode: "boolean" }),
+    prescription: text("prescription", { mode: "json" }).$type<Prescription>(),
     workout_swap_fragment: integer("workout_swap_fragment", { mode: "boolean" }),
     position: text("position").notNull(),
     rest_seconds: integer("rest_seconds"),
@@ -189,21 +215,58 @@ export const sessionSet = sqliteTable(
   (table) => [index("session_set_order_idx").on(table.session_exercise_id, table.position)],
 );
 
-/** The user's bars and plates. `unit` is the kit an item belongs to; weights are kilograms. */
-export const gymEquipment = sqliteTable("gym_equipment", {
+/** A place the user trains. The server creates "My gym" for every account. */
+export const gym = sqliteTable("gym", {
   id: text("id").primaryKey().notNull(),
   user_id: text("user_id").notNull(),
-  kind: text("kind").$type<"bar" | "plate">().notNull(),
-  weight_kg: real("weight_kg").notNull(),
-  unit: text("unit").$type<WeightUnit>().notNull(),
-  label: text("label"),
-  count: integer("count"),
-  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  name: text("name").notNull(),
+  /** JSON text: the equipment types this gym lacks. Empty or null: it has all of them. */
+  unavailable_equipment: text("unavailable_equipment"),
+  /** The heaviest dumbbell in kilograms, which caps every dumbbell exercise here. */
+  dumbbell_max_kg: real("dumbbell_max_kg"),
   created_at: text("created_at").notNull(),
   restore: integer("restore"),
-  // Upload only: the first row ID of the automatic kit this item belongs to.
-  seed: text("seed"),
 });
+
+/**
+ * The bars and plates of a gym's kit. `unit` is the kit an item belongs to; weights are
+ * kilograms. `gym_id` is null on rows from before gyms existed: they belong to the default gym.
+ */
+export const gymEquipment = sqliteTable(
+  "gym_equipment",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    gym_id: text("gym_id"),
+    kind: text("kind").$type<"bar" | "plate">().notNull(),
+    weight_kg: real("weight_kg").notNull(),
+    unit: text("unit").$type<WeightUnit>().notNull(),
+    label: text("label"),
+    count: integer("count"),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    created_at: text("created_at").notNull(),
+    restore: integer("restore"),
+    // Upload only: the first row ID of the automatic kit this item belongs to.
+    seed: text("seed"),
+  },
+  (table) => [index("gym_equipment_gym_id_idx").on(table.gym_id)],
+);
+
+/** What one gym says about one exercise: its load ranges (the last `max` is the cap) and a note. */
+export const gymExerciseSetting = sqliteTable(
+  "gym_exercise_setting",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    gym_id: text("gym_id").notNull(),
+    exercise_id: text("exercise_id").notNull(),
+    load_ranges: text("load_ranges", { mode: "json" }).$type<LoadRange[]>().notNull(),
+    setup_note: text("setup_note"),
+    created_at: text("created_at").notNull(),
+    restore: integer("restore"),
+  },
+  (table) => [index("gym_exercise_setting_exercise_id_idx").on(table.exercise_id, table.gym_id)],
+);
 
 export const exerciseSetting = sqliteTable(
   "exercise_setting",
@@ -212,11 +275,13 @@ export const exerciseSetting = sqliteTable(
     user_id: text("user_id").notNull(),
     exercise_id: text("exercise_id").notNull(),
     bar_id: text("bar_id"),
+    unit: text("unit").$type<WeightUnit>(),
     log_effort: integer("log_effort", { mode: "boolean" }).notNull().default(false),
     progression_per_set: integer("progression_per_set", { mode: "boolean" })
       .notNull()
       .default(false),
     auto_warmups: integer("auto_warmups", { mode: "boolean" }).notNull().default(false),
+    progression_rule: text("progression_rule", { mode: "json" }).$type<RuleConfig | null>(),
     note: text("note"),
     created_at: text("created_at").notNull(),
     restore: integer("restore"),
@@ -235,12 +300,29 @@ export const programRun = sqliteTable(
     finished_at: text("finished_at"),
     outcome: text("outcome"),
     continued_at: text("continued_at"),
+    /** Run weeks turned into Deload weeks ("Insert deload now") as JSON, ascending; null is none. */
+    inserted_deloads: text("inserted_deloads", { mode: "json" }).$type<number[] | null>(),
+    pauses: text("pauses", { mode: "json" }).$type<import("@workspace/shared").RunPause[]>(),
     created_at: text("created_at").notNull(),
   },
   (table) => [
     index("program_run_program_id_idx").on(table.program_id),
     index("program_run_activated_at_idx").on(table.activated_at),
   ],
+);
+
+/** A Slot left out of one Cycle of a Run; counts as done for that Cycle (`cycleState`). */
+export const programSlotSkip = sqliteTable(
+  "program_slot_skip",
+  {
+    id: text("id").primaryKey().notNull(),
+    user_id: text("user_id").notNull(),
+    run_id: text("run_id").notNull(),
+    slot_id: text("slot_id").notNull(),
+    cycle: integer("cycle").notNull(),
+    created_at: text("created_at").notNull(),
+  },
+  (table) => [index("program_slot_skip_run_idx").on(table.run_id, table.cycle)],
 );
 
 export const sessionPhoto = sqliteTable(

@@ -15,7 +15,7 @@ const putMedia = mediaInput;
 /**
  * Upload handler of `media` (ADR 0040). A media row is immutable after it is created: a PUT of
  * an existing row is accepted only when it repeats the stored values (a replayed upload), a PATCH
- * is refused, and DELETE is a soft delete. A deleted media is never restored; a new image is a
+ * is refused, and DELETE soft-deletes unshared media. A deleted media is never restored. A new image is a
  * new row. The files are not in the upload: the device sends them with presigned URLs.
  */
 export const mediaSyncHandler: SyncTableHandler = {
@@ -27,6 +27,9 @@ export const mediaSyncHandler: SyncTableHandler = {
 
     if (op.op === "DELETE") {
       if (found.kind !== "own") throw new SyncRejection("SYNC_ROW_NOT_FOUND");
+      // Older clients may queue cover deletes alongside a replacement. Only the cover
+      // cleanup job can retire shared cover media.
+      if (found.row.kind === "program_cover" || found.row.kind === "workout_cover") return;
       if (found.row.deletedAt === null) await softDeleteMedia(db, userId, id.data);
       return;
     }

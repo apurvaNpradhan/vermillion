@@ -1,4 +1,4 @@
-import { defaultGymKit } from "@workspace/shared";
+import { DEFAULT_WARMUP_STEPS, KG_PER_LB, defaultGymKit } from "@workspace/shared";
 import type { EquipmentRow } from "@workspace/sync";
 import { describe, expect, it } from "vitest";
 
@@ -74,6 +74,34 @@ describe("rampTargets", () => {
     expect(rampTargets({ ...squat(), type: "bodyweight_reps" }, 40, kit("kg"), "kg", 2.5)).toEqual(
       [],
     );
+  });
+
+  it.each([
+    { unit: "kg", factor: 1, rounding: "equipment" },
+    { unit: "lb", factor: KG_PER_LB, rounding: "increment" },
+  ] as const)("rounds machine warm-ups to its gym grid in $unit", ({ unit, factor, rounding }) => {
+    const machine = {
+      ...squat(),
+      exercise: {
+        equipment: "machine" as const,
+        primaryMuscle: "chest" as const,
+        secondaryMuscles: [],
+        thumbnailKey: null,
+      },
+    };
+    const ranges = [{ min: 7 * factor, max: 56 * factor, step: 7 * factor }];
+    const settings = { steps: DEFAULT_WARMUP_STEPS, rounding };
+    const plan = rampTargets(machine, 56 * factor, [], unit, 2.5, settings, ranges);
+    expect(plan.map((target) => Math.round((target.weight_kg ?? 0) / factor))).toEqual([
+      21, 28, 42, 49,
+    ]);
+    const key = rampKey(56 * factor, machine, [], unit, 2.5, settings, ranges);
+    expect(rampKey(56 * factor, machine, [], unit, 5, settings, ranges)).toBe(key);
+    expect(
+      rampKey(56 * factor, machine, [], unit, 2.5, settings, [
+        { min: 7 * factor, max: 56 * factor, step: 14 * factor },
+      ]),
+    ).not.toBe(key);
   });
 
   it("falls back to the step when there is no kit at all", () => {

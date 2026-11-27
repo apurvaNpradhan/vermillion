@@ -25,9 +25,9 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });
 
-async function setup(options: { failDeleteOf?: (uri: string) => boolean } = {}) {
+async function setup() {
   const db = await createTestDatabase();
-  const storage = createDiskStorage(options);
+  const storage = createDiskStorage();
   const bucket = createFakeBucket();
   const queue = createMediaQueue(db.database, bucket.urls, bucket.send, storage);
   cleanups.push(
@@ -46,9 +46,11 @@ async function setup(options: { failDeleteOf?: (uri: string) => boolean } = {}) 
   ) => {
     const id = newMediaId();
     const files = writePickedFiles(`${storage.root}/picked`, name, { full: 100, thumb: 10 });
-    const saved = saveWithMedia(queue, files, id, () =>
-      commit ? commit(id) : setProgramCoverToNewMedia(db.database, programId, { ...image, id }),
-    );
+    const saved = saveWithMedia(queue, files, id, async () => {
+      if (commit) return commit(id);
+      await setProgramCoverToNewMedia(db.database, programId, { ...image, id });
+      return { replaced: null };
+    });
     return { id, saved };
   };
   const mediaIds = async () =>
@@ -57,18 +59,15 @@ async function setup(options: { failDeleteOf?: (uri: string) => boolean } = {}) 
 }
 
 describe("saving a new media with what points at it", () => {
-  it("keeps the new cover when the old cover's files cannot be deleted", async () => {
-    let failing = false;
-    const s = await setup({ failDeleteOf: () => failing });
+  it("keeps both cover files after a replacement", async () => {
+    const s = await setup();
     const first = s.pickCover("first");
     expect(await first.saved).toBe(true);
-
-    // Replacing it commits; then dropping the old files fails.
-    failing = true;
     const second = s.pickCover("second");
     expect(await second.saved).toBe(true);
 
-    expect(await s.mediaIds()).toEqual([second.id]);
+    expect(await s.mediaIds()).toEqual([first.id, second.id]);
+    expect(s.storage.files()).toContain(`full/${first.id}.jpg`);
     expect(s.storage.files()).toContain(`full/${second.id}.jpg`);
     expect(s.storage.files()).toContain(`thumb/${second.id}_t.jpg`);
     const records = await s.db.getAll<{ id: string }>("SELECT id FROM attachments");

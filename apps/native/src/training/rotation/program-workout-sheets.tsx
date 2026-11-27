@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { BottomSheet } from "heroui-native";
@@ -10,7 +11,7 @@ import { useTranslation } from "@/platform/i18n";
 import { ListRow, ListSection } from "@/platform/ui/list";
 import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 
-import { displayTitle } from "@/training/workouts/derived-title";
+import { displayTitle } from "@/platform/training/derived-title";
 import { useWorkouts } from "@/training/train/use-workouts";
 
 /** A Workout of the Program that the sheets offer: one row, however many Slots it fills. */
@@ -30,7 +31,7 @@ function Sheet({
   const { bottom } = useSafeAreaInsets();
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <FixedSheetContent
           fraction={0.6}
@@ -49,7 +50,7 @@ function Sheet({
             {children}
           </BottomSheetScrollView>
         </FixedSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

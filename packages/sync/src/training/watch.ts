@@ -3,10 +3,16 @@ import {
   EQUIPMENT,
   EXERCISE_TYPES,
   MUSCLE_GROUPS,
+  WEIGHT_UNITS,
+  type WeightUnit,
   plannedSetSchema,
+  readRuleConfig,
+  ruleConfigSchema,
+  type RuleConfig,
   type Equipment,
   type ExerciseType,
   type MuscleGroup,
+  type PhasePlan,
   type PlannedSet,
 } from "@workspace/shared";
 import { z } from "zod";
@@ -15,7 +21,9 @@ import {
   ACTIVE_SESSIONS_SQL,
   EQUIPMENT_SQL,
   EXERCISE_BAR_SQL,
+  EXERCISE_BARS_SQL,
   parseExerciseBar,
+  parseExerciseBars,
   EXERCISE_HISTORY_SQL,
   exerciseHistoriesSql,
   exerciseRecordsSql,
@@ -28,6 +36,7 @@ import {
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
   SESSION_LAST_NOTES_SQL,
+  lastNotesKey,
   SESSION_SET_COUNTS_SQL,
   parseSessionSetCounts,
   parseActiveSessions,
@@ -41,6 +50,7 @@ import {
   type SessionDetail,
   type SessionSetCount,
 } from "./sessions/session-watch";
+import { parsePhasePlan } from "./plans/phase-plan";
 import type { TrainingDatabase } from "./store";
 
 const THROTTLE_MS = 150;
@@ -53,6 +63,8 @@ export type WorkoutExerciseInfo = {
   equipment: Equipment;
   exerciseType: ExerciseType;
   progressionPerSet: boolean;
+  /** The progression rule; null is Double. */
+  rule?: RuleConfig | null;
   thumbnailKey: string | null;
   imageMediaId?: string | null;
   isArchived: boolean;
@@ -68,6 +80,7 @@ export type WorkoutExerciseDetail = {
   supersetGroup: string | null;
   /** The exercise's pinned note (one per exercise, shown wherever it appears). */
   pinnedNote: string | null;
+  unit?: WeightUnit | null;
   sets: PlannedSet[];
   exercise: WorkoutExerciseInfo | null;
 };
@@ -77,6 +90,10 @@ export type WorkoutDetail = {
   programId: string | null;
   title: string | null;
   note: string | null;
+  /** The cover's media (ADR 0040), or null. */
+  coverMediaId: string | null;
+  /** The Workout exercise that is the main lift; null (or a stale id) reads as the first. */
+  mainEntryId: string | null;
   exercises: WorkoutExerciseDetail[];
 };
 
@@ -86,6 +103,8 @@ export type WorkoutSummary = {
   programId: string | null;
   title: string | null;
   createdAt: string;
+  /** The cover's media (ADR 0040), or null. */
+  coverMediaId: string | null;
   exercises: {
     exerciseId: string;
     primaryMuscle: MuscleGroup | null;
@@ -117,7 +136,9 @@ export type ProgramSlotDetail = {
   workoutId: string | null;
   workout: {
     title: string | null;
-    exercises: WorkoutSummary["exercises"];
+    coverMediaId: string | null;
+    mainEntryId?: string | null;
+    exercises: (WorkoutSummary["exercises"][number] & { id?: string })[];
   } | null;
 };
 
@@ -129,6 +150,8 @@ export type ProgramDetail = {
   /** The Sessions a week the Program aims for; null derives it from the rotation. */
   sessionsPerWeek: number | null;
   coverMediaId: string | null;
+  /** The week phases; null is none. */
+  phasePlan: PhasePlan | null;
   slots: ProgramSlotDetail[];
 };
 
@@ -141,6 +164,8 @@ const jsonText = z.string().transform((text, context) => {
   }
 });
 const setsText = jsonText.pipe(z.array(plannedSetSchema));
+/** A rule this build cannot read (a newer build's) is none, which is Double. */
+const ruleText = jsonText.pipe(ruleConfigSchema).nullable().optional().catch(null);
 const secondaryText = jsonText
   .pipe(z.array(z.enum(MUSCLE_GROUPS)))
   .nullable()
@@ -151,6 +176,7 @@ const listRowSchema = z.object({
   id: z.string(),
   program_id: z.string().nullable(),
   title: z.string().nullable(),
+  cover_media_id: z.string().nullable().optional(),
   created_at: z.string(),
   sets: setsText.nullable(),
   rest_seconds: z.number().nullable(),
@@ -166,6 +192,7 @@ const listRowSchema = z.object({
 const workoutListSql = (
   includeProgramWorkouts: boolean,
 ) => `SELECT w.id AS id, w.program_id AS program_id, w.title AS title, w.created_at AS created_at,
+    w.cover_media_id AS cover_media_id,
     we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets, we.rest_seconds AS rest_seconds,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.title AS exercise_title, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id
   FROM workout w
@@ -187,6 +214,7 @@ export function parseWorkoutList(rows: readonly object[]): WorkoutSummary[] {
         programId: row.program_id,
         title: row.title,
         createdAt: row.created_at,
+        coverMediaId: row.cover_media_id ?? null,
         exercises: [],
       };
       result.push(current);
@@ -212,6 +240,8 @@ const detailRowSchema = z.object({
   program_id: z.string().nullable(),
   title: z.string().nullable(),
   note: z.string().nullable(),
+  cover_media_id: z.string().nullable().optional(),
+  main_entry_id: z.string().nullable().optional(),
   exercise_row: z.string().nullable(),
   exercise_id: z.string().nullable(),
   position: z.string().nullable(),
@@ -225,27 +255,37 @@ const detailRowSchema = z.object({
   equipment: z.enum(EQUIPMENT).nullable(),
   exercise_type: z.enum(EXERCISE_TYPES).nullable(),
   progression_per_set: z.number().nullable(),
+  progression_rule: ruleText,
+  unit: z.enum(WEIGHT_UNITS).nullable(),
   pinned_note: z.string().nullable(),
   thumbnail_key: z.string().nullable(),
   image_media_id: z.string().nullable().optional(),
   retired_at: z.string().nullable(),
 });
 
-export const WORKOUT_DETAIL_SQL = `SELECT w.id AS id, w.program_id AS program_id, w.title AS title,
-    w.note AS note, we.id AS exercise_row, we.exercise_id AS exercise_id, we.position AS position,
+const workoutDetailSql = (
+  id: string,
+) => `SELECT w.id AS id, w.program_id AS program_id, w.title AS title,
+    w.note AS note, w.cover_media_id AS cover_media_id, w.main_entry_id AS main_entry_id, we.id AS exercise_row, we.exercise_id AS exercise_id, we.position AS position,
     we.rest_seconds AS rest_seconds, we.note AS exercise_note,
     we.superset_group AS superset_group, we.sets AS sets, e.title AS exercise_title,
     e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles, e.equipment AS equipment,
     e.exercise_type AS exercise_type, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id, e.retired_at AS retired_at,
     (SELECT progression_per_set FROM exercise_setting
       WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS progression_per_set,
+    (SELECT progression_rule FROM exercise_setting
+      WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS progression_rule,
+    (SELECT unit FROM exercise_setting
+      WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS unit,
     (SELECT note FROM exercise_setting
       WHERE exercise_id = we.exercise_id ORDER BY id LIMIT 1) AS pinned_note
   FROM workout w
   LEFT JOIN workout_exercise we ON we.workout_id = w.id
   LEFT JOIN exercise e ON e.id = we.exercise_id
-  WHERE w.id = ?
+  WHERE w.id = ${id}
   ORDER BY we.position, we.id`;
+
+export const WORKOUT_DETAIL_SQL = workoutDetailSql("?");
 
 /** Builds one Workout from the joined rows of {@link WORKOUT_DETAIL_SQL}; null if none. */
 export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | null {
@@ -264,6 +304,7 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
       note: row.exercise_note,
       supersetGroup: row.superset_group,
       pinnedNote: row.pinned_note,
+      unit: row.unit,
       sets: row.sets ?? [],
       exercise:
         row.exercise_title !== null &&
@@ -277,6 +318,7 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
               equipment: row.equipment,
               exerciseType: row.exercise_type,
               progressionPerSet: row.progression_per_set === 1,
+              rule: readRuleConfig(row.progression_rule),
               thumbnailKey: row.thumbnail_key,
               imageMediaId: row.image_media_id ?? null,
               isArchived: row.retired_at !== null,
@@ -289,6 +331,8 @@ export function parseWorkoutDetail(rows: readonly object[]): WorkoutDetail | nul
     programId: first.program_id,
     title: first.title,
     note: first.note,
+    coverMediaId: first.cover_media_id ?? null,
+    mainEntryId: first.main_entry_id ?? null,
     exercises,
   };
 }
@@ -341,11 +385,14 @@ const programDetailRowSchema = z.object({
   planned_weeks: z.number().nullable(),
   sessions_per_week: z.number().nullable(),
   cover_media_id: z.string().nullable(),
+  phase_plan: z.string().nullable().optional(),
   slot_id: z.string().nullable(),
   slot_position: z.string().nullable(),
   slot_workout_id: z.string().nullable(),
   workout_row: z.string().nullable(),
   workout_title: z.string().nullable(),
+  workout_cover_media_id: z.string().nullable().optional(),
+  workout_main_entry_id: z.string().nullable().optional(),
   exercise_row: z.string().nullable(),
   exercise_id: z.string().nullable(),
   sets: setsText.nullable(),
@@ -359,9 +406,9 @@ const programDetailRowSchema = z.object({
 
 export const PROGRAM_DETAIL_SQL = `SELECT p.id AS id, p.title AS title, p.description AS description,
     p.planned_weeks AS planned_weeks, p.sessions_per_week AS sessions_per_week,
-    p.cover_media_id AS cover_media_id, s.id AS slot_id, s.position AS slot_position,
+    p.cover_media_id AS cover_media_id, p.phase_plan AS phase_plan, s.id AS slot_id, s.position AS slot_position,
     s.workout_id AS slot_workout_id, w.id AS workout_row, w.title AS workout_title,
-    we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
+    w.cover_media_id AS workout_cover_media_id, w.main_entry_id AS workout_main_entry_id, we.id AS exercise_row, we.exercise_id AS exercise_id, we.sets AS sets,
     we.rest_seconds AS rest_seconds, e.primary_muscle AS primary_muscle, e.secondary_muscles AS secondary_muscles,
     e.title AS exercise_title, e.thumbnail_key AS thumbnail_key, e.image_media_id AS image_media_id
   FROM program p
@@ -390,7 +437,15 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
         id: row.slot_id,
         position: row.slot_position,
         workoutId: row.slot_workout_id,
-        workout: row.slot_workout_id === null ? null : { title: row.workout_title, exercises: [] },
+        workout:
+          row.slot_workout_id === null
+            ? null
+            : {
+                title: row.workout_title,
+                coverMediaId: row.workout_cover_media_id ?? null,
+                mainEntryId: row.workout_main_entry_id ?? null,
+                exercises: [],
+              },
       };
       slots.push(current);
     }
@@ -401,6 +456,7 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
       row.exercise_id !== null
     ) {
       current.workout.exercises.push({
+        id: row.exercise_row,
         exerciseId: row.exercise_id,
         primaryMuscle: row.primary_muscle,
         secondaryMuscles: row.secondary_muscles,
@@ -419,6 +475,7 @@ export function parseProgramDetail(rows: readonly object[]): ProgramDetail | nul
     plannedWeeks: first.planned_weeks,
     sessionsPerWeek: first.sessions_per_week,
     coverMediaId: first.cover_media_id,
+    phasePlan: parsePhasePlan(first.phase_plan),
     slots,
   };
 }
@@ -581,7 +638,7 @@ export function watchProgramPlan(
   };
   database.onChangeWithCallback(
     { onChange: read },
-    { signal: controller.signal, tables: PROGRAM_TABLES },
+    { signal: controller.signal, tables: [...PROGRAM_TABLES, "exercise_setting"] },
   );
   read();
   return () => controller.abort();
@@ -694,8 +751,9 @@ export function watchActiveSessions(
 
 /**
  * Watches one Session with its exercises and sets in order; `null` when it is gone. Two queries
- * feed it: the Session's rows, and the "last time" notes (which scan finished history and do not
- * change when a set is written). The Session is passed once both have answered.
+ * feed it: the Session's rows, and the "last time" notes (which read finished history and do not
+ * change when a set is written). The Session is passed as soon as its rows have answered, with
+ * no notes yet; it is passed again when the notes arrive.
  */
 export function watchSession(
   database: TrainingDatabase,
@@ -704,12 +762,16 @@ export function watchSession(
 ): () => void {
   let rows: QueryResult["array"] | null = null;
   let notes: QueryResult["array"] | null = null;
+  const emptyNotesKey = lastNotesKey([]);
+  let notesKey = emptyNotesKey;
   let stopped = false;
   const emit = () => {
-    if (stopped || rows === null || notes === null) return;
+    // The "last time" notes are an extra: the Session draws as soon as its own rows are in, and
+    // the notes join it when their query answers, so a slow history read never holds the screen.
+    if (stopped || rows === null) return;
     let session: SessionDetail | null;
     try {
-      session = parseSessionDetail(rows, notes);
+      session = parseSessionDetail(rows, notes ?? []);
     } catch {
       handlers.onError(new Error("Unreadable Session rows"));
       return;
@@ -720,7 +782,7 @@ export function watchSession(
     database,
     SESSION_DETAIL_SQL,
     [id],
-    [...SESSION_TABLES, "exercise", "exercise_setting", "workout"],
+    [...SESSION_TABLES, "exercise", "exercise_setting", "workout", "gym"],
     (next) => {
       rows = next;
       emit();
@@ -736,14 +798,28 @@ export function watchSession(
     [id],
     ["training_session", "session_exercise"],
     (next) => {
+      let nextKey: string;
+      try {
+        nextKey = lastNotesKey(next);
+      } catch {
+        clearNotes();
+        return;
+      }
+      // Ignore changes that leave the visible notes the same, including an initial empty read.
+      const changed = nextKey !== notesKey;
       notes = next;
-      emit();
+      notesKey = nextKey;
+      if (changed) emit();
     },
-    (error) => {
-      notes = null;
-      handlers.onError(error);
-    },
+    clearNotes,
   );
+  // Notes are optional. Even when their read fails, keep the Session on screen.
+  function clearNotes() {
+    const hadNotes = notesKey !== emptyNotesKey;
+    notes = null;
+    notesKey = emptyNotesKey;
+    if (hadNotes) emit();
+  }
   return () => {
     stopped = true;
     stopRows();
@@ -941,22 +1017,26 @@ export function watchHistoryOverview(
   };
   database.onChangeWithCallback(
     { onChange: () => void read() },
-    { signal, tables: SESSION_TABLES, throttleMs: THROTTLE_MS },
+    { signal, tables: [...SESSION_TABLES, "gym"], throttleMs: THROTTLE_MS },
   );
   void read();
   return () => controller.abort();
 }
 
-/** Watches the user's bars and plates: bars first, heavier first. */
+/**
+ * Watches the bars and plates of one gym: bars first, heavier first. `unassigned` includes the
+ * rows that predate gyms, which belong to the default gym (and to no gym before the first sync).
+ */
 export function watchEquipment(
   database: TrainingDatabase,
   handlers: { onEquipment: (items: EquipmentRow[]) => void; onError: (error: Error) => void },
+  gym: { gymId: string | null; unassigned: boolean },
 ): () => void {
   return watch(
     database,
     EQUIPMENT_SQL,
-    [],
-    ["gym_equipment"],
+    [gym.gymId ?? "", gym.unassigned ? "1" : "0"],
+    ["gym_equipment", "gym"],
     parsing(parseEquipment, { onResult: handlers.onEquipment, onError: handlers.onError }),
     handlers.onError,
   );
@@ -978,6 +1058,44 @@ export function watchExerciseBar(
   );
 }
 
+/** Watches the bar each exercise remembers, by exercise id (exercises with none are left out). */
+export function watchExerciseBars(
+  database: TrainingDatabase,
+  handlers: {
+    onBars: (bars: ReadonlyMap<string, string>) => void;
+    onError: (error: Error) => void;
+  },
+): () => void {
+  return watch(
+    database,
+    EXERCISE_BARS_SQL,
+    [],
+    ["exercise_setting"],
+    parsing(parseExerciseBars, { onResult: handlers.onBars, onError: handlers.onError }),
+    handlers.onError,
+  );
+}
+
+/** Watches one exercise's weight unit override. */
+export function watchExerciseUnit(
+  database: TrainingDatabase,
+  exerciseId: string,
+  handlers: { onUnit: (unit: WeightUnit | null) => void; onError: (error: Error) => void },
+): () => void {
+  const schema = z.array(z.object({ unit: z.enum(WEIGHT_UNITS).nullable() }));
+  return watch(
+    database,
+    "SELECT unit FROM exercise_setting WHERE exercise_id = ? ORDER BY id LIMIT 1",
+    [exerciseId],
+    ["exercise_setting"],
+    parsing((rows) => schema.parse(rows)[0]?.unit ?? null, {
+      onResult: handlers.onUnit,
+      onError: handlers.onError,
+    }),
+    handlers.onError,
+  );
+}
+
 /** Watches the progression mode, defaulting to straight-set progression. */
 export function watchExerciseProgressionMode(
   database: TrainingDatabase,
@@ -994,6 +1112,58 @@ export function watchExerciseProgressionMode(
       onResult: handlers.onMode,
       onError: handlers.onError,
     }),
+    handlers.onError,
+  );
+}
+
+/** Watches the exercise's progression rule; null is Double. */
+export function watchExerciseRule(
+  database: TrainingDatabase,
+  exerciseId: string,
+  handlers: { onRule: (rule: RuleConfig | null) => void; onError: (error: Error) => void },
+): () => void {
+  const schema = z.array(z.object({ progression_rule: ruleText }));
+  return watch(
+    database,
+    "SELECT progression_rule FROM exercise_setting WHERE exercise_id = ? ORDER BY id LIMIT 1",
+    [exerciseId],
+    ["exercise_setting"],
+    parsing((rows) => readRuleConfig(schema.parse(rows)[0]?.progression_rule), {
+      onResult: handlers.onRule,
+      onError: handlers.onError,
+    }),
+    handlers.onError,
+  );
+}
+
+/** Watches the rule of every exercise that has one, by exercise id. */
+export function watchExerciseRules(
+  database: TrainingDatabase,
+  handlers: {
+    onRules: (rules: ReadonlyMap<string, RuleConfig>) => void;
+    onError: (error: Error) => void;
+  },
+): () => void {
+  const schema = z.array(z.object({ exercise_id: z.string(), progression_rule: ruleText }));
+  return watch(
+    database,
+    // The exercise's first row, as every other reader takes it: a later duplicate never counts.
+    `SELECT exercise_id, progression_rule FROM exercise_setting AS setting
+      WHERE progression_rule IS NOT NULL
+        AND id = (SELECT id FROM exercise_setting WHERE exercise_id = setting.exercise_id ORDER BY id LIMIT 1)
+      ORDER BY exercise_id LIMIT 500`,
+    [],
+    ["exercise_setting"],
+    parsing(
+      (rows) =>
+        new Map(
+          schema.parse(rows).flatMap(({ exercise_id, progression_rule }) => {
+            const rule = readRuleConfig(progression_rule);
+            return rule ? [[exercise_id, rule] as const] : [];
+          }),
+        ),
+      { onResult: handlers.onRules, onError: handlers.onError },
+    ),
     handlers.onError,
   );
 }
@@ -1115,26 +1285,28 @@ export async function readRecordHistory(
   );
 }
 
-/** Local rows exclude deleted Workouts and exercises through the sync stream. */
-export const LATEST_EXERCISE_PLAN_SQL = `SELECT we.sets FROM workout_exercise we JOIN workout w ON w.id = we.workout_id
-     WHERE we.exercise_id = ? ORDER BY w.created_at DESC, w.id DESC, we.position, we.id LIMIT 1`;
+/** First surviving Workout on the ordered list that still contains the exercise. */
+export const EXERCISE_PLAN_SQL = workoutDetailSql(`(
+  SELECT w.id FROM json_each(?) AS candidate
+  JOIN workout w ON w.id = candidate.value
+  WHERE EXISTS (
+    SELECT 1 FROM workout_exercise we WHERE we.workout_id = w.id AND we.exercise_id = ?
+  )
+  ORDER BY candidate.key LIMIT 1
+)`);
 
-/** Most recently created surviving Workout that plans this exercise. */
-export function watchLatestExercisePlan(
+export function watchExercisePlan(
   database: TrainingDatabase,
   exerciseId: string,
-  handlers: { onPlan: (sets: PlannedSet[] | null) => void; onError: (error: Error) => void },
+  candidates: readonly string[],
+  handlers: { onPlan: (workout: WorkoutDetail | null) => void; onError: (error: Error) => void },
 ): () => void {
-  const parse = (rows: QueryResult["array"]) => {
-    const row = z.array(z.object({ sets: z.string() })).parse(rows)[0];
-    return row ? z.array(plannedSetSchema).parse(JSON.parse(row.sets)) : null;
-  };
   return watch(
     database,
-    LATEST_EXERCISE_PLAN_SQL,
-    [exerciseId],
+    EXERCISE_PLAN_SQL,
+    [JSON.stringify(candidates), exerciseId],
     WORKOUT_TABLES,
-    parsing(parse, { onResult: handlers.onPlan, onError: handlers.onError }),
+    parsing(parseWorkoutDetail, { onResult: handlers.onPlan, onError: handlers.onError }),
     handlers.onError,
   );
 }

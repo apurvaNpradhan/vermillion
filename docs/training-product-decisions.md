@@ -12,7 +12,9 @@ every table expanded would make six-exercise plans too long.
 Only one exercise should be expanded at a time. This keeps the other exercise summaries reachable
 and gives numeric inputs room. Detailed exercise editing remains available through the row menu
 for the pinned note and a roomier table. Remove the duplicate Edit sets button under the same grid.
-Workout title and note editing belong in the workout overflow menu, leaving the preview read-first.
+The editor always shows the Workout's name and note at the top (no Edit details toggle). The preview
+stays read-first: its pencil opens the editor, tapping its title opens a quick rename, and tapping an
+exercise's set table opens that exercise's planned-sets sheet.
 
 The trade-off is that rep ranges require one focused picker. Keep Exact reps / Rep range explicit,
 with labelled bounds and atomic validation. A hidden icon or a clickable separator saves a tap only

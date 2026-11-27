@@ -13,6 +13,10 @@ describe("ui preferences schema", () => {
     const defaults = {
       weighInReminder: { enabled: false, time: "08:00" },
       checkInReminder: { enabled: false, weekday: 1, time: "09:00" },
+      trainingReminder: { enabled: false, weekdays: null, time: "18:00" },
+      reportReminder: { enabled: false },
+      restVibration: true,
+      cueVolume: 100,
       avatarMediaId: null,
       lengthUnit: "cm",
       heightCm: null,
@@ -53,10 +57,37 @@ describe("ui preferences schema", () => {
       muscleGoals: {},
       deloadUntil: null,
       lighterWeeks: [],
+      activeGymId: null,
+      capPrompts: [],
+      stepPrompts: [],
+      overridePrompts: [],
       deloadCardDismissedAt: null,
     };
     expect(uiPreferencesSchema.parse({})).toEqual(defaults);
     expect(DEFAULT_UI_PREFERENCES).toEqual(defaults);
+  });
+  it.each([
+    { name: "a value that is not a list", capPrompts: "nope" },
+    { name: "a prompt with a missing field", capPrompts: [{ key: "g:e" }] },
+  ])("reads $name in capPrompts as no prompts", ({ capPrompts }) => {
+    expect(uiPreferencesSchema.parse({ capPrompts }).capPrompts).toEqual([]);
+  });
+  it("reads override prompts, and a bad list as none", () => {
+    const prompt = {
+      key: "g:e:step",
+      kind: "step",
+      value: 5,
+      count: 2,
+      sessionId: "s",
+      dismissed: false,
+    };
+    expect(uiPreferencesSchema.parse({ overridePrompts: [prompt] }).overridePrompts).toEqual([
+      prompt,
+    ]);
+    expect(
+      uiPreferencesSchema.parse({ overridePrompts: [{ ...prompt, kind: "max" }] }).overridePrompts,
+    ).toEqual([]);
+    expect(uiPreferencesSchema.parse({ overridePrompts: "nope" }).overridePrompts).toEqual([]);
   });
   it("keeps saved muscle goals and rejects an inverted Custom range", () => {
     const goals = { chest: { level: "focus" }, calves: { level: "custom", min: 4, max: 9 } };
@@ -205,5 +236,24 @@ describe("week preferences", () => {
     expect(uiPreferencesSchema.safeParse({ weekStart: "friday" }).success).toBe(false);
     expect(uiPreferencesSchema.safeParse({ sessionsPerWeek: 0 }).success).toBe(false);
     expect(uiPreferencesSchema.safeParse({ sessionsPerWeek: 15 }).success).toBe(false);
+  });
+});
+
+it("validates the training reminder, report reminder, vibration and cue volume", () => {
+  const trainingReminder = { enabled: true, weekdays: [2, 4, 6], time: "18:30" };
+  expect(uiPreferencesPatchSchema.parse({ trainingReminder })).toEqual({ trainingReminder });
+  expect(
+    uiPreferencesPatchSchema.safeParse({ trainingReminder: { ...trainingReminder, weekdays: [8] } })
+      .success,
+  ).toBe(false);
+  expect(
+    uiPreferencesPatchSchema.safeParse({ trainingReminder: { ...trainingReminder, time: "7:00" } })
+      .success,
+  ).toBe(false);
+  for (const cueVolume of [-1, 101, 50.5])
+    expect(uiPreferencesPatchSchema.safeParse({ cueVolume }).success).toBe(false);
+  expect(uiPreferencesPatchSchema.parse({ cueVolume: 0, restVibration: false })).toEqual({
+    cueVolume: 0,
+    restVibration: false,
   });
 });

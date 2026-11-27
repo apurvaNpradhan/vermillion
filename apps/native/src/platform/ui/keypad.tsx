@@ -6,7 +6,9 @@ import { useThemeColor } from "heroui-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import Animated from "react-native-reanimated";
 
+import { useTranslation } from "@/platform/i18n";
 import { decimalSeparator, useKeypadMotion } from "./keypad-motion";
+import { stepDoesNothing } from "./keypad-entry";
 
 import { KEYPAD_DIGITS, keypadKeysOfText, keypadPressOf, type KeypadKey } from "./keypad-keys";
 
@@ -63,6 +65,7 @@ export function Keypad({
   allowPoint,
   hasNext,
   stepText,
+  decreaseStepText = stepText,
   accessory,
   systemKeyboard = false,
   motion: animate = true,
@@ -77,12 +80,14 @@ export function Keypad({
   hasNext: boolean;
   /** The step size shown on the − and + keys ("2.5"). */
   stepText: string;
+  decreaseStepText?: string;
   /** Anything that belongs above the keys for the cell being edited; generic on purpose. */
   accessory?: ReactNode;
   /** Use the phone's own number keyboard instead of the digit keys. */
   systemKeyboard?: boolean;
   motion?: boolean;
 }) {
+  const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const motion = useKeypadMotion();
   const foreground = useThemeColor("foreground");
@@ -128,26 +133,37 @@ export function Keypad({
     />
   );
 
-  const step = (direction: 1 | -1) => (
-    <Cap
-      label={direction === 1 ? labels.increase : labels.decrease}
-      onPress={() => onStep(direction)}
-    >
-      <View className="flex-row items-center gap-0.5">
-        {direction === 1 ? (
-          <Plus size={20} color={foreground} />
-        ) : (
-          <Minus size={20} color={foreground} />
-        )}
-        <Text
-          className="font-medium text-label text-foreground"
-          style={{ fontVariant: ["tabular-nums"] }}
-        >
-          {stepText}
-        </Text>
-      </View>
-    </Cap>
-  );
+  const step = (direction: 1 | -1) => {
+    const text = direction === 1 ? stepText : decreaseStepText;
+    const idle = stepDoesNothing(text);
+    return (
+      <Cap
+        label={
+          idle
+            ? t(direction === 1 ? "session__key_increase_off" : "session__key_decrease_off")
+            : direction === 1
+              ? labels.increase
+              : labels.decrease
+        }
+        onPress={() => onStep(direction)}
+        disabled={idle}
+      >
+        <View className="flex-row items-center gap-0.5">
+          {direction === 1 ? (
+            <Plus size={20} color={foreground} />
+          ) : (
+            <Minus size={20} color={foreground} />
+          )}
+          <Text
+            className="font-medium text-label text-foreground"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
+            {idle ? "" : text}
+          </Text>
+        </View>
+      </Cap>
+    );
+  };
 
   if (systemKeyboard) {
     return (

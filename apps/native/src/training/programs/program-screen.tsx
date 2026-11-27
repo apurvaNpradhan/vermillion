@@ -1,6 +1,11 @@
+import { stripState } from "@/training/train/strip-state";
+import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { useRouter } from "expo-router";
-import { useActiveRun } from "./use-active-program";
+import { runProgress, useActiveRun } from "./use-active-program";
+import { runWeek } from "@workspace/shared";
+import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
+import { Button } from "@/platform/ui/button";
 import { TRAINING_LIMITS } from "@workspace/shared";
 import type { ProgramDetail, ProgramSlotDetail } from "@workspace/sync";
 import { useThemeColor } from "heroui-native";
@@ -8,12 +13,14 @@ import {
   Copy,
   DotsThreeVertical,
   FloppyDisk,
-  LinkSimple,
   Moon,
   PencilSimple,
+  Pause,
+  Play,
   Plus,
   Repeat,
   ShareNetwork,
+  Stop,
   Trash,
   WarningCircle,
 } from "phosphor-react-native";
@@ -23,7 +30,6 @@ import Animated from "react-native-reanimated";
 
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
-import { ListRow, ListSection } from "@/platform/ui/list";
 import { SectionHeader } from "@/platform/ui/section-header";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { MarkdownText } from "@/platform/ui/markdown-text";
@@ -31,8 +37,7 @@ import { Page, ScrollPage } from "@/platform/ui/page";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
 
 import { repeatCounts, rotationSummary } from "@/training/rotation/rotation";
-import { useProgram } from "./use-program";
-import { useShareLinkAction } from "@/share";
+import { useProgram } from "@/platform/training/use-program";
 import { useProgramActions } from "./use-program-actions";
 import { useProgramMeta } from "./use-program-meta";
 import { useStartWorkout } from "@/training/train/use-start-workout";
@@ -45,6 +50,7 @@ import { ProgramTile } from "./program-row";
 import { CompactRow } from "@/training/reorder/compact-row";
 import { ReorderView } from "@/training/reorder/reorder-view";
 import { RotationRow, slotTitle } from "@/training/rotation/rotation-row";
+import { WeeksRow } from "@/training/phases/weeks-row";
 
 /** The cover tile in the header. */
 const COVER_SIZE = 56;
@@ -55,10 +61,14 @@ const DESCRIPTION_LINES = 4;
 /** Where the Program screen sends the user. */
 export type ProgramScreenProps = {
   id: string;
-  /** Open the Workout editor (slice 2) for a Workout of this Program. */
+  /** Open the read-first Workout preview for a Workout of this Program. */
   onOpenWorkout: (workoutId: string) => void;
+  /** Open the Workout editor directly for a Workout of this Program. */
+  onEditWorkout: (workoutId: string) => void;
   /** Open the details sheet. */
   onOpenDetails: () => void;
+  /** Open Plan your weeks. */
+  onOpenWeeks: () => void;
   /** The Program was deleted: leave the screen. */
   onClosed: () => void;
   /** A copy was made: open it in place of this one. */
@@ -98,21 +108,32 @@ export function ProgramScreen(props: ProgramScreenProps) {
 function LoadedProgram({
   program,
   onOpenWorkout,
+  onEditWorkout,
   onOpenDetails,
+  onOpenWeeks,
   onClosed,
   onOpenCopy,
 }: ProgramScreenProps & { program: ProgramDetail }) {
   const { t } = useTranslation();
   const foreground = useThemeColor("foreground");
   const actions = useProgramActions();
-  const { shareLink } = useShareLinkAction();
   const active = useActiveRun();
   const isActive = active.run?.program_id === program.id;
-  const activationLabel = t(isActive ? "run__stop" : "run__set_active");
-  const toggleActive = () => {
-    if (isActive) void active.stop();
-    else active.activate(program.id);
-  };
+  const timeZone = useDeviceTimeZone();
+  // "Active · Week 3 of 12": where the program stands, when it is the active one.
+  const status = (() => {
+    if (!isActive || !active.run) return null;
+    const week = runWeek(active.run.started_at, new Date(), timeZone, active.run.pauses);
+    const state = t(active.paused ? "run__paused" : "run__status_active");
+    return program.plannedWeeks === null
+      ? t("run__status", { status: state, week })
+      : t("run__status_of", { status: state, week, total: program.plannedWeeks });
+  })();
+  // Slots done or skipped in the current Cycle, marked on the rotation rows of the active Program.
+  const cycle = useMemo(
+    () => (isActive ? runProgress(active.runs, active.run?.id ?? null, program.slots) : null),
+    [isActive, active.runs, active.run?.id, program.slots],
+  );
   const { fromPicker } = useStartWorkout();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -143,14 +164,25 @@ function LoadedProgram({
     return [...seen.values()];
   }, [slots, t]);
 
+  const pauseLabel = t(active.paused ? "run__resume_run" : "run__pause_run");
+  const togglePause = () => void active.changePause(!active.paused);
   const menu: SwipeAction[] = [
-    { key: "active", label: activationLabel, icon: Repeat, onPress: toggleActive },
-    {
-      key: "details",
-      label: t("training__edit_details"),
-      icon: PencilSimple,
-      onPress: onOpenDetails,
-    },
+    ...(isActive
+      ? [
+          {
+            key: "pause",
+            label: pauseLabel,
+            icon: active.paused ? Play : Pause,
+            onPress: togglePause,
+          },
+          {
+            key: "stop",
+            label: t("run__stop"),
+            icon: Stop,
+            onPress: () => void active.stop(),
+          },
+        ]
+      : []),
     {
       key: "share",
       label: t("share__share"),
@@ -160,12 +192,6 @@ function LoadedProgram({
           pathname: "/share/[kind]/[id]",
           params: { kind: "program", id: program.id },
         }),
-    },
-    {
-      key: "share-link",
-      label: t("share__share_link"),
-      icon: LinkSimple,
-      onPress: () => void shareLink({ kind: "program", id: program.id }),
     },
     {
       key: "duplicate",
@@ -207,7 +233,7 @@ function LoadedProgram({
         key: "edit",
         label: t("training__edit_workout"),
         icon: PencilSimple,
-        onPress: () => onOpenWorkout(workoutId),
+        onPress: () => onEditWorkout(workoutId),
       },
       {
         key: "duplicate",
@@ -226,26 +252,13 @@ function LoadedProgram({
   })();
 
   return (
-    <>
+    <SwipeGroup>
       <ConfirmationDialog {...active.confirmationProps} />
       <Page
         title={program.title}
         back
         actions={
           <View className="flex-row">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("share__share")}
-              className="h-11 w-11 items-center justify-center"
-              onPress={() => {
-                router.push({
-                  pathname: "/share/[kind]/[id]",
-                  params: { kind: "program", id: program.id },
-                });
-              }}
-            >
-              <ShareNetwork size={24} color={foreground} />
-            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("training__program_menu")}
@@ -288,14 +301,13 @@ function LoadedProgram({
                 </View>
                 <PencilSimple size={20} color={foreground} />
               </Pressable>
-              <ListSection variant="plain">
-                <ListRow
-                  icon={Repeat}
-                  title={activationLabel}
-                  accessory="none"
-                  onPress={toggleActive}
-                />
-              </ListSection>
+              {status !== null ? (
+                <Text className="font-normal text-body tabular-nums text-muted">{status}</Text>
+              ) : active.loading ? null : (
+                <Button onPress={() => active.activate(program.id)}>
+                  <Button.Label>{t("run__set_active")}</Button.Label>
+                </Button>
+              )}
               {program.description !== null ? (
                 <MarkdownText
                   markdown={program.description}
@@ -304,6 +316,16 @@ function LoadedProgram({
                   lessLabel={t("training__description_less")}
                 />
               ) : null}
+            </View>
+            <View className="px-4">
+              <WeeksRow
+                plan={program.phasePlan}
+                plannedWeeks={program.plannedWeeks}
+                run={isActive ? active.run : null}
+                trainedAt={active.runs.value?.phaseStarts}
+                history={active.runs.value?.phaseHistory}
+                onPress={onOpenWeeks}
+              />
             </View>
             <View className="gap-1">
               <View className="px-4">
@@ -321,18 +343,23 @@ function LoadedProgram({
                 />
               ) : (
                 <View className="px-4">
-                  {slots.map((slot) => (
-                    <RotationRow
-                      key={slot.id}
-                      slot={slot}
-                      number={numbers.get(slot.id) ?? 0}
-                      title={slotTitle(slot, (key) => t(key))}
-                      repeats={slot.workoutId === null ? 1 : (repeats.get(slot.workoutId) ?? 1)}
-                      onReorder={() => setReordering(true)}
-                      onOpen={(row) => row.workoutId !== null && onOpenWorkout(row.workoutId)}
-                      onMenu={setSlotMenu}
-                    />
-                  ))}
+                  {slots.map((slot) => {
+                    const state = cycle && stripState(slot, cycle);
+                    return (
+                      <RotationRow
+                        key={slot.id}
+                        slot={slot}
+                        number={numbers.get(slot.id) ?? 0}
+                        title={slotTitle(slot, (key) => t(key))}
+                        repeats={slot.workoutId === null ? 1 : (repeats.get(slot.workoutId) ?? 1)}
+                        cycleState={state === "done" || state === "skipped" ? state : null}
+                        onEdit={onEditWorkout}
+                        onReorder={() => setReordering(true)}
+                        onOpen={(row) => row.workoutId !== null && onOpenWorkout(row.workoutId)}
+                        onMenu={setSlotMenu}
+                      />
+                    );
+                  })}
                 </View>
               )}
             </View>
@@ -425,6 +452,6 @@ function LoadedProgram({
         own={own}
         onPick={(workoutId) => void actions.repeat(program.id, workoutId)}
       />
-    </>
+    </SwipeGroup>
   );
 }

@@ -1,3 +1,5 @@
+import { resolveExerciseUnit } from "@workspace/shared";
+import { useExerciseUnit } from "../use-exercise-unit";
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import { useMemo } from "react";
 import { Text, View } from "react-native";
@@ -14,7 +16,8 @@ export function ExerciseHistoryScreen({ id }: { id: string }) {
   const { t } = useTranslation();
   const exercise = useExercise(id);
   const history = useExerciseHistory(id);
-  const weightUnit = usePreference((preferences) => preferences.ui.weightUnit);
+  const preferred = usePreference((preferences) => preferences.ui.weightUnit);
+  const weightUnit = resolveExerciseUnit(preferred, useExerciseUnit(id).value);
   const timeZone = useDeviceTimeZone();
   const extraData = useMemo(() => ({ weightUnit, timeZone }), [weightUnit, timeZone]);
   return (

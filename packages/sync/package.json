@@ -22,6 +22,7 @@
   "devDependencies": {
     "@orpc/client": "catalog:",
     "@powersync/common": "2.5.0",
+    "@powersync/node": "1.3.0",
     "@workspace/config": "workspace:*",
     "typescript": "catalog:",
     "vitest": "^5.1.0"

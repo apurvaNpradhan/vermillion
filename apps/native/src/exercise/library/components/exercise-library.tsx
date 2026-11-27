@@ -1,11 +1,11 @@
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
-import { EQUIPMENT_KEYS, MUSCLE_GROUP_KEYS, type MuscleGroup } from "@workspace/shared";
 import {
-  DEFAULT_LIBRARY_FILTERS,
-  hasActiveFilters,
-  type LibraryFilters,
-  type LibraryRow,
-} from "@workspace/sync";
+  EQUIPMENT_KEYS,
+  MUSCLE_DETAIL_KEYS,
+  MUSCLE_GROUP_KEYS,
+  type MuscleGroup,
+} from "@workspace/shared";
+import { DEFAULT_LIBRARY_FILTERS, type LibraryRow } from "@workspace/sync";
 import { Plus } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ScrollView, Text, View } from "react-native";
@@ -19,7 +19,10 @@ import { SearchBar } from "@/platform/ui/search-bar";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { SyncBanner } from "@/sync";
 
-import { toggled, withoutFacets } from "../filter-state";
+import { useGymAvailability, useGyms } from "@/gym";
+
+import { useExerciseActions } from "../../use-exercise-actions";
+import { hasActiveFacets, toggled, withoutFacets, type LibraryFilterState } from "../filter-state";
 import { useExerciseLibrary } from "../use-exercise-library";
 import { ExerciseRow } from "./exercise-row";
 import { FilterChips, type FilterChip } from "./filter-chips";
@@ -51,7 +54,7 @@ type ExerciseLibraryProps = {
   title?: string;
   /** Icon buttons for the header capsule (the picker's close and New buttons). */
   headerActions?: ReactNode;
-  /** Content above the list, under the search (the picker's "Swap for" suggestions). */
+  /** The picker's swap suggestions, hidden by search, Pinned or a muscle filter. */
   listHeader?: ReactNode;
   /** Pick: selected ids with their 1-based position in the selection. */
   selectedOrder?: ReadonlyMap<string, number>;
@@ -79,6 +82,8 @@ type ExerciseLibraryProps = {
    * request, so asking for the same group again re-applies it after the filters were cleared.
    */
   browseMuscle?: { muscle: MuscleGroup; at?: string };
+  /** The gym whose equipment the "Available here" filter uses; none is the gym trained at. */
+  gymId?: string | null;
 };
 
 /**
@@ -100,9 +105,16 @@ export function ExerciseLibrary({
   onArchive,
   onRestore,
   browseMuscle,
+  gymId,
 }: ExerciseLibraryProps) {
   const { t } = useTranslation();
-  const [filters, setFilters] = useState<LibraryFilters>(DEFAULT_LIBRARY_FILTERS);
+  const here = useGymAvailability(gymId);
+  const { multiple } = useGyms();
+  const [filters, setFilters] = useState<LibraryFilterState>(() => {
+    const { lacking: _, ...defaults } = DEFAULT_LIBRARY_FILTERS;
+    return { ...defaults, availableOnly: false, pinnedFirst: mode === "pick" };
+  });
+  const { setExercisePinned } = useExerciseActions();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const browsedMuscle = browseMuscle?.muscle;
   const browsedAt = browseMuscle?.at;
@@ -114,19 +126,38 @@ export function ExerciseLibrary({
       muscles: [browsedMuscle],
     }));
   }, [browsedMuscle, browsedAt]);
-  const library = useExerciseLibrary(filters);
+  const { availableOnly, ...queryFilters } = filters;
+  const library = useExerciseLibrary({
+    ...queryFilters,
+    lacking: availableOnly ? here.unavailable : [],
+  });
   const query = filters.search.trim();
   const searching = query !== "";
+  const showRecent = !searching && !hasActiveFacets(filters);
+  const showSwapSuggestions =
+    !searching &&
+    !filters.pinnedOnly &&
+    filters.muscles.length === 0 &&
+    filters.primaryDetail === null;
 
   const chips = useMemo<FilterChip[]>(() => {
-    const change = (next: Partial<LibraryFilters>) =>
+    const change = (next: Partial<LibraryFilterState>) =>
       setFilters((current) => ({ ...current, ...next }));
     return [
       ...filters.muscles.map((muscle) => ({
         key: `muscle-${muscle}`,
         label: t(MUSCLE_GROUP_KEYS[muscle]),
-        onRemove: () => change({ muscles: toggled(filters.muscles, muscle) }),
+        onRemove: () => change({ muscles: toggled(filters.muscles, muscle), primaryDetail: null }),
       })),
+      ...(filters.primaryDetail === null
+        ? []
+        : [
+            {
+              key: "detail",
+              label: t(MUSCLE_DETAIL_KEYS[filters.primaryDetail]),
+              onRemove: () => change({ primaryDetail: null }),
+            },
+          ]),
       ...filters.equipment.map((kind) => ({
         key: `equipment-${kind}`,
         label: t(EQUIPMENT_KEYS[kind]),
@@ -144,7 +175,7 @@ export function ExerciseLibrary({
             },
           ]),
     ];
-  }, [filters.muscles, filters.equipment, filters.show, t]);
+  }, [filters.muscles, filters.primaryDetail, filters.equipment, filters.show, t]);
 
   const items = useMemo<ListItem[]>(() => {
     const rows = library.rows.map((exercise): ListItem => ({
@@ -152,18 +183,27 @@ export function ExerciseLibrary({
       key: `all-${exercise.id}`,
       exercise,
     }));
-    if (library.recent.length === 0 || searching || hasActiveFilters(filters)) return rows;
+    if (!showRecent) return rows;
+    const recent =
+      mode === "pick" ? library.recent.filter((exercise) => !exercise.isPinned) : library.recent;
+    if (recent.length === 0) return rows;
+    const firstUnpinned = library.rows.findIndex((exercise) => !exercise.isPinned);
+    const pinnedCount = mode === "pick" ? (firstUnpinned === -1 ? rows.length : firstUnpinned) : 0;
+    if (mode === "pick" && pinnedCount === rows.length && library.hasMore) return rows;
     return [
+      ...rows.slice(0, pinnedCount),
       { kind: "header", key: "recent", title: t("exercise__recent") },
-      ...library.recent.map((exercise): ListItem => ({
+      ...recent.map((exercise): ListItem => ({
         kind: "row",
         key: `recent-${exercise.id}`,
         exercise,
       })),
-      { kind: "header", key: "all", title: t("exercise__all") },
-      ...rows,
+      ...(pinnedCount < rows.length
+        ? [{ kind: "header" as const, key: "all", title: t("exercise__all") }]
+        : []),
+      ...rows.slice(pinnedCount),
     ];
-  }, [library.rows, library.recent, searching, filters, t]);
+  }, [library.rows, library.recent, library.hasMore, mode, showRecent, t]);
 
   const onRowPress = mode === "pick" ? onToggle : onOpen;
   // Only the Custom and Archived views swipe: "All" mixes in the read-only catalog.
@@ -188,11 +228,12 @@ export function ExerciseLibrary({
             mode === "pick" && (item.exercise.isArchived || disabledIds?.includes(item.exercise.id))
           }
           onPress={onRowPress}
+          onSetPinned={mode === "pick" ? setExercisePinned : undefined}
           onArchive={rowArchive}
           onRestore={rowRestore}
         />
       ),
-    [mode, selectedOrder, disabledIds, onRowPress, rowArchive, rowRestore],
+    [mode, selectedOrder, disabledIds, onRowPress, rowArchive, rowRestore, setExercisePinned],
   );
 
   const clearFilters = useCallback(
@@ -207,7 +248,11 @@ export function ExerciseLibrary({
     if (status === "first-sync") return <LibrarySetup />;
     if (status === "offline-unsynced") return <OfflineState onCreate={onCreate} />;
     if (library.rows.length > 0) return null;
-    if (filters.show === "archived" && !searching && filters.muscles.length === 0) {
+    if (
+      filters.show === "archived" &&
+      !searching &&
+      !hasActiveFacets({ ...filters, show: "all" })
+    ) {
       return (
         <ArchivedEmptyState
           onBrowse={() =>
@@ -219,7 +264,7 @@ export function ExerciseLibrary({
     return (
       <NoMatchesState
         query={query}
-        canClear={searching || hasActiveFilters(filters)}
+        canClear={searching || hasActiveFacets(filters)}
         onClear={clearFilters}
         onCreate={onCreate}
       />
@@ -255,11 +300,42 @@ export function ExerciseLibrary({
                 >
                   <FilterPill
                     label={t("exercise__filters_title")}
-                    active={hasActiveFilters(filters)}
+                    active={hasActiveFacets(filters)}
                     onPress={() => setFiltersOpen(true)}
                   />
+                  <Button
+                    size="sm"
+                    variant={filters.pinnedOnly ? "secondary" : "ghost"}
+                    className="h-9 rounded-full"
+                    accessibilityState={{ selected: filters.pinnedOnly }}
+                    onPress={() =>
+                      setFilters((current) => ({ ...current, pinnedOnly: !current.pinnedOnly }))
+                    }
+                  >
+                    <Button.Label>{t("exercise__pinned")}</Button.Label>
+                  </Button>
+                  {here.unavailable.length > 0 || availableOnly ? (
+                    <Button
+                      size="sm"
+                      variant={availableOnly ? "secondary" : "ghost"}
+                      className="h-9 rounded-full"
+                      accessibilityState={{ selected: availableOnly }}
+                      onPress={() =>
+                        setFilters((current) => ({
+                          ...current,
+                          availableOnly: !current.availableOnly,
+                        }))
+                      }
+                    >
+                      <Button.Label>
+                        {multiple && here.gymName
+                          ? t("exercise__available_here_at", { gym: here.gymName })
+                          : t("exercise__available_here")}
+                      </Button.Label>
+                    </Button>
+                  ) : null}
                   <FilterChips chips={chips} />
-                  {chips.length > 0 ? (
+                  {chips.length > 0 || filters.pinnedOnly || availableOnly ? (
                     <Button variant="ghost" onPress={() => setFilters(withoutFacets)}>
                       <Button.Label>{t("exercise__clear_filters")}</Button.Label>
                     </Button>
@@ -304,7 +380,7 @@ export function ExerciseLibrary({
                 <View className="gap-3 px-4 pb-3">
                   <SyncBanner />
                   <RejectedExercises />
-                  {listHeader}
+                  {showSwapSuggestions ? listHeader : null}
                 </View>
               </View>
             }

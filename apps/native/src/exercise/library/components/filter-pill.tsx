@@ -20,8 +20,8 @@ export function FilterPill({
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
       onPress={onPress}
-      className={`h-9 flex-row items-center gap-1.5 rounded-full border active:opacity-70 px-3 ${
-        active ? "border-foreground bg-default" : "border-transparent bg-surface"
+      className={`h-9 flex-row items-center gap-1.5 rounded-full active:opacity-70 px-3 ${
+        active ? "bg-default" : "bg-surface"
       }`}
     >
       <Text

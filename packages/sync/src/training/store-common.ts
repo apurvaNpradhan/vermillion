@@ -48,6 +48,7 @@ export class TrainingLimitError extends Error {
 /** Columns of the training tables the server accepts in an upload; the rest are local only. */
 export const trainingUploadColumns = {
   session_photo: new Set(["session_id", "media_id", "position", "restore"]),
+  program_slot_skip: new Set(["run_id", "slot_id", "cycle"]),
   program_run: new Set([
     "program_id",
     "activated_at",
@@ -55,6 +56,8 @@ export const trainingUploadColumns = {
     "finished_at",
     "outcome",
     "continued_at",
+    "inserted_deloads",
+    "pauses",
   ]),
   program: new Set([
     "title",
@@ -62,9 +65,10 @@ export const trainingUploadColumns = {
     "planned_weeks",
     "sessions_per_week",
     "cover_media_id",
+    "phase_plan",
     "restore",
   ]),
-  workout: new Set(["program_id", "title", "note", "restore"]),
+  workout: new Set(["program_id", "title", "note", "cover_media_id", "main_entry_id", "restore"]),
   workout_exercise: new Set([
     "workout_id",
     "exercise_id",
@@ -82,6 +86,9 @@ export const trainingUploadColumns = {
     "program_id",
     "run_id",
     "slot_id",
+    "gym_id",
+    "phase",
+    "phase_modifiers",
     "cycle",
     "title",
     "title_derived",
@@ -107,6 +114,8 @@ export const trainingUploadColumns = {
     "exercise_title",
     "exercise_type",
     "source_workout_exercise_id",
+    "stall_deload",
+    "prescription",
     "workout_swap_fragment",
     "position",
     "rest_seconds",
@@ -134,7 +143,10 @@ export const trainingUploadColumns = {
     "generated_warmup",
     "restore",
   ]),
+  gym: new Set(["name", "unavailable_equipment", "dumbbell_max_kg", "restore"]),
+  gym_exercise_setting: new Set(["gym_id", "exercise_id", "load_ranges", "setup_note", "restore"]),
   gym_equipment: new Set([
+    "gym_id",
     "kind",
     "weight_kg",
     "unit",
@@ -146,10 +158,12 @@ export const trainingUploadColumns = {
   ]),
   exercise_setting: new Set([
     "exercise_id",
+    "unit",
     "bar_id",
     "log_effort",
     "progression_per_set",
     "auto_warmups",
+    "progression_rule",
     "note",
     "restore",
   ]),

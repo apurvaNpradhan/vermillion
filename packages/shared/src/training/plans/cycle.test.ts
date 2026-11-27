@@ -63,3 +63,170 @@ it("resolves conflicting activations deterministically on both devices", () => {
   expect(activeRun([b, { ...a, activated_at: b.activated_at }])).toEqual(b);
   expect(activeRun([{ ...b, finished_at: "2026-01-03" }, a])).toEqual(a);
 });
+
+describe("cycle state with skips", () => {
+  it("counts a skipped slot as done for its cycle and moves next past it", () => {
+    const state = cycleState(slots, [done("1", "upper")], [{ slotId: "b", cycle: 1 }]);
+    expect([...state.trained].sort()).toEqual(["a", "b"]);
+    expect([...state.skipped]).toEqual(["b"]);
+    expect(state.next?.id).toBe("c");
+    expect(state.complete).toBe(false);
+  });
+
+  it("completes the cycle when every other slot is trained, with no new session", () => {
+    const state = cycleState(
+      slots,
+      [done("1", "upper"), done("2", "upper")],
+      [{ slotId: "b", cycle: 1 }],
+    );
+    expect(state.complete).toBe(true);
+    expect(state.cycle).toBe(2);
+    expect(state.trained.size).toBe(0);
+    expect(state.skipped.size).toBe(0);
+    expect(state.next?.id).toBe("a");
+  });
+
+  it("skips only the cycle it was made for", () => {
+    const skips = [{ slotId: "a", cycle: 1 }];
+    // Cycle 1 completes (a skipped, b and c trained), so cycle 2 starts with a untrained.
+    const next = cycleState(slots, [done("1", "lower"), done("2", "upper")], skips);
+    expect(next.cycle).toBe(2);
+    expect(next.next?.id).toBe("a");
+    // A skip of cycle 2 is not applied while cycle 1 is the one in progress.
+    const other = cycleState(slots, [], [{ slotId: "a", cycle: 2 }]);
+    expect(other.cycle).toBe(1);
+    expect(other.skipped.size).toBe(0);
+    expect(other.next?.id).toBe("a");
+  });
+
+  it("applies a skip of a later cycle when a session of that cycle moves the run there", () => {
+    const state = cycleState(
+      slots,
+      [done("1", "upper"), done("2", "lower"), done("3", "upper"), done("4", "upper", 2)],
+      [{ slotId: "b", cycle: 2 }],
+    );
+    expect(state.cycle).toBe(2);
+    expect([...state.trained].sort()).toEqual(["a", "b"]);
+    expect([...state.skipped]).toEqual(["b"]);
+    expect(state.next?.id).toBe("c");
+  });
+
+  it("trains a workout into its next slot when its first slot was skipped", () => {
+    // `upper` fills a and c: skipping a leaves c for the next upper session.
+    const state = cycleState(slots, [done("1", "upper")], [{ slotId: "a", cycle: 1 }]);
+    expect([...state.trained].sort()).toEqual(["a", "c"]);
+    expect(state.next?.id).toBe("b");
+  });
+
+  it("ignores skips of rest, of unknown slots and duplicates", () => {
+    const state = cycleState(
+      slots,
+      [],
+      [
+        { slotId: "rest", cycle: 1 },
+        { slotId: "gone", cycle: 1 },
+        { slotId: "a", cycle: 1 },
+        { slotId: "a", cycle: 1 },
+      ],
+    );
+    expect([...state.trained]).toEqual(["a"]);
+    expect(state.next?.id).toBe("b");
+  });
+
+  it("is unchanged without skips", () => {
+    const sessions = [done("1", "lower"), done("2", "upper")];
+    const plain = cycleState(slots, sessions);
+    const empty = cycleState(slots, sessions, []);
+    expect([...empty.trained]).toEqual([...plain.trained]);
+    expect(empty.next?.id).toBe(plain.next?.id);
+    expect(empty.skipped.size).toBe(0);
+  });
+});
+
+it("advances past multiple fully skipped cycles", () => {
+  const work = [{ id: "a", workoutId: "upper" }];
+  const state = cycleState(
+    work,
+    [],
+    [
+      { slotId: "a", cycle: 1 },
+      { slotId: "a", cycle: 2 },
+    ],
+  );
+  expect(state.cycle).toBe(3);
+  expect(state.next?.id).toBe("a");
+});
+
+it("credits a recorded slot even when another device skipped it", () => {
+  const state = cycleState(
+    slots,
+    [{ ...done("1", "upper"), slotId: "c" }],
+    [{ slotId: "c", cycle: 1 }],
+  );
+  expect([...state.trained]).toEqual(["c"]);
+  expect(state.skipped.has("c")).toBe(false);
+  expect(state.next?.id).toBe("a");
+});
+
+it("reserves recorded slots before assigning legacy sessions to repeated workouts", () => {
+  const state = cycleState(slots, [done("1", "upper"), { ...done("2", "upper"), slotId: "a" }]);
+  expect([...state.trained]).toEqual(["a", "c"]);
+  expect(state.next?.id).toBe("b");
+});
+
+it("seals earlier cycles once a later counted session exists, even after an Undo arrives", () => {
+  const sessions = [{ ...done("1", "upper", 2), slotId: "c" }];
+  const withSkip = cycleState(slots, sessions, [{ slotId: "a", cycle: 1 }]);
+  expect(cycleState(slots, sessions)).toEqual(withSkip);
+  expect(withSkip.latestCountedCycle).toBe(2);
+  expect(withSkip.cycle).toBe(2);
+});
+
+it.each([
+  [
+    "UTC",
+    "2026-03-02T00:00:00Z",
+    "2026-03-07T12:00:00Z",
+    "2026-03-08T12:00:00Z",
+    "2026-03-09T00:00:00Z",
+  ],
+  [
+    "America/New_York",
+    "2026-03-02T05:00:00Z",
+    "2026-03-07T17:00:00Z",
+    "2026-03-08T16:00:00Z",
+    "2026-03-09T04:00:00Z",
+  ],
+  [
+    "Asia/Kolkata",
+    "2026-03-01T18:30:00Z",
+    "2026-03-07T06:30:00Z",
+    "2026-03-08T06:30:00Z",
+    "2026-03-08T18:30:00Z",
+  ],
+])("counts only whole local days paused in %s", (zone, start, from, until, through) => {
+  const now = new Date(through);
+  expect(runWeek(start, now, zone, [{ from, until }])).toBe(1);
+  const almost = new Date(Date.parse(until) - 60_000).toISOString();
+  expect(runWeek(start, now, zone, [{ from, until: almost }])).toBe(2);
+});
+
+it("unions overlapping pauses across a fall DST change and ignores a short midnight crossing", () => {
+  const week = (pauses: Parameters<typeof runWeek>[3]) =>
+    runWeek("2026-10-27T04:00:00Z", new Date("2026-11-03T05:00:00Z"), "America/New_York", pauses);
+  const from = "2026-11-01T03:30:00Z";
+  const until = "2026-11-01T04:30:00Z";
+  expect(week([{ from, until }])).toBe(2);
+  expect(
+    week([
+      { from, until: "2026-11-02T04:29:00Z" },
+      { from: until, until: "2026-11-02T04:29:00Z" },
+    ]),
+  ).toBe(2);
+  expect(
+    week([
+      { from, until: "2026-11-02T05:30:00Z" },
+      { from: until, until: "2026-11-02T04:30:00Z" },
+    ]),
+  ).toBe(1);
+});

@@ -19,7 +19,7 @@ import { useThumbnailPrefetch } from "@/exercise";
 import { useAccountLocale } from "@/preferences";
 import { useSyncValue } from "@/sync";
 import { AccountSummary } from "@/account";
-import { ForgottenSessionHost, ResumeBar } from "@/session";
+import { ForgottenSessionHost, ReminderHost, ResumeBar } from "@/session";
 
 // Vermillion icon rules: Phosphor Regular, Fill when selected. The tab bar passes a plain color
 // string; Phosphor does not take React Native's opaque platform colors.
@@ -131,6 +131,7 @@ export default function AppLayout() {
         <Tabs.Screen name="muscles" options={{ title: t("muscles__title") }} />
       </Tabs>
       <ForgottenSessionHost />
+      <ReminderHost />
     </TabActionProvider>
   );
 }

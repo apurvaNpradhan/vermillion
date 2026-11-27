@@ -55,6 +55,7 @@
     },
     "test": {
       "dependsOn": ["^build"],
+      "env": ["SESSION_OPEN_SKIP_TIMING"],
       "outputs": [],
       "passThroughEnv": ["TEST_DATABASE_ADMIN_URL", "SYNC_INFRA_TEST_ADMIN_URL"]
     },

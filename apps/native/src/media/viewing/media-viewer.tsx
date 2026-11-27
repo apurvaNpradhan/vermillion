@@ -5,7 +5,12 @@ import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
-import { ImageViewer, type ViewerImageBox, type ViewerItem } from "@/platform/ui/image-viewer";
+import {
+  ImageViewer,
+  type ViewerAction,
+  type ViewerImageBox,
+  type ViewerItem,
+} from "@/platform/ui/image-viewer";
 
 import { useMediaImage } from "./use-media-image";
 import { useMediaSizes } from "./use-media-sizes";
@@ -86,7 +91,10 @@ export function MediaViewer({
   onIndexChange,
   onClose,
   localOnly = false,
+  action,
 }: {
+  /** A button at the top right that acts on the open picture (delete, for the owner's photos). */
+  action?: ViewerAction;
   /** Show only files already on this device; never request a download or a retry. */
   localOnly?: boolean;
   mediaIds: readonly string[];
@@ -114,6 +122,7 @@ export function MediaViewer({
       onIndexChange={onIndexChange}
       onClose={onClose}
       closeLabel={t("common__close")}
+      action={action}
       pageLabel={(page, count) => t("media__page", { page: page + 1, count })}
       renderImage={(item, box) => (
         <FullMediaImage mediaId={item.key} box={box} localOnly={localOnly} />

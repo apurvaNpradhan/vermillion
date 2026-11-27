@@ -4,7 +4,13 @@
  */
 import {
   KG_PER_LB,
+  addLoad,
+  alignToGrid,
+  loadIdentity,
   incrementFor,
+  loadGridOf,
+  weightAtMost,
+  type LoadGrid,
   type Equipment,
   MAX_WEIGHT_KG,
   SESSION_LIMITS,
@@ -86,12 +92,19 @@ export function textOfValue(field: EntryField, value: number | null, unit: Weigh
  * The value the text means, in storage units (kg, seconds, metres, counts); null when empty (the
  * cell is cleared). Text a key press could never produce is also null.
  */
-export function valueOfText(field: EntryField, text: string, unit: WeightUnit): number | null {
+export function valueOfText(
+  field: EntryField,
+  text: string,
+  unit: WeightUnit,
+  capKg: number | null = null,
+): number | null {
   const cleaned = text.endsWith(".") ? text.slice(0, -1) : text;
   if (cleaned === "") return null;
   switch (field) {
-    case "weight":
-      return parseWeight(cleaned, unit);
+    case "weight": {
+      const kg = parseWeight(cleaned, unit);
+      return kg === null || capKg === null ? kg : Math.min(kg, capKg);
+    }
     case "duration":
       return durationFromDigits(cleaned);
     case "distance":
@@ -165,6 +178,7 @@ export type StepContext = {
   equipment: Equipment | null;
   /** The user's manual weight increment in kg; null is "Auto by equipment". */
   incrementKg: number | null;
+  grid?: LoadGrid | null;
 };
 
 /**
@@ -172,13 +186,22 @@ export type StepContext = {
  * equipment's smallest loadable step (the same rule the progression suggestions use), shown in the
  * user's unit; the rest are fixed.
  */
-export function stepOf(field: EntryField, context: StepContext): number {
+export function stepOf(
+  field: EntryField,
+  context: StepContext,
+  loadKg: number | null = null,
+): number {
   switch (field) {
     case "weight": {
-      const kg = incrementFor(null, context.equipment ?? "other", {
-        weightUnit: context.unit,
-        weightIncrementKg: context.incrementKg,
-      });
+      const kg = incrementFor(
+        loadKg,
+        context.equipment ?? "other",
+        {
+          weightUnit: context.unit,
+          weightIncrementKg: context.incrementKg,
+        },
+        context.grid,
+      );
       return Number((context.unit === "kg" ? kg : kg / KG_PER_LB).toFixed(2));
     }
     case "reps":
@@ -223,14 +246,66 @@ export function stepValue(
   context: StepContext,
 ): number {
   const start = current ?? ghost ?? 0;
-  const step = stepOf(field, context);
   let next: number;
   if (field === "weight") {
+    const grid =
+      context.grid ??
+      (context.equipment === "dumbbell"
+        ? loadGridOf({ equipment: "dumbbell", unit: context.unit })
+        : null);
+    const cap = Math.min(grid?.capKg ?? MAX_WEIGHT_KG, MAX_WEIGHT_KG);
+    if (grid && (grid.source === "gym" || context.incrementKg === null)) {
+      const gridStart = alignToGrid(grid, start);
+      const below = direction === -1 ? grid.below(gridStart) : null;
+      const stepKg = incrementFor(
+        below ?? start,
+        context.equipment ?? "other",
+        {
+          weightUnit: context.unit,
+          weightIncrementKg: context.incrementKg,
+        },
+        grid,
+      );
+      if (direction === 1) {
+        const next = addLoad(start, stepKg, context.unit, grid) ?? start;
+        return next > cap ? weightAtMost(next, context.unit, cap) : next;
+      }
+      if (grid.source !== "cap") {
+        const nearest = grid.nearest(Math.max(0, gridStart - stepKg));
+        const lighter = loadIdentity(nearest) < loadIdentity(gridStart) ? nearest : (below ?? 0);
+        return weightAtMost(lighter, context.unit, cap);
+      }
+    }
+    const step = stepOf(field, context, grid ? start : null);
     const shown = context.unit === "kg" ? start : start / KG_PER_LB;
     const stepped = Math.round((shown + direction * step) / step) * step;
-    next = parseWeight(String(Number(Math.max(0, stepped).toFixed(2))), context.unit) ?? 0;
+    next = weightAtMost(
+      Math.max(0, context.unit === "kg" ? stepped : stepped * KG_PER_LB),
+      context.unit,
+      cap,
+    );
   } else {
-    next = start + direction * step;
+    next = start + direction * stepOf(field, context);
   }
   return Math.min(MAXIMUM[field], Math.max(MINIMUM[field], next));
+}
+
+/** The displayed change each step key would make, starting from the same value as the press. */
+export function stepLabel(
+  field: EntryField,
+  current: number | null,
+  ghost: number | null,
+  direction: 1 | -1,
+  context: StepContext,
+): string {
+  const start = current ?? ghost ?? 0;
+  const next = stepValue(field, current, ghost, direction, context);
+  const shown = (value: number) =>
+    field === "weight" ? Number(formatWeight(value, context.unit)) : value;
+  return String(Number(Math.abs(shown(next) - shown(start)).toFixed(2)));
+}
+
+/** The step key's text says the press changes nothing (the value is at its limit): disable it. */
+export function stepDoesNothing(label: string): boolean {
+  return label !== "" && Number(label) === 0;
 }

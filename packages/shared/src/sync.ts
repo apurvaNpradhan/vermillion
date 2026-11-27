@@ -9,7 +9,7 @@ import { sha256Hex } from "./sha256";
  */
 
 /** Version of the upload contract this build speaks. Sent with every upload. */
-export const SYNC_SCHEMA_VERSION = 1;
+export const SYNC_SCHEMA_VERSION = 2;
 /**
  * Oldest version the server still accepts. Never raise it above a version
  * released within the last 90 days (the offline horizon, ADR 0019).
@@ -65,6 +65,8 @@ export const syncOpSchema = z.object({
       completed_at: z.iso.datetime({ offset: true }).nullable().optional(),
       paused_at: z.iso.datetime({ offset: true }).nullable().optional(),
       paused_ms: z.int().nonnegative().optional(),
+      /** A gym's equipment list as JSON text, as the device had it before its toggle. */
+      unavailable_equipment: z.string().max(1024).optional(),
     })
     .optional(),
 });
@@ -112,6 +114,7 @@ export const SYNC_REJECTION_CODES = [
   "TRAINING_INVALID_SETS",
   "TRAINING_LIMIT_REACHED",
   // Sessions (ADR 0037, 0038).
+  "RUN_DELOAD_LOGGED",
   "RUN_NOT_FOUND",
   "RUN_PROGRAM_NOT_FOUND",
   "RUN_SLOT_PROGRAM_MISMATCH",

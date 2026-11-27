@@ -1,4 +1,5 @@
 import { weekDays } from "@workspace/shared";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -43,7 +44,7 @@ export function PhotoDatePicker({
         if (!open) onClose();
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
           animationConfigs={SHEET_SPRING}
@@ -132,7 +133,7 @@ export function PhotoDatePicker({
             <Button.Label>{t("common__cancel")}</Button.Label>
           </Button>
         </BottomSheet.Content>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

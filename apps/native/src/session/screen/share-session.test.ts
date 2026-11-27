@@ -49,6 +49,8 @@ const session = (exercises: SessionExerciseDetail[], title = "Upper"): SessionDe
   programId: null,
   runId: null,
   slotId: null,
+  phase: null,
+  phaseModifiers: null,
   cycle: null,
   title,
   titleDerived: false,

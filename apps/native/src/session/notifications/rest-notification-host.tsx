@@ -9,6 +9,7 @@ import {
   cancelRestNotification,
   installRestNotifications,
   setRestSoundEnabled,
+  setRestVibrationEnabled,
   scheduleRestNotification,
   scheduledRestIds,
 } from "./rest-notification";
@@ -34,14 +35,19 @@ export function RestNotificationHost() {
   const installId = useInstallId();
   const permission = useNotificationPermission();
   const reconciler = useRef(createNotificationReconciler());
+  // On first launch after an Android upgrade, an empty map causes pending Rests to be replaced
+  // on the current channel. A timer that expires before the updated app opens uses its old channel.
   const known = useRef(new Map<string, number>());
-  const { sounds, soundRest } = usePreferences().preferences.ui;
+  const { sounds, soundRest, restVibration } = usePreferences().preferences.ui;
   const soundOn = restSoundOn({ sounds, soundRest });
-  const scheduledWithSound = useRef(soundOn);
+  // The sound and the vibration together: a scheduled notification keeps the channel it was made on.
+  const alertKey = `${soundOn}:${restVibration}`;
+  const scheduledWithSound = useRef(alertKey);
   setRestSoundEnabled(soundOn);
-  // A scheduled notification keeps the sound it was made with, so a changed setting reschedules all.
-  if (scheduledWithSound.current !== soundOn) {
-    scheduledWithSound.current = soundOn;
+  setRestVibrationEnabled(restVibration);
+  // A changed setting reschedules all.
+  if (scheduledWithSound.current !== alertKey) {
+    scheduledWithSound.current = alertKey;
     known.current.clear();
   }
 
@@ -60,7 +66,7 @@ export function RestNotificationHost() {
   const heading = t("session__rest_over_title");
   useEffect(() => {
     if (loading || installId === null || permission === "unknown") return;
-    const jobSound = soundOn;
+    const jobSound = alertKey;
     void reconciler.current
       .enqueue(async (current) => {
         const plan = planRestSchedule({
@@ -103,7 +109,7 @@ export function RestNotificationHost() {
     };
     // `body` and `heading` only change with the language.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessions, loading, installId, permission, heading, soundOn]);
+  }, [sessions, loading, installId, permission, heading, alertKey]);
 
   return null;
 }

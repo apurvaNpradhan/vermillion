@@ -28,6 +28,22 @@ export function calendarDay(instant: Date | string, timezone: string): number {
   return Date.UTC(part("year"), part("month") - 1, part("day"));
 }
 
+/** The local wall time, projected onto UTC so a local day always has 24 hours. */
+export function localTime(instant: number, format: Intl.DateTimeFormat): number {
+  const date = new Date(instant);
+  const parts = format.formatToParts(date);
+  const part = (kind: string) => Number(parts.find((item) => item.type === kind)?.value);
+  return Date.UTC(
+    part("year"),
+    part("month") - 1,
+    part("day"),
+    part("hour"),
+    part("minute"),
+    part("second"),
+    date.getUTCMilliseconds(),
+  );
+}
+
 /** The first day of the week that holds `day` (UTC midnight), whatever the week starts on. */
 export function weekStartDay(day: number, weekStart: WeekStart): number {
   const offset = (new Date(day).getUTCDay() - START_WEEKDAY[weekStart] + 7) % 7;

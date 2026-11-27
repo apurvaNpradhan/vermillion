@@ -1,6 +1,8 @@
 export {
   exerciseSetting,
+  gym,
   gymEquipment,
+  gymExerciseSetting,
   program,
   programSlot,
   session,
@@ -32,15 +34,19 @@ export {
   restoreProgram,
   restoreWorkout,
   restoreWorkoutExercise,
-  releaseProgramCover,
   setProgramCover,
   setProgramCoverToNewMedia,
+  skipSlot,
+  unskipSlot,
+  setWorkoutCover,
+  setWorkoutCoverToNewMedia,
   supersetWithNext,
   trainingUploadColumns,
   updateProgram,
   updateSlot,
   updateWorkout,
   updateWorkoutExercise,
+  raiseWorkoutRepRange,
   type DeletedProgram,
   type DeletedWorkout,
   type ProgramPatch,
@@ -55,6 +61,29 @@ export {
   type WorkoutPatch,
   type WorkoutRow,
 } from "./store";
+export {
+  activeGymIdOf,
+  createGym,
+  defaultGymIdOf,
+  deleteGym,
+  renameGym,
+  setGymAvailability,
+  setGymEquipmentHere,
+  setGymExerciseSetting,
+  type GymAvailabilityPatch,
+  setSessionGym,
+  type GymExerciseSettingPatch,
+} from "./gyms/gym-store";
+export {
+  readGymLoadInputs,
+  watchGymExerciseSettings,
+  unavailableEquipmentOf,
+  watchGyms,
+  watchSessionGym,
+  type GymExerciseSettingRow,
+  type GymLoadInputs,
+  type GymRow,
+} from "./gyms/gym-watch";
 export {
   byPosition,
   keyAfterLast,
@@ -82,7 +111,11 @@ export {
   watchActiveSessions,
   watchEquipment,
   watchExerciseBar,
+  watchExerciseBars,
+  watchExerciseUnit,
   watchExerciseProgressionMode,
+  watchExerciseRule,
+  watchExerciseRules,
   watchExerciseAutoWarmups,
   watchExerciseNote,
   watchExerciseHistory,
@@ -99,7 +132,7 @@ export {
   watchRecordHistoryChanges,
   readRecordHistory,
   watchWorkout,
-  watchLatestExercisePlan,
+  watchExercisePlan,
   watchWorkouts,
   type ProgramDetail,
   type ProgramPlan,
@@ -110,9 +143,17 @@ export {
   type WorkoutExerciseInfo,
   type WorkoutSummary,
 } from "./watch";
-export { SESSION_EXPORT_SQL, readSessionExportRows } from "./sessions/session-export";
+export { SESSION_EXPORT_SQL, visitSessionExportPages } from "./sessions/session-export";
+export { loadExerciseHistory, type ExerciseHistoryOptions } from "./sessions/exercise-history";
+export {
+  readSessionStarts,
+  watchSessionStarts,
+  type SessionStart,
+} from "./sessions/session-starts";
 export {
   ACTIVE_SESSIONS_SQL,
+  FINISHED_OF_WORKOUT_SQL,
+  parseFinishedOfWorkout,
   EQUIPMENT_SQL,
   EXERCISE_HISTORY_SQL,
   SESSIONS_BETWEEN_SQL,
@@ -171,6 +212,7 @@ export {
   newSessionId,
   restoreSession,
   setDerivedTitle,
+  setStallDeload,
   startRest,
   startSession,
   takeOver,
@@ -219,13 +261,16 @@ export {
   watchRunState,
   activateProgram,
   stopProgram,
+  setRunPaused,
   finishRun,
   keepGoing,
+  insertDeloadNow,
+  undoDeloadNow,
   runAgain,
   readRuns,
   reconcileRuns,
 } from "./plans/run-store";
-export { programRun } from "./tables";
+export { programRun, programSlotSkip } from "./tables";
 
 export {
   addSessionPhoto,
@@ -244,3 +289,9 @@ export {
   type ImportedPlan,
   type ImportExercisePreview,
 } from "./plans/share-store";
+
+export {
+  capturePrescription,
+  revisePrescription,
+  undoSessionAdjustment,
+} from "./sessions/prescription-store";

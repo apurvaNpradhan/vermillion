@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createToastGate } from "./toast-gate";
+import { ACTION_TOAST_MS, createToastGate, toastDuration } from "./toast-gate";
 
 describe("createToastGate", () => {
   it("shows the first toast with nothing to replace", () => {
@@ -38,5 +38,19 @@ describe("createToastGate", () => {
     gate.shown("b", "Two");
     gate.hidden("a");
     expect(gate.decide("Two", false)).toEqual({ action: "skip" });
+  });
+});
+
+describe("toastDuration", () => {
+  it("keeps a toast with an action (Undo) up long enough to press it", () => {
+    expect(toastDuration({ actionLabel: "Undo" })).toBe(ACTION_TOAST_MS);
+    expect(ACTION_TOAST_MS).toBeGreaterThanOrEqual(5000);
+  });
+
+  it("leaves an explicit duration and a plain toast to the toaster", () => {
+    expect(toastDuration({ actionLabel: "Undo", duration: 8000 })).toBe(8000);
+    expect(toastDuration({ actionLabel: "Undo", duration: 2500 })).toBe(ACTION_TOAST_MS);
+    expect(toastDuration({ actionLabel: "Undo", duration: "persistent" })).toBe("persistent");
+    expect(toastDuration({})).toBeUndefined();
   });
 });

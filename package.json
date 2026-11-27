@@ -19,7 +19,7 @@
     "db:studio": "turbo run db:studio -F @workspace/db --",
     "db:generate": "turbo run db:generate -F @workspace/db --",
     "db:migrate": "turbo run db:migrate -F @workspace/db --",
-    "db:start": "pnpm --filter server build:bootstrap && docker compose up -d --wait",
+    "db:start": "pnpm --filter server build:bootstrap && docker compose up -d --wait postgres powersync minio && docker compose run --rm --no-deps minio-init",
     "db:watch": "docker compose up postgres",
     "db:stop": "docker compose stop",
     "db:down": "docker compose down",

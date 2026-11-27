@@ -5,6 +5,7 @@ import { isUnauthorized } from "@workspace/client/orpc-error";
 import { createQueryClient } from "@workspace/client/query-client";
 import { HeroUINativeProvider } from "heroui-native";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
@@ -16,6 +17,7 @@ import { watchConnection } from "./network";
 import { TAB_BAR_GAP, TAB_BAR_HEIGHT } from "./navigation/tab-bar-metrics";
 import { NavigationTheme } from "./theme/navigation-theme";
 import { LocalDataResetNotice } from "./local-database/local-data-reset-notice";
+import { useModalOpen } from "./ui/modal-state";
 import { SwipeRoot } from "./ui/swipe-row";
 import { useAppToast } from "./ui/use-app-toast";
 
@@ -56,6 +58,23 @@ const HEROUI_CONFIG = {
   },
 } as const;
 
+/**
+ * The screen behind a dialog or sheet. While one is presented, TalkBack skips it (iOS does the
+ * same for the modal view itself); the dialog and its overlay render outside this wrapper.
+ */
+function ScreenBehindModal({ children }: { children: ReactNode }) {
+  const modalOpen = useModalOpen();
+  return (
+    <View
+      style={{ flex: 1 }}
+      importantForAccessibility={modalOpen ? "no-hide-descendants" : "auto"}
+      accessibilityElementsHidden={modalOpen}
+    >
+      {children}
+    </View>
+  );
+}
+
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <I18nextProvider i18n={i18n}>
@@ -66,8 +85,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
               <NavigationTheme>
                 <QueryProvider>
                   <SyncProvider>
-                    {children}
-                    <LocalDataResetNotice />
+                    <ScreenBehindModal>
+                      {children}
+                      <LocalDataResetNotice />
+                    </ScreenBehindModal>
                   </SyncProvider>
                 </QueryProvider>
               </NavigationTheme>

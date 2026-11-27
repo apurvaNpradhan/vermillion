@@ -1,6 +1,14 @@
 import { ListGroup, cn, useThemeColor } from "heroui-native";
 import { CaretRight, Check, type IconProps } from "phosphor-react-native";
-import { Children, createContext, useContext, type ComponentType, type ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  createContext,
+  isValidElement,
+  useContext,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import { Text, View } from "react-native";
 
 import { useSubtleColor } from "@/platform/theme";
@@ -129,11 +137,19 @@ export function ListRow({
         </Text>
       ) : null}
       {trailing ? (
-        <ListGroup.ItemSuffix
-          accessibilityElementsHidden={isSwitch}
-          importantForAccessibility={isSwitch ? "no-hide-descendants" : "auto"}
-        >
-          {trailing}
+        <ListGroup.ItemSuffix>
+          {/* The row is the one switch; the props on `ItemSuffix` did not reach a native view, so
+              the inner switch was read a second time ("Hide photos, on"). */}
+          <View
+            accessibilityElementsHidden={isSwitch}
+            importantForAccessibility={isSwitch ? "no-hide-descendants" : "auto"}
+          >
+            {isSwitch && isValidElement<{ accessibilityLabel?: string }>(trailing)
+              ? cloneElement(trailing, {
+                  accessibilityLabel: trailing.props.accessibilityLabel ?? title,
+                })
+              : trailing}
+          </View>
         </ListGroup.ItemSuffix>
       ) : accessory === "none" ? null : (
         <ListGroup.ItemSuffix>

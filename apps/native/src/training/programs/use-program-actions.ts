@@ -9,11 +9,9 @@ import {
   moveSlot,
   removeFromRotation,
   restoreFromRotation,
-  releaseProgramCover,
   restoreProgram,
   updateProgram,
   updateWorkout,
-  type ProgramPatch,
 } from "@workspace/sync";
 import { useRouter } from "expo-router";
 import { useAppToast } from "@/platform/ui/use-app-toast";
@@ -21,10 +19,9 @@ import { useCallback } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { useLocalData } from "@/sync";
 
 import { copyTitle } from "@/training/workouts/use-workout-actions";
-import { UNDO_MS, useTrainingWrite } from "@/training/shared/use-training-write";
+import { useTrainingWrite } from "@/training/shared/use-training-write";
 
 /**
  * Writes to Programs and their Rotations on the local database, as {@link useWorkoutActions}
@@ -37,8 +34,6 @@ export function useProgramActions() {
   const { toast } = useAppToast();
   const router = useRouter();
   const { write, writeScope, undoToast } = useTrainingWrite();
-  const local = useLocalData();
-  const media = local?.status === "ready" ? local.media : null;
 
   const create = useCallback(
     (title: string) =>
@@ -55,7 +50,7 @@ export function useProgramActions() {
   );
 
   const update = useCallback(
-    (id: string, patch: ProgramPatch) =>
+    (id: string, patch: Parameters<typeof updateProgram>[2]) =>
       write((db) => updateProgram(db, id, patch, writeScope), false),
     [write, writeScope],
   );
@@ -68,21 +63,9 @@ export function useProgramActions() {
       undoToast(t("training__program_deleted_toast", { title }), () => {
         void write((db) => restoreProgram(db, deleted, writeScope), false);
       });
-      // The photo stays through the Undo window, then goes unless the Program came back.
-      const coverMediaId = deleted.program.cover_media_id;
-      if (coverMediaId !== null) {
-        setTimeout(() => {
-          void write(async (db) => {
-            if (await releaseProgramCover(db, id, coverMediaId, writeScope)) {
-              await media?.discard(coverMediaId);
-            }
-            return true;
-          }, false);
-        }, UNDO_MS + 500);
-      }
       return true;
     },
-    [write, writeScope, undoToast, t, media],
+    [write, writeScope, undoToast, t],
   );
 
   const duplicate = useCallback(

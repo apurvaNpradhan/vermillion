@@ -11,6 +11,7 @@ import { useForm } from "@tanstack/react-form";
 import { CalendarBlank, CaretLeft, ShareNetwork } from "phosphor-react-native";
 import {
   diffSessionAgainstWorkout,
+  isBaselinePhase,
   sessionDurationSeconds,
   workoutStructureKey,
   withWarmupsCounted,
@@ -18,6 +19,7 @@ import {
   SESSION_LIMITS,
   TRAINING_LIMITS,
   SET_KIND_KEYS,
+  resolveExerciseUnit,
 } from "@workspace/shared";
 import type { SessionDetail } from "@workspace/sync";
 import { useCallback, useRef, useState, type ReactNode } from "react";
@@ -132,9 +134,13 @@ function FinishFlow({
   const diff = draft
     ? diffSessionAgainstWorkout(draft.session, { exercises: draft.source }, draft.completeStructure)
     : { structure: [], targets: [] };
+  // A Test or Deload Session is the Workout adjusted for its week: its sets and loads are not
+  // a change to the plan, so they are never offered as an update to it.
+  const adjusted = !isBaselinePhase(session.phase);
   const needsWorkout =
     session.workoutId !== null &&
-    (source.status === "missing" || diff.structure.length > 0 || diff.targets.length > 0);
+    (source.status === "missing" ||
+      (!adjusted && (diff.structure.length > 0 || diff.targets.length > 0)));
   const keepOriginal = useCallback(() => {
     setUpdateOpen(false);
     complete();
@@ -237,18 +243,27 @@ function FinishFlow({
     }),
   );
   const targetLines = diff.targets.map((change) => {
+    const exerciseUnit = resolveExerciseUnit(
+      unit,
+      session.exercises.find((entry) => entry.exerciseId === change.exerciseId)?.unit,
+    );
+    const exerciseUnitLabel = t(exerciseUnit === "kg" ? "training__unit_kg" : "training__unit_lb");
     const summary = summarizeTargets(change.before, change.after, (weight) =>
-      formatCell("weight", weight, unit),
+      formatCell("weight", weight, exerciseUnit),
     );
     const exercise = names(change.exerciseId);
     return summary.kind === "same"
       ? t("session__diff_weight_same", {
           exercise,
           weight: summary.weight,
-          unit: unitLabel,
+          unit: exerciseUnitLabel,
           count: summary.count,
         })
-      : t("session__diff_weight_each", { exercise, weights: summary.weights, unit: unitLabel });
+      : t("session__diff_weight_each", {
+          exercise,
+          weights: summary.weights,
+          unit: exerciseUnitLabel,
+        });
   });
   const applyUpdate = async (update: RoutineUpdate) => {
     setBusy(true);

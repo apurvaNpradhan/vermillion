@@ -66,6 +66,38 @@ it("uploads the completion state PowerSync recorded when a set was deleted", asy
   ]);
 });
 
+it("sends a deload's intent without the device's stale list", async () => {
+  const fake = setup();
+  await ready(fake);
+  const undo = crudEntry("PATCH", EXERCISE, { inserted_deloads: "[]" }, "program_run");
+  undo.metadata = '{"action":"undo","week":3,"timezone":"America/Los_Angeles"}';
+  fake.queue([undo]);
+  await fake.connector.uploadData();
+  expect(fake.uploads[0]?.ops).toEqual([
+    { op: "PATCH", table: "program_run", id: EXERCISE, opData: { deload_change: undo.metadata } },
+  ]);
+});
+
+it("uploads the equipment list a gym toggle started from", async () => {
+  const fake = setup();
+  await ready(fake);
+  const gym = crudEntry("PATCH", EXERCISE, { unavailable_equipment: '["cable"]' }, "gym");
+  gym.previousValues = { unavailable_equipment: "[]" };
+  fake.queue([gym]);
+
+  await fake.connector.uploadData();
+
+  expect(fake.uploads[0]?.ops).toEqual([
+    {
+      op: "PATCH",
+      table: "gym",
+      id: EXERCISE,
+      opData: { unavailable_equipment: '["cable"]' },
+      expect: { unavailable_equipment: "[]" },
+    },
+  ]);
+});
+
 it("uploads a resume with its baseline and leaves derived timer shifts to the server", async () => {
   const fake = setup();
   await ready(fake);
@@ -325,8 +357,18 @@ describe("uploadData", () => {
         signal: "wrong-account",
       },
       {
-        name: "incompatible client",
-        error: refusal("BAD_REQUEST", "SYNC_CLIENT_INCOMPATIBLE"),
+        name: "server rolled back to schema version 1",
+        error: new ORPCError("BAD_REQUEST", {
+          data: { code: "SYNC_CLIENT_INCOMPATIBLE", minSchemaVersion: 1, maxSchemaVersion: 1 },
+        }),
+        kind: "incompatible",
+        signal: "update-required",
+      },
+      {
+        name: "server requires a newer client",
+        error: new ORPCError("BAD_REQUEST", {
+          data: { code: "SYNC_CLIENT_INCOMPATIBLE", minSchemaVersion: 3, maxSchemaVersion: 3 },
+        }),
         kind: "incompatible",
         signal: "update-required",
       },
@@ -426,3 +468,27 @@ describe("queued preferences written before the patch column", () => {
     expect(fake.uploads[1]?.ops[0]?.opData).toEqual({ patch: '{"ui":{"keepAwake":true}}' });
   });
 });
+
+it.each([
+  { first: "kg", second: "lb" },
+  { first: "lb", second: "kg" },
+])(
+  "uploads setting the unit to $first, changing to $second and clearing it across two devices",
+  async ({ first, second }) => {
+    const one = setup();
+    const two = setup();
+    expect(await ready(one)).not.toBe(await ready(two));
+
+    for (const [device, txId, op, fields] of [
+      [one, 1, "PUT", { exercise_id: EXERCISE, unit: first }],
+      [two, 1, "PATCH", { unit: second }],
+      [one, 2, "PATCH", { unit: null }],
+    ] as const) {
+      device.queue([crudEntry(op, EXERCISE, fields, "exercise_setting")], txId);
+      await device.connector.uploadData();
+      expect(device.uploads.at(-1)?.ops).toEqual([
+        { op, table: "exercise_setting", id: EXERCISE, opData: fields },
+      ]);
+    }
+  },
+);

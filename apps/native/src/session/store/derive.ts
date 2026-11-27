@@ -1,50 +1,69 @@
 import {
   SET_FIELDS,
-  historyForWorkout,
   optionalSetIndexes,
-  stalledSessions,
+  type Phase,
+  gridCapInUnit,
+  adjustmentLoadsFor,
   type Ghosts,
+  type StallInfo,
   type LighterPeriod,
   type LoggedSet,
   type Progression,
+  type PrescriptionDraft,
   type PreviousSource,
   type SetField,
   type SetKind,
   type WeightUnit,
 } from "@workspace/shared";
 import type { FinishedSession, SessionExerciseDetail } from "@workspace/sync";
+import type { GymLoads } from "@/gym";
+import {
+  sessionPrescribeInput,
+  sessionPrescription,
+} from "../../platform/training/session-prescription";
 
 import { doneSummary, progressText } from "../finish/summary";
 import { copySetUpdates } from "../logging/copy-sets";
-import { exerciseSuggestion } from "../logging/logging-ghosts";
-import { ghostsOf, previousOfRow, valueOfSet, type DisplayUnits } from "../logging/set-values";
+import { capGhostWeight, prescriptionDraft } from "../logging/logging-ghosts";
+import {
+  ghostsOf,
+  previousForSuggestion,
+  valueOfSet,
+  type DisplayUnits,
+} from "../logging/set-values";
 
 import { deepEqual, keepIfEqual } from "./equal";
-
-/** What an exercise's stalled note needs. */
-export type StallInfo = { count: number; latestSessionId: string; applied: boolean };
 
 /** Everything outside the Session that Previous, Ghost values and the row labels depend on. */
 export type DeriveInputs = {
   /** The finished Sessions of each exercise, newest first. */
   previous: ReadonlyMap<string, readonly FinishedSession[]>;
   historyFailed: boolean;
+  /** The account preference that chooses which finished workout to look back at. */
+  previousPreferencesReady?: boolean;
+  prescriptionReady?: boolean;
   previousSource: PreviousSource;
   unit: WeightUnit;
-  unitName: string;
+  unitNames: Readonly<Record<WeightUnit, string>>;
   display: DisplayUnits;
   weightIncrementKg: number | null;
+  weightIncrementUnit?: WeightUnit | null;
+  /** The active gym supplies equipment, load steps and caps. */
+  gym: GymLoads;
+  /** The gym selected for this Session determines which history leads. */
+  sessionGymId?: string | null;
   lighterWeeks: readonly LighterPeriod[];
   /** A Lighter week is running now. */
   lighter: boolean;
+  /** The share of the last load this Session's phase asks for; 1 is as the engine suggests. */
+  phaseLoad: number;
+  phase?: Phase | null;
+  testEntryId?: string;
   bodyweightKg: number | null;
-  /** Changes when a stalled note is dismissed or applied (that memory lives on the device). */
+  /** Changes when a stalled note is manually dismissed on this device. */
   stallVersion: number;
   /** The device's memory of a stalled note. */
-  stallMemory: (
-    exerciseId: string,
-    latestSessionId: string,
-  ) => { dismissed: boolean; applied: boolean };
+  stallMemory: (exerciseId: string, latestSessionId: string) => { dismissed: boolean };
   /** The badge text of each set: its number, or its kind's letter. */
   chipTexts: (sets: readonly { kind: SetKind }[]) => string[];
 };
@@ -54,24 +73,31 @@ export type RowView = {
   previous: LoggedSet | null;
   ghosts: Ghosts;
   badge: string;
-  number: number;
   canRemove: boolean;
   canCopyPrevious: boolean;
   canFillRemaining: boolean;
   /** A Lighter week makes this set optional. */
   optional: boolean;
+  capKg: number | null;
 };
 
 /** What an exercise's header and set rows draw, apart from the sets themselves. */
 export type ExerciseView = {
   suggestion: Progression | null;
+  prescriptionDraft: PrescriptionDraft | null;
   stall: StallInfo | null;
   /** "2/4". */
   progress: string;
   /** What the ticked sets logged, after the progress; empty while none is ticked. */
   summary: string;
+  capKg: number | null;
   /** Previous values of the exercise have loaded, or their lookup failed. */
   historyReady: boolean;
+  /**
+   * Previous itself has been read (or its lookup failed). A stored prescription makes the set
+   * tickable before this, so the Previous column waits on it, not on `historyReady`.
+   */
+  previousReady: boolean;
   setIds: readonly string[];
   rows: ReadonlyMap<string, RowView>;
 };
@@ -83,18 +109,10 @@ export type ExerciseCache = {
   inputs: DeriveInputs;
   finished: boolean;
   workoutId: string | null;
+  exerciseOrdinal: number;
+  duplicateEntry: boolean;
   view: ExerciseView;
 };
-
-/** The history an exercise compares with: its Workout's own Sessions first, when asked to. */
-export function historyOf(
-  exercise: SessionExerciseDetail,
-  inputs: DeriveInputs,
-  workoutId: string | null,
-): readonly FinishedSession[] | undefined {
-  const all = inputs.previous.get(exercise.exerciseId);
-  return all && historyForWorkout(all, inputs.previousSource === "same_workout" ? workoutId : null);
-}
 
 function buildView(
   exercise: SessionExerciseDetail,
@@ -102,38 +120,33 @@ function buildView(
   inputs: DeriveInputs,
   finished: boolean,
   workoutId: string | null,
+  exerciseOrdinal: number,
+  duplicateEntry: boolean,
   before: ExerciseView | undefined,
 ): ExerciseView {
-  const history = historyOf(exercise, inputs, workoutId);
-  const loaded = rawHistory !== undefined;
-  const historyReady = loaded || inputs.historyFailed;
+  const equipment = exercise.exercise?.equipment ?? "other";
+  const previousLoaded = rawHistory !== undefined && inputs.previousPreferencesReady !== false;
+  const loaded = previousLoaded && inputs.prescriptionReady !== false;
+  const historyReady = loaded || inputs.historyFailed || Boolean(exercise.prescription);
 
-  // A lift that has stalled shows one quiet note; applying it suggests 90% for today.
-  let stall: StallInfo | null = null;
-  if (!finished && exercise.sourceWorkoutExerciseId) {
-    const sessions = history ?? [];
-    const latestSessionId = sessions[0]?.id ?? null;
-    const count = stalledSessions(sessions, exercise.type, {
-      bodyweightKg: inputs.bodyweightKg,
-      lighterWeeks: inputs.lighterWeeks,
-    });
-    if (latestSessionId !== null && count > 0) {
-      const memory = inputs.stallMemory(exercise.exerciseId, latestSessionId);
-      if (!memory.dismissed || memory.applied)
-        stall = { count, latestSessionId, applied: memory.applied };
-    }
-  }
-  const suggestion =
-    finished || !exercise.sourceWorkoutExerciseId
-      ? null
-      : exerciseSuggestion(exercise, history ?? [], {
-          weightUnit: inputs.unit,
-          weightIncrementKg: inputs.weightIncrementKg,
-          lighterWeeks: inputs.lighterWeeks,
-          deload: stall?.applied === true,
-        });
+  // One call for every surface: the baseline, the stalled-lift verdict and its applied deload.
+  const grid = inputs.gym.gridFor(exercise.exerciseId, equipment, exercise.unit);
+  const prescribed = sessionPrescription(exercise, rawHistory ?? [], inputs, {
+    workoutId,
+    gymId: inputs.sessionGymId ?? null,
+    grid,
+    phaseLoad: inputs.phaseLoad,
+    phase: inputs.phase,
+    testEntryId: inputs.testEntryId,
+    exerciseOrdinal,
+    duplicateEntry,
+    stalls: !finished,
+    suggest: !finished && (loaded || Boolean(exercise.prescription)),
+  });
+  const { unit, stall, history, settings, progression: suggestion } = prescribed;
 
   const fields: readonly SetField[] = SET_FIELDS[exercise.type];
+  const capKg = !finished && fields.includes("weight") ? gridCapInUnit(grid, unit) : null;
   const showsEffort = exercise.logEffort && fields.includes("reps");
   const kinds = exercise.sets.map((set) => set.kind);
   const optional = inputs.lighter ? optionalSetIndexes(kinds) : new Set<number>();
@@ -143,21 +156,26 @@ function buildView(
 
   const rows = new Map<string, RowView>();
   exercise.sets.forEach((set, index) => {
-    const previous = previousOfRow(history, exercise.sets, index);
+    const previous = previousLoaded
+      ? previousForSuggestion(history, settings, exercise.sets, index, set.target)
+      : null;
+    const hinted = previousForSuggestion(history, settings, exercise.sets, index, set.target, true);
+    const ghosts = loaded
+      ? ghostsOf(
+          exercise.type,
+          hinted,
+          set.target,
+          exercise.logEffort,
+          suggestion?.sets[index],
+          exercise.repeated,
+        )
+      : {};
+    const saved = exercise.prescription?.sets.find(({ id }) => id === set.id);
+    const locked = finished || set.completedAt !== null;
     const row: RowView = {
       previous,
-      ghosts: loaded
-        ? ghostsOf(
-            exercise.type,
-            previous,
-            set.target,
-            exercise.logEffort,
-            suggestion?.sets[index],
-            exercise.repeated,
-          )
-        : {},
+      ghosts: saved && locked ? saved.ghosts : capGhostWeight(saved?.ghosts ?? ghosts, capKg),
       badge: badges[index] ?? String(index + 1),
-      number: index + 1,
       canRemove: exercise.sets.length > 1,
       canCopyPrevious: copySetUpdates(exercise, set.id, "previous", previous).length > 0,
       canFillRemaining:
@@ -165,23 +183,39 @@ function buildView(
         (fields.some((field) => valueOfSet(set, field) !== null) ||
           (showsEffort && set.rpe !== null)),
       optional: optional.has(index) && set.completedAt === null,
+      capKg: saved && locked ? (exercise.prescription?.capKg ?? null) : capKg,
     };
     rows.set(set.id, keepIfEqual(before?.rows.get(set.id), row));
   });
 
   const setIds = exercise.sets.map((set) => set.id);
   const view: ExerciseView = {
+    capKg,
     suggestion: before && deepEqual(before.suggestion, suggestion) ? before.suggestion : suggestion,
+    prescriptionDraft:
+      !finished && loaded && !exercise.prescription
+        ? keepIfEqual(
+            before?.prescriptionDraft,
+            prescriptionDraft(
+              exercise,
+              suggestion,
+              capKg,
+              (index) => rows.get(exercise.sets[index]?.id ?? "")?.ghosts ?? {},
+              inputs.sessionGymId ?? null,
+            ),
+          )
+        : null,
     stall: before && deepEqual(before.stall, stall) ? before.stall : stall,
     progress: progressText(exercise.sets),
     summary: doneSummary(
       exercise.sets,
       exercise.type,
-      inputs.unit,
-      inputs.unitName,
+      unit,
+      inputs.unitNames[unit],
       inputs.display,
     ),
     historyReady,
+    previousReady: previousLoaded || inputs.historyFailed,
     setIds: sameIds(setIds, before?.setIds) ? (before?.setIds ?? setIds) : setIds,
     rows,
   };
@@ -195,10 +229,12 @@ function sameIds(a: readonly string[], b: readonly string[] | undefined): boolea
 function sameView(a: ExerciseView, b: ExerciseView): boolean {
   return (
     a.suggestion === b.suggestion &&
+    a.prescriptionDraft === b.prescriptionDraft &&
     a.stall === b.stall &&
     a.progress === b.progress &&
     a.summary === b.summary &&
     a.historyReady === b.historyReady &&
+    a.previousReady === b.previousReady &&
     a.setIds === b.setIds &&
     a.rows.size === b.rows.size &&
     b.setIds.every((id) => a.rows.get(id) === b.rows.get(id))
@@ -207,9 +243,20 @@ function sameView(a: ExerciseView, b: ExerciseView): boolean {
 
 function sameSettings(a: DeriveInputs, b: DeriveInputs): boolean {
   if (a === b) return true;
-  const { previous: _a, chipTexts, stallMemory, ...settings } = a;
-  const { previous: _b, chipTexts: otherChips, stallMemory: otherStall, ...other } = b;
-  return chipTexts === otherChips && stallMemory === otherStall && deepEqual(settings, other);
+  const { previous: _a, chipTexts, stallMemory, gym, ...settings } = a;
+  const {
+    previous: _b,
+    chipTexts: otherChips,
+    stallMemory: otherStall,
+    gym: otherGym,
+    ...other
+  } = b;
+  return (
+    chipTexts === otherChips &&
+    stallMemory === otherStall &&
+    gym === otherGym &&
+    deepEqual(settings, other)
+  );
 }
 
 /**
@@ -223,7 +270,13 @@ export function deriveExercises(
   cache: ReadonlyMap<string, ExerciseCache>,
 ): Map<string, ExerciseCache> {
   const next = new Map<string, ExerciseCache>();
+  const counts = new Map<string, number>();
+  for (const { exerciseId } of exercises) counts.set(exerciseId, (counts.get(exerciseId) ?? 0) + 1);
+  const ordinals = new Map<string, number>();
   for (const exercise of exercises) {
+    const exerciseOrdinal = ordinals.get(exercise.exerciseId) ?? 0;
+    ordinals.set(exercise.exerciseId, exerciseOrdinal + 1);
+    const duplicateEntry = (counts.get(exercise.exerciseId) ?? 0) > 1;
     const raw = inputs.previous.get(exercise.exerciseId);
     const old = cache.get(exercise.id);
     if (
@@ -232,6 +285,8 @@ export function deriveExercises(
       sameSettings(old.inputs, inputs) &&
       (old.history === raw || deepEqual(old.history, raw)) &&
       old.finished === context.finished &&
+      old.exerciseOrdinal === exerciseOrdinal &&
+      old.duplicateEntry === duplicateEntry &&
       old.workoutId === context.workoutId
     ) {
       next.set(exercise.id, old.inputs === inputs ? old : { ...old, inputs, history: raw });
@@ -243,8 +298,72 @@ export function deriveExercises(
       inputs,
       finished: context.finished,
       workoutId: context.workoutId,
-      view: buildView(exercise, raw, inputs, context.finished, context.workoutId, old?.view),
+      exerciseOrdinal,
+      duplicateEntry,
+      view: buildView(
+        exercise,
+        raw,
+        inputs,
+        context.finished,
+        context.workoutId,
+        exerciseOrdinal,
+        duplicateEntry,
+        old?.view,
+      ),
     });
   }
   return next;
+}
+
+/**
+ * The suggestion as it would be made now, for the exercise's sets as they are: for a stall deload
+ * that was applied or lifted, and for a snapshot that went stale (the Session gym moved, a target
+ * or kind was edited, a set was added).
+ */
+export function stallPrescription(entry: ExerciseCache, applied: boolean) {
+  return buildView(
+    { ...entry.exercise, stallDeload: applied, prescription: null },
+    entry.history,
+    entry.inputs,
+    entry.finished,
+    entry.workoutId,
+    entry.exerciseOrdinal,
+    entry.duplicateEntry,
+    undefined,
+  ).prescriptionDraft;
+}
+
+/** What the suggestion would be now for an exercise that keeps its stall deload as it is. */
+export function freshPrescription(entry: ExerciseCache) {
+  return stallPrescription(entry, entry.exercise.stallDeload === true);
+}
+
+/** What a same-day adjustment needs to snap a load the way the suggestion did. */
+export function adjustmentLoadsOf({ exercise, inputs }: ExerciseCache) {
+  const equipment = exercise.exercise?.equipment ?? "other";
+  return adjustmentLoadsFor(
+    { equipment, type: exercise.type, unit: exercise.unit },
+    inputs,
+    inputs.gym.gridFor(exercise.exerciseId, equipment, exercise.unit),
+  );
+}
+
+/**
+ * What the engine would be asked for this exercise as the Session is now. The preview of a rule
+ * runs on it, so the four sessions it shows start from the sets and history on screen.
+ */
+export function ruleInputOf({ exercise, inputs, history, workoutId, ...position }: ExerciseCache) {
+  const equipment = exercise.exercise?.equipment ?? "other";
+  return sessionPrescribeInput(exercise, history ?? [], inputs, {
+    workoutId,
+    gymId: inputs.sessionGymId ?? null,
+    grid: inputs.gym.gridFor(exercise.exerciseId, equipment, exercise.unit),
+    phaseLoad: inputs.phaseLoad,
+    phase: inputs.phase,
+    testEntryId: inputs.testEntryId,
+    exerciseOrdinal: position.exerciseOrdinal,
+    duplicateEntry: position.duplicateEntry,
+    stalls: false,
+    suggest: true,
+  });
 }

@@ -1,8 +1,14 @@
 import { useThemeColor } from "heroui-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  useLocalSearchParams,
+  useNavigation,
+  useRouter,
+  type NativeStackNavigationProp,
+} from "expo-router";
+import type { ParamListBase } from "expo-router/react-navigation";
 import { StatusBar } from "expo-status-bar";
 import * as WebBrowser from "expo-web-browser";
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -31,6 +37,8 @@ const LEGAL_PATHS = { terms: "/terms", privacy: "/privacy" } as const;
 export function WelcomeScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const navigation = useNavigation();
+  const authRoute = navigation.getParent<NativeStackNavigationProp<ParamListBase>>();
   const insets = useSafeAreaInsets();
   const { toast } = useAppToast();
   const accent = useAccentTextColor();
@@ -40,13 +48,27 @@ export function WelcomeScreen() {
   const status = useRegistrationStatus();
   const googleAvailable = status?.providers.google === true;
   const [emailOpen, setEmailOpen] = useState(false);
+  const autoOpened = useRef(false);
 
-  useEffect(() => {
+  const openEmail = () => {
     if (sheet === "email") {
-      setEmailOpen(true);
+      autoOpened.current = true;
       router.setParams({ sheet: undefined });
     }
-  }, [router, sheet]);
+    setEmailOpen(true);
+  };
+
+  // The banner pushes the auth group on the root stack. Its nested welcome route doesn't
+  // animate, so listen on the parent route and only open while welcome is still focused.
+  useLayoutEffect(() => {
+    if (sheet !== "email" || !authRoute) return;
+    return authRoute.addListener("transitionEnd", ({ data }) => {
+      if (data.closing || !navigation.isFocused() || autoOpened.current) return;
+      autoOpened.current = true;
+      router.setParams({ sheet: undefined });
+      setEmailOpen(true);
+    });
+  }, [authRoute, navigation, router, sheet]);
 
   const legal = splitLegal(t("auth__legal", { terms: "{terms}", privacy: "{privacy}" }));
   const legalLabels = { terms: t("nav__terms"), privacy: t("nav__privacy") } as const;
@@ -101,7 +123,7 @@ export function WelcomeScreen() {
                 variant={googleAvailable ? "secondary" : "primary"}
                 size="lg"
                 className="h-auto min-h-13 rounded-full py-3"
-                onPress={() => setEmailOpen(true)}
+                onPress={openEmail}
               >
                 <Button.Label className="shrink text-body-lg font-semibold">
                   {t("auth__continue_with_email")}

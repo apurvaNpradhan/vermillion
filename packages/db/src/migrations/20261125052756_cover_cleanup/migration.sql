@@ -1,0 +1,1 @@
+ALTER TABLE "media" ADD COLUMN "cover_unreferenced_at" timestamp with time zone;

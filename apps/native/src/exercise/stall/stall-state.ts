@@ -1,39 +1,14 @@
 import { z } from "zod";
 
-/**
- * What the device remembers about a stalled lift: that its note was dismissed, or that today's
- * deload was applied. It belongs to one last Session; once the exercise has a newer Session the
- * memory no longer applies (the history changed), so the note can show again.
- */
-const stallMemorySchema = z.object({
-  sessionId: z.string(),
-  dismissed: z.boolean(),
-  applied: z.boolean(),
-});
-type StallMemory = z.infer<typeof stallMemorySchema>;
-type StallFlags = Omit<StallMemory, "sessionId">;
+const dismissal = z.object({ sessionId: z.string(), dismissed: z.boolean() });
 
-const NONE: StallFlags = { dismissed: false, applied: false };
-
-/** The memory in `raw` (stored JSON or null) as it applies with `latestSessionId` newest. */
-export function readStallMemory(raw: string | null, latestSessionId: string | null): StallFlags {
-  if (raw === null || latestSessionId === null) return NONE;
+/** Dismiss only the current note. A new baseline Session can show a fresh verdict. */
+export function readStallMemory(raw: string | null, latestSessionId: string | null) {
+  if (raw === null || latestSessionId === null) return { dismissed: false };
   try {
-    const parsed = stallMemorySchema.safeParse(JSON.parse(raw));
-    return parsed.success && parsed.data.sessionId === latestSessionId
-      ? { dismissed: parsed.data.dismissed, applied: parsed.data.applied }
-      : NONE;
+    const stored = dismissal.safeParse(JSON.parse(raw)).data;
+    return { dismissed: stored?.sessionId === latestSessionId && stored.dismissed };
   } catch {
-    return NONE;
+    return { dismissed: false };
   }
-}
-
-/** The JSON to store after changing one flag, keeping the other if the Session is the same. */
-export function writeStallMemory(
-  raw: string | null,
-  latestSessionId: string,
-  change: Partial<StallFlags>,
-): string {
-  const current = readStallMemory(raw, latestSessionId);
-  return JSON.stringify({ sessionId: latestSessionId, ...current, ...change });
 }

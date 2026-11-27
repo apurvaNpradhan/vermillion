@@ -1,3 +1,4 @@
+import { resolveExerciseUnit } from "@workspace/shared";
 import { ReorderBlock, ReorderTrigger } from "@/training/reorder/reorder-block";
 import type { SupersetPlace } from "@workspace/shared";
 import type { WorkoutExerciseDetail } from "@workspace/sync";
@@ -69,7 +70,7 @@ export const WorkoutExerciseRow = memo(function WorkoutExerciseRow({
     entry.sets,
     info?.exerciseType ?? FALLBACK_TYPE,
     entry.restSeconds,
-    { weightUnit, effortScale },
+    { weightUnit: resolveExerciseUnit(weightUnit, entry.unit), effortScale },
     labels,
     // A superset's rest is held once, on its last member.
     place === "first" || place === "middle" ? "group" : "own",

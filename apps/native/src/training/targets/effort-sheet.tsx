@@ -1,4 +1,5 @@
 import type { EffortScale } from "@workspace/shared";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -33,7 +34,7 @@ export function EffortSheet({
   const { bottom } = useSafeAreaInsets();
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
           animationConfigs={SHEET_SPRING}
@@ -55,7 +56,7 @@ export function EffortSheet({
             <Button.Label>{t("training__effort_done")}</Button.Label>
           </Button>
         </BottomSheet.Content>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

@@ -19,7 +19,7 @@ export const SESSION_EXPORT_SQL = `SELECT s.id AS session_id, s.title AS title, 
   FROM training_session s
   JOIN session_exercise se ON se.session_id = s.id
   JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
-  WHERE s.finished_at IS NOT NULL
+  WHERE s.finished_at IS NOT NULL AND s.user_id = ? AND se.user_id = s.user_id AND ss.user_id = s.user_id
   ORDER BY s.started_at, s.id, se.position, se.id, ss.position, ss.id
   LIMIT ? OFFSET ?`;
 
@@ -64,34 +64,36 @@ function sessionDuration(row: {
 }
 
 /** Reads every page from the same SQLite snapshot, even while sync writes. */
-export function readSessionExportRows(
+export function visitSessionExportPages(
   database: Pick<TrainingDatabase, "readTransaction">,
-): Promise<SessionExportRow[]> {
+  owner: string,
+  writePage: (rows: readonly SessionExportRow[]) => Promise<void>,
+): Promise<void> {
   return database.readTransaction(async (tx) => {
-    const rows: SessionExportRow[] = [];
     for (let offset = 0; ; offset += EXPORT_PAGE) {
       const page = z
         .array(exportRowSchema)
-        .parse(await tx.getAll(SESSION_EXPORT_SQL, [EXPORT_PAGE, offset]));
-      for (const row of page) {
-        rows.push({
-          sessionId: row.session_id,
-          workout: row.title,
-          startedAt: row.started_at,
-          sessionDurationS: sessionDuration(row),
-          sessionNote: row.session_note,
-          exerciseKey: row.exercise_row,
-          exercise: row.exercise_title ?? "",
-          exerciseNote: row.exercise_note,
-          kind: row.kind,
-          weightKg: row.weight_kg,
-          reps: row.reps,
-          durationS: row.duration_s,
-          distanceM: row.distance_m,
-          rpe: row.rpe,
-        });
-      }
-      if (page.length < EXPORT_PAGE) return rows;
+        .parse(await tx.getAll(SESSION_EXPORT_SQL, [owner, EXPORT_PAGE, offset]));
+      if (page.length > 0)
+        await writePage(
+          page.map((row) => ({
+            sessionId: row.session_id,
+            workout: row.title,
+            startedAt: row.started_at,
+            sessionDurationS: sessionDuration(row),
+            sessionNote: row.session_note,
+            exerciseKey: row.exercise_row,
+            exercise: row.exercise_title ?? "",
+            exerciseNote: row.exercise_note,
+            kind: row.kind,
+            weightKg: row.weight_kg,
+            reps: row.reps,
+            durationS: row.duration_s,
+            distanceM: row.distance_m,
+            rpe: row.rpe,
+          })),
+        );
+      if (page.length < EXPORT_PAGE) return;
     }
   });
 }

@@ -4,7 +4,7 @@ import type { HistoryOverviewSession } from "@workspace/sync";
 import { useFocusEffect, useIsFocused, useRouter } from "expo-router";
 import {
   ArrowClockwise,
-  Barbell,
+  PersonSimple,
   CalendarPlus,
   ChartBar,
   ClockCounterClockwise,
@@ -25,6 +25,7 @@ import { useStartSession } from "@/session/lifecycle/use-start-session";
 import { emptyTotals, periodStart, shiftPeriod, WEEK_MS } from "./history-calendar";
 import { historyListItems, itemIndexForDay } from "./history";
 import { historyFormat } from "./history-format";
+import { useGyms } from "@/gym";
 import { HistoryRow, WeekHeading } from "./history-rows";
 import { HistoryWeekStrip } from "./history-week-strip";
 import { useHistorySettings, useSessionHistory } from "./use-session-history";
@@ -64,6 +65,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
   const subtle = useSubtleColor();
   const reduced = useReduceMotion();
   const { startAgain, sheet: startSheet } = useStartSession();
+  const { multiple: multipleGyms } = useGyms();
   const [menuSession, setMenuSession] = useState<HistoryOverviewSession | null>(null);
   const { timezone, weekStart, weightUnit, goal } = useHistorySettings();
   const today = useToday(timezone);
@@ -146,7 +148,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
               accessibilityLabel={t("muscles__open")}
               onPress={() => router.push("/muscles", ANCHORED)}
             >
-              <Barbell size={24} weight="regular" color={subtle} />
+              <PersonSimple size={24} weight="regular" color={subtle} />
             </Button>
             <Button
               isIconOnly
@@ -244,6 +246,7 @@ export function HistoryScreen({ initialDay }: { initialDay: number | null }) {
                       router.push({ pathname: "/history/[id]", params: { id: item.id } })
                     }
                     onLongPress={() => setMenuSession(item.session)}
+                    showGym={multipleGyms}
                   />
                 )}
               </Animated.View>

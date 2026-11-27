@@ -10,6 +10,8 @@ import {
   type SyncUploadResult,
 } from "@workspace/shared";
 
+import { z } from "zod";
+
 import { readDeviceOwner } from "./device-owner";
 import { readInstallId } from "./install-meta";
 import { boundPayload } from "./rejected-payload";
@@ -97,6 +99,13 @@ function expectationOf(entry: CrudEntry): Pick<SyncOp, "expect"> {
       };
     }
   }
+  if (entry.op === "PATCH" && entry.table === "gym") {
+    const known = z.string().safeParse(entry.previousValues?.unavailable_equipment);
+    if (known.success && entry.opData && "unavailable_equipment" in entry.opData) {
+      return { expect: { unavailable_equipment: known.data } };
+    }
+    return {};
+  }
   if (entry.op !== "DELETE" || entry.table !== "session_set") return {};
   const known = entry.previousValues?.completed_at;
   return known === undefined ? {} : { expect: { completed_at: known } };
@@ -129,6 +138,16 @@ function toWireOp(entry: CrudEntry, columns: ReadonlySet<string> | undefined): S
         Object.entries(entry.opData).filter(([column]) => columns?.has(column) ?? true),
       )
     : undefined;
+  if (
+    entry.op === "PATCH" &&
+    entry.table === "program_run" &&
+    entry.metadata !== undefined &&
+    data &&
+    "inserted_deloads" in data
+  ) {
+    delete data.inserted_deloads;
+    data.deload_change = entry.metadata;
+  }
   // A PATCH that changed only server-owned columns has nothing to say.
   if (entry.op === "PATCH" && data && Object.keys(data).length === 0) return null;
   const parsed = syncOpSchema.safeParse({

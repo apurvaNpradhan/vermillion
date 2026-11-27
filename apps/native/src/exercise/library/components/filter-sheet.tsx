@@ -1,7 +1,8 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { EQUIPMENT, EQUIPMENT_KEYS, type MuscleGroup } from "@workspace/shared";
-import { LIBRARY_SHOW, type LibraryFilters, type LibraryShow } from "@workspace/sync";
+import { LIBRARY_SHOW, type LibraryShow } from "@workspace/sync";
 import { BottomSheet, Switch } from "heroui-native";
 import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -14,7 +15,7 @@ import { SHEET_SPRING } from "@/platform/ui/sheet-motion";
 
 import { ChoiceCell, ChoiceGrid, EquipmentIcon } from "../../components/choice-grid";
 import { MuscleRegions } from "../../components/muscle-rows";
-import { toggled, withoutFacets } from "../filter-state";
+import { toggled, withoutFacets, type LibraryFilterState } from "../filter-state";
 
 /** All library filters in one sheet. */
 export function FilterSheet({
@@ -26,15 +27,15 @@ export function FilterSheet({
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  filters: LibraryFilters;
-  onChange: (filters: LibraryFilters) => void;
+  filters: LibraryFilterState;
+  onChange: (filters: LibraryFilterState) => void;
   /** How many exercises match right now; the filters apply to the list as they change. */
   total: number | null;
 }) {
   const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const toggleMuscle = (muscle: MuscleGroup) =>
-    onChange({ ...filters, muscles: toggled(filters.muscles, muscle) });
+    onChange({ ...filters, muscles: toggled(filters.muscles, muscle), primaryDetail: null });
 
   const showOptions = LIBRARY_SHOW.map((value) => ({
     value,
@@ -49,7 +50,7 @@ export function FilterSheet({
 
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <FixedSheetContent
           fraction={0.88}
@@ -127,7 +128,7 @@ export function FilterSheet({
             </Button>
           </View>
         </FixedSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

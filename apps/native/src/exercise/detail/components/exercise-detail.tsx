@@ -8,6 +8,8 @@ import {
   MUSCLE_GROUP_KEYS,
   type MuscleDetail,
   type MuscleGroup,
+  SET_FIELDS,
+  resolveExerciseUnit,
 } from "@workspace/shared";
 import type { ExerciseDetail } from "@workspace/sync";
 import { Switch, useThemeColor } from "heroui-native";
@@ -30,6 +32,8 @@ import Animated from "react-native-reanimated";
 import { BodyMapPair, isBodyGroup, type BodyGroup } from "@/body-map";
 import { usePreferences } from "@/preferences";
 import { ExerciseNumbers } from "./exercise-numbers";
+import { ExerciseUnitSheet, useExerciseUnitOptions } from "./exercise-unit-sheet";
+import { useExerciseUnit } from "../use-exercise-unit";
 import { RecentTopSets } from "./recent-top-sets";
 import { appConfig } from "@/platform/app-config";
 import { haptic } from "@/platform/haptics";
@@ -38,6 +42,7 @@ import { ActionSheet } from "@/platform/ui/action-sheet";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
 import { ListRow, ListSection } from "@/platform/ui/list";
+import { GymLimitRows, useSessionGym } from "@/gym";
 import { Notice } from "@/platform/ui/notice";
 import { Page, ScrollPage } from "@/platform/ui/page";
 import type { SwipeAction } from "@/platform/ui/swipe-row";
@@ -46,7 +51,13 @@ import { thumbnailUrl, videoUrl } from "../../media-url";
 import { instructionSteps } from "../instruction-steps";
 import { useExercise, useSwapCandidates } from "../use-exercise";
 import { useExerciseActions } from "../../use-exercise-actions";
-import { useExerciseAutoWarmups, useExerciseProgressionMode } from "../use-exercise-progression";
+import {
+  useExerciseAutoWarmups,
+  useExerciseProgressionMode,
+  useExerciseRule,
+} from "../use-exercise-progression";
+import { ExerciseRuleSheet } from "../../progression/exercise-rule-sheet";
+import { RULE_OPTIONS } from "../../progression/rule-text";
 import { useExerciseHistory } from "../use-exercise-history";
 import { useExerciseNote } from "../use-exercise-note";
 import { PinnedNoteSheet } from "../../components/pinned-note-sheet";
@@ -59,6 +70,7 @@ const HERO_RATIO_WITH_HISTORY = 9 / 16;
 
 export type ExerciseDetailProps = {
   id: string;
+  sessionId?: string;
   onSeeHistory: () => void;
   /** Open the library filtered to a muscle group, when browsing is available. */
   onBrowseGroup?: (group: MuscleGroup) => void;
@@ -70,6 +82,8 @@ export type ExerciseDetailProps = {
   onRestore?: (id: string) => void;
   /** Offer "Add to workout" for a live exercise. */
   onAddToWorkout?: (id: string) => void;
+  /** Open the Warm-ups screen in the caller's stack (over the Session, or a tab). */
+  onWarmupSettings?: () => void;
 };
 
 /**
@@ -110,6 +124,7 @@ export function ExerciseDetailScreen(props: ExerciseDetailProps) {
 
 function LoadedDetail({
   exercise,
+  sessionId,
   onBrowseGroup,
   onOpenExercise,
   onEdit,
@@ -117,12 +132,14 @@ function LoadedDetail({
   onRestore,
   onAddToWorkout,
   onSeeHistory,
+  onWarmupSettings,
 }: ExerciseDetailProps & { exercise: ExerciseDetail }) {
   const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const history = useExerciseHistory(exercise.id);
   const mode = useExerciseProgressionMode(exercise.id);
-  const { setProgressionPerSet, setAutoWarmups, setPinnedNote } = useExerciseActions();
+  const { setUnit, setProgressionPerSet, setAutoWarmups, setPinnedNote, setExercisePinned } =
+    useExerciseActions();
   const pinned = useExerciseNote(exercise.id);
   const [noteOpen, setNoteOpen] = useState(false);
   const autoWarmups = useExerciseAutoWarmups(exercise.id);
@@ -133,9 +150,25 @@ function LoadedDetail({
     (exercise.exerciseType === "weight_reps" ||
       exercise.exerciseType === "bodyweight_weighted_reps");
   const perSet = mode.value ?? false;
+  const ruleSetting = useExerciseRule(exercise.id);
+  const ruleId = ruleSetting.value?.id ?? "double";
+  const [ruleOpen, setRuleOpen] = useState(false);
+  const [ruleSeen, setRuleSeen] = useState(false);
   const { preferences, timeZone } = usePreferences();
+  const preferredUnit = preferences.ui.weightUnit;
+  const unitSetting = useExerciseUnit(exercise.id);
+  const override = unitSetting.value ?? null;
+  const unit = resolveExerciseUnit(preferredUnit, override);
+  const unitLabels = useExerciseUnitOptions(preferredUnit);
+  const [unitOpen, setUnitOpen] = useState(false);
+  const canSetUnit =
+    !exercise.isArchived &&
+    SET_FIELDS[exercise.exerciseType].some((field) => field === "weight") &&
+    !unitSetting.loading &&
+    !unitSetting.failed;
   const hasHistory = history.status === "ready" && history.sessions.length > 0;
-  const swaps = useSwapCandidates(exercise);
+  const gymId = useSessionGym(sessionId ?? null);
+  const swaps = useSwapCandidates(exercise, gymId);
   const foreground = useThemeColor("foreground");
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -282,6 +315,26 @@ function LoadedDetail({
                 </Button>
               </View>
             ) : null}
+            {!exercise.isArchived || exercise.isPinned ? (
+              <View className="px-4">
+                <Button
+                  variant="secondary"
+                  accessibilityState={{ selected: exercise.isPinned }}
+                  onPress={() =>
+                    void setExercisePinned(exercise.id, !exercise.isPinned).catch(() => undefined)
+                  }
+                >
+                  <PushPin
+                    size={20}
+                    color={foreground}
+                    weight={exercise.isPinned ? "fill" : "regular"}
+                  />
+                  <Button.Label>
+                    {t(exercise.isPinned ? "exercise__unpin" : "exercise__pin")}
+                  </Button.Label>
+                </Button>
+              </View>
+            ) : null}
             {!exercise.isArchived && !pinned.loading && !pinned.failed ? (
               <View className="px-4">
                 <ListSection title={t("exercise__pinned_note")}>
@@ -302,11 +355,9 @@ function LoadedDetail({
                   sessions={history.sessions}
                   exerciseId={exercise.id}
                   type={exercise.exerciseType}
-                  equipment={exercise.equipment}
-                  weightIncrementKg={preferences.ui.weightIncrementKg}
-                  progressionPerSet={perSet}
+                  gymId={gymId}
                   bodyweightKg={preferences.ui.bodyweightKg}
-                  unit={preferences.ui.weightUnit}
+                  unit={unit}
                   timezone={timeZone}
                   weekStart={preferences.ui.weekStart}
                 />
@@ -315,7 +366,7 @@ function LoadedDetail({
                     sessions={history.sessions.slice(0, 3)}
                     exerciseId={exercise.id}
                     type={exercise.exerciseType}
-                    unit={preferences.ui.weightUnit}
+                    unit={unit}
                     timezone={timeZone}
                     onSeeAll={onSeeHistory}
                   />
@@ -328,32 +379,99 @@ function LoadedDetail({
                 )}
               </Text>
             )}
-            {canSetWarmups && !autoWarmups.loading && !autoWarmups.failed ? (
+            {canSetUnit ||
+            canSetProgression ||
+            (canSetWarmups && !autoWarmups.loading && !autoWarmups.failed) ? (
               <View className="px-4">
                 <ListSection title={t("exercise__settings")}>
-                  <ListRow
-                    icon={FireSimple}
-                    title={t("exercise__auto_warmups")}
-                    description={t("exercise__auto_warmups_hint")}
-                    accessory="none"
-                    checked={warmupsOn}
-                    onPress={() =>
-                      void setAutoWarmups(exercise.id, !warmupsOn).catch(() => undefined)
-                    }
-                    trailing={
-                      <Switch
-                        accessibilityLabel={t("exercise__auto_warmups")}
-                        isSelected={warmupsOn}
-                        onSelectedChange={(on) =>
-                          void setAutoWarmups(exercise.id, on).catch(() => undefined)
-                        }
-                      />
-                    }
-                  />
+                  {canSetUnit ? (
+                    <ListRow
+                      title={t("exercise__unit")}
+                      value={unitLabels[override ?? "default"]}
+                      onPress={() => setUnitOpen(true)}
+                    />
+                  ) : null}
+                  {canSetProgression && !ruleSetting.loading && !ruleSetting.failed ? (
+                    <ListRow
+                      title={t("progress__rule")}
+                      value={t(
+                        RULE_OPTIONS.find((option) => option.id === ruleId)?.titleKey ??
+                          "progress__rule_double",
+                      )}
+                      onPress={() => {
+                        setRuleSeen(true);
+                        setRuleOpen(true);
+                      }}
+                    />
+                  ) : null}
+                  {canSetWarmups && !autoWarmups.loading && !autoWarmups.failed ? (
+                    <ListRow
+                      icon={FireSimple}
+                      title={t("exercise__auto_warmups")}
+                      description={t("exercise__auto_warmups_hint")}
+                      accessory="none"
+                      checked={warmupsOn}
+                      onPress={() =>
+                        void setAutoWarmups(exercise.id, !warmupsOn).catch(() => undefined)
+                      }
+                      trailing={
+                        <Switch
+                          accessibilityLabel={t("exercise__auto_warmups")}
+                          isSelected={warmupsOn}
+                          onSelectedChange={(on) =>
+                            void setAutoWarmups(exercise.id, on).catch(() => undefined)
+                          }
+                        />
+                      }
+                    />
+                  ) : null}
+                  {canSetWarmups && onWarmupSettings ? (
+                    <ListRow
+                      icon={FireSimple}
+                      title={t("exercise__warmup_settings")}
+                      onPress={onWarmupSettings}
+                    />
+                  ) : null}
                 </ListSection>
+                {ruleSeen ? (
+                  <ExerciseRuleSheet
+                    exerciseId={exercise.id}
+                    title={exercise.title}
+                    type={exercise.exerciseType}
+                    gymId={gymId}
+                    isOpen={ruleOpen}
+                    onOpenChange={setRuleOpen}
+                  />
+                ) : null}
+                <ExerciseUnitSheet
+                  isOpen={unitOpen}
+                  onOpenChange={setUnitOpen}
+                  preferred={preferredUnit}
+                  unit={override}
+                  onSelect={(next) => {
+                    if (next !== override) void setUnit(exercise.id, next).catch(() => undefined);
+                  }}
+                />
               </View>
             ) : null}
-            <SwapRow candidates={swaps} onOpen={onOpenExercise} />
+            {!exercise.isArchived &&
+            (exercise.exerciseType === "weight_reps" ||
+              exercise.exerciseType === "bodyweight_weighted_reps") ? (
+              <View className="px-4">
+                <GymLimitRows
+                  exerciseId={exercise.id}
+                  title={exercise.title}
+                  equipment={exercise.equipment}
+                  gymId={gymId}
+                  unit={unit}
+                />
+              </View>
+            ) : null}
+            <SwapRow
+              candidates={swaps.rows}
+              hasEquipment={swaps.hasEquipment}
+              onOpen={onOpenExercise}
+            />
             <MuscleSection exercise={exercise} onBrowseGroup={onBrowseGroup} />
             {steps.length > 0 ? <FormSection steps={steps} /> : null}
           </Animated.ScrollView>

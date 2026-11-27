@@ -56,6 +56,7 @@ export function HistoryRow({
   timezone,
   onPress,
   onLongPress,
+  showGym = false,
 }: {
   session: HistoryOverviewSession;
   stats: { day: number; totals: Totals } | undefined;
@@ -64,6 +65,8 @@ export function HistoryRow({
   onPress: () => void;
   /** Opens the row's action menu. */
   onLongPress?: () => void;
+  /** Two gyms or more: name the gym each workout was at. */
+  showGym?: boolean;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
@@ -90,6 +93,11 @@ export function HistoryRow({
             duration: formatElapsed(totals.seconds),
           })}
         </Text>
+        {showGym && session.gymName ? (
+          <Text className="font-normal text-caption text-muted">
+            {t("gym__at", { gym: session.gymName })}
+          </Text>
+        ) : null}
         {session.exerciseTitles?.length ? (
           <Text className="font-normal text-caption text-muted">
             {session.exerciseTitles.join(" · ")}

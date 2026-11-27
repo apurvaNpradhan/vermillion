@@ -7,8 +7,12 @@ import {
   type SetField,
 } from "../../exercise/vocabulary";
 import { positionKey } from "../vocabulary/inputs";
+import { TRAINING_LIMITS } from "../vocabulary/vocabulary";
 import { finishClock } from "./session-clock";
+import { loadRangesSchema } from "../progress/load-grid";
 import { plannedSetSchema, plannedSetsSchema } from "../plans/planned-sets";
+import { phaseSchema, phaseSnapshotSchema } from "../phases/phases";
+import { ruleConfigSchema } from "../engine/rule-config";
 import {
   EFFORT_STEPS,
   MAX_WEIGHT_KG,
@@ -34,6 +38,15 @@ export const sessionInput = z.strictObject({
   program_id: reference,
   run_id: reference,
   slot_id: reference,
+  /** The gym the Session was trained at; null is any gym (older Sessions, or none chosen). */
+  gym_id: reference,
+  /** The phase of the Run week the Session started in; null with no phases (older Sessions). */
+  phase: phaseSchema.nullable(),
+  /**
+   * The phase's modifiers as they were when the Session started (see `phaseSnapshotSchema`);
+   * null with no phase. The Program's later edits do not change a Session already begun.
+   */
+  phase_modifiers: phaseSnapshotSchema.nullable(),
   cycle: z.number().int().min(1).max(2_147_483_647).nullable(),
   title: z.string().trim().min(SESSION_LIMITS.titleMin).max(SESSION_LIMITS.titleMax),
   title_derived: z.boolean(),
@@ -232,13 +245,37 @@ export const gymEquipmentInput = z
   });
 export type GymEquipmentInput = z.infer<typeof gymEquipmentInput>;
 
+/** The most live gyms one account keeps, and the longest gym name. */
+export const GYM_LIMITS = { liveGyms: TRAINING_LIMITS.liveGyms, nameMax: 60 } as const;
+
+/** A gym: a place the user trains, with its own kit and exercise limits. */
+export const gymInput = z.strictObject({
+  name: z.string().trim().min(1).max(GYM_LIMITS.nameMax),
+});
+export type GymInput = z.infer<typeof gymInput>;
+
+/**
+ * What one gym says about one exercise: the loads it can make (ranges whose last `max` is the
+ * cap) and a free-text setup note, such as the seat position of a machine.
+ */
+export const gymExerciseSettingInput = z.strictObject({
+  gym_id: z.uuid(),
+  exercise_id: z.uuid(),
+  load_ranges: loadRangesSchema,
+  setup_note: note,
+});
+export type GymExerciseSettingInput = z.infer<typeof gymExerciseSettingInput>;
+
 /** Per exercise: the remembered bar and whether the effort column is on. One row per exercise. */
 export const exerciseSettingInput = z.strictObject({
   exercise_id: z.uuid(),
   bar_id: z.uuid().nullable(),
   log_effort: z.boolean(),
+  unit: z.enum(WEIGHT_UNITS).nullable().optional(),
   progression_per_set: z.boolean().default(false),
   auto_warmups: z.boolean().default(false),
+  /** The progression rule; absent or null is Double. */
+  progression_rule: ruleConfigSchema.nullable().optional(),
   /** The pinned note shown under the exercise name wherever it appears. */
   note: note.default(null),
 });

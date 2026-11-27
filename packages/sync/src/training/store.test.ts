@@ -1,4 +1,10 @@
-import { TRAINING_LIMITS, type PlannedSet } from "@workspace/shared";
+import {
+  TRAINING_LIMITS,
+  addPatternWeek,
+  withPattern,
+  type PlannedSet,
+  type ProgramInput,
+} from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
 import { claimDeviceOwner } from "../platform/device-owner";
@@ -26,16 +32,18 @@ import {
   restoreProgram,
   restoreWorkout,
   restoreWorkoutExercise,
-  releaseProgramCover,
   removeFromSuperset,
   setProgramCover,
   setProgramCoverToNewMedia,
+  setWorkoutCover,
+  setWorkoutCoverToNewMedia,
   supersetWithNext,
   TrainingLimitError,
   updateProgram,
   updateSlot,
   updateWorkout,
   updateWorkoutExercise,
+  raiseWorkoutRepRange,
   type TrainingDatabase,
 } from "./store";
 
@@ -101,6 +109,38 @@ describe("programs", () => {
     ).rejects.toThrow();
     await expect(createProgram(s.training, { ...programInput, title: " " })).rejects.toThrow();
     expect(await updateProgram(s.training, "missing", { title: "x" })).toBe(false);
+  });
+
+  it("renames a Program whose stored phase plan this build cannot read", async () => {
+    const s = await setup();
+    const id = await createProgram(s.training, programInput);
+    // A newer app wrote a phase this build does not know.
+    s.sqlite
+      .prepare("UPDATE program SET phase_plan = ? WHERE id = ?")
+      .run(JSON.stringify({ pattern: ["build", "taper"], overrides: [] }), id);
+    expect(await updateProgram(s.training, id, { title: "Renamed" })).toBe(true);
+    expect(s.one("program", id)).toMatchObject({ title: "Renamed" });
+  });
+
+  it("applies repeated edits to the latest saved length and pattern", async () => {
+    const s = await setup();
+    const id = await createProgram(s.training, programInput);
+    const step = (current: ProgramInput) => ({
+      planned_weeks: (current.planned_weeks ?? 0) + 1,
+    });
+    const add = (current: ProgramInput) => ({
+      phase_plan: withPattern(
+        current.phase_plan ?? null,
+        addPatternWeek(current.phase_plan?.pattern ?? []),
+      ),
+    });
+    await updateProgram(s.training, id, step);
+    await updateProgram(s.training, id, add);
+    await updateProgram(s.training, id, step);
+    await updateProgram(s.training, id, add);
+    const row = s.one("program", id);
+    expect(row?.planned_weeks).toBe(2);
+    expect(JSON.parse(String(row?.phase_plan))).toMatchObject({ pattern: ["build", "build"] });
   });
 
   it("refuses a missing Device owner and a stale install", async () => {
@@ -278,6 +318,39 @@ describe("workout exercises", () => {
     const { workoutId } = await workoutWith(s, ...Array.from({ length: 40 }, () => CURL));
     await expect(addExercises(s.training, workoutId, [CURL])).rejects.toThrow(TrainingLimitError);
     expect(s.all("workout_exercise")).toHaveLength(TRAINING_LIMITS.exercisesPerWorkout);
+  });
+
+  it("moves a rep range up to what the lifter keeps doing, only on the sets that match it", async () => {
+    const s = await setup();
+    const { ids } = await workoutWith(s, CURL, PLANK);
+    const [curl] = ids;
+    const seen = { min: 8, max: 12 };
+    await updateWorkoutExercise(s.training, curl ?? "", {
+      sets: [
+        { kind: "warmup", reps_min: 8, reps_max: 12, weight_kg: 10 },
+        { kind: "working", reps_min: 8, reps_max: 12, weight_kg: 20 },
+        { kind: "top", reps_min: 8, reps_max: 12, weight_kg: 20 },
+        { kind: "backoff", reps_min: 8, reps_max: 12, weight_kg: 15 },
+        { kind: "drop", reps_min: 8, reps_max: 12, weight_kg: 10 },
+        { kind: "working", reps_min: 15, reps_max: 20, weight_kg: 20 },
+        { kind: "working", reps_min: 10, reps_max: 10, weight_kg: 20 },
+      ],
+    });
+    expect(await raiseWorkoutRepRange(s.training, curl ?? "", 15, seen)).toBe(true);
+    expect(JSON.parse(String(s.one("workout_exercise", curl ?? "")?.["sets"]))).toEqual([
+      { kind: "warmup", reps_min: 8, reps_max: 12, weight_kg: 10 },
+      { kind: "working", reps_min: 11, reps_max: 15, weight_kg: 20 },
+      { kind: "top", reps_min: 11, reps_max: 15, weight_kg: 20 },
+      { kind: "backoff", reps_min: 11, reps_max: 15, weight_kg: 15 },
+      { kind: "drop", reps_min: 8, reps_max: 12, weight_kg: 10 },
+      { kind: "working", reps_min: 15, reps_max: 20, weight_kg: 20 },
+      { kind: "working", reps_min: 10, reps_max: 10, weight_kg: 20 },
+    ]);
+    // No set is on that range any more: nothing to write, and a gone exercise is refused.
+    expect(await raiseWorkoutRepRange(s.training, curl ?? "", 15, seen)).toBe(false);
+    expect(
+      await raiseWorkoutRepRange(s.training, "0192f0a0-0000-7000-8000-0000000000ee", 9, seen),
+    ).toBe(false);
   });
 
   it("updates dirty fields and checks the sets against the exercise type", async () => {
@@ -499,11 +572,10 @@ describe("supersets", () => {
 describe("program covers", () => {
   const image = { width: 1024, height: 768, bytes: 90_000, thumbBytes: 8_000 };
 
-  it("creates the media and the reference in one transaction, then replaces both", async () => {
+  it("creates the media and the reference in one transaction, then replaces the reference", async () => {
     const s = await setup();
     const id = await createProgram(s.training, programInput);
     const first = await setProgramCoverToNewMedia(s.training, id, image);
-    expect(first.replaced).toBeNull();
     expect(s.one("program", id)).toMatchObject({ cover_media_id: first.mediaId });
     expect(s.one("media", first.mediaId)).toMatchObject({
       user_id: "owner",
@@ -516,24 +588,23 @@ describe("program covers", () => {
     });
 
     const second = await setProgramCoverToNewMedia(s.training, id, image);
-    expect(second.replaced).toBe(first.mediaId);
-    expect(s.one("media", first.mediaId)).toBeUndefined();
-    expect(s.all("media")).toHaveLength(1);
+    expect(s.one("media", first.mediaId)).toBeDefined();
+    expect(s.all("media")).toHaveLength(2);
     expect(s.one("program", id)).toMatchObject({ cover_media_id: second.mediaId });
   });
 
-  it("sets and clears a cover that exists, and reports the media it deleted", async () => {
+  it("sets and clears a cover that exists, without deleting the media", async () => {
     const s = await setup();
     const id = await createProgram(s.training, programInput);
     const media = await createMedia(s.training, { kind: "program_cover", ...image });
-    expect(await setProgramCover(s.training, id, media)).toBeNull();
+    expect(await setProgramCover(s.training, id, media)).toBe(true);
     expect(s.one("program", id)).toMatchObject({ cover_media_id: media });
-    expect(await setProgramCover(s.training, id, media)).toBeNull();
-    expect(await setProgramCover(s.training, id, null)).toBe(media);
+    expect(await setProgramCover(s.training, id, media)).toBe(true);
+    expect(await setProgramCover(s.training, id, null)).toBe(true);
     expect(s.one("program", id)).toMatchObject({ cover_media_id: null });
-    expect(s.one("media", media)).toBeUndefined();
-    expect(await setProgramCover(s.training, id, null)).toBeNull();
-    expect(await setProgramCover(s.training, "missing", null)).toBeNull();
+    expect(s.one("media", media)).toBeDefined();
+    expect(await setProgramCover(s.training, id, null)).toBe(true);
+    expect(await setProgramCover(s.training, "missing", null)).toBe(false);
   });
 
   it("refuses a cover for a Program that is gone and writes nothing", async () => {
@@ -555,22 +626,75 @@ describe("program covers", () => {
     expect(s.one("program", id)).toMatchObject({ cover_media_id: null });
   });
 
-  it("keeps the cover through a delete and Undo, and releases it once the Program is still gone", async () => {
+  it("keeps the media through delete and Undo", async () => {
     const s = await setup();
     const id = await createProgram(s.training, programInput);
     const { mediaId } = await setProgramCoverToNewMedia(s.training, id, image);
-    // The Program is still there: nothing is released.
-    expect(await releaseProgramCover(s.training, id, mediaId)).toBe(false);
     const deleted = await deleteProgram(s.training, id);
     expect(deleted?.program.cover_media_id).toBe(mediaId);
     expect(s.one("media", mediaId)).toBeDefined();
     await restoreProgram(s.training, deleted as NonNullable<typeof deleted>);
     expect(s.one("program", id)).toMatchObject({ cover_media_id: mediaId });
-    expect(await releaseProgramCover(s.training, id, mediaId)).toBe(false);
     await deleteProgram(s.training, id);
-    expect(await releaseProgramCover(s.training, id, mediaId)).toBe(true);
-    expect(s.one("media", mediaId)).toBeUndefined();
-    expect(await releaseProgramCover(s.training, id, mediaId)).toBe(false);
+    expect(s.one("media", mediaId)).toBeDefined();
+  });
+});
+
+describe("workout covers", () => {
+  const image = { width: 1024, height: 768, bytes: 90_000, thumbBytes: 8_000 };
+
+  it("creates the media and the reference in one transaction, then replaces the reference", async () => {
+    const s = await setup();
+    const id = await createWorkout(s.training, {});
+    const first = await setWorkoutCoverToNewMedia(s.training, id, image);
+    expect(s.one("workout", id)).toMatchObject({ cover_media_id: first.mediaId });
+    expect(s.one("media", first.mediaId)).toMatchObject({ kind: "workout_cover" });
+    await setWorkoutCoverToNewMedia(s.training, id, image);
+    expect(s.one("media", first.mediaId)).toBeDefined();
+    expect(await setWorkoutCover(s.training, id, null)).toBe(true);
+    expect(s.one("workout", id)).toMatchObject({ cover_media_id: null });
+  });
+
+  it("refuses a cover for a Workout that is gone and writes nothing", async () => {
+    const s = await setup();
+    await expect(setWorkoutCoverToNewMedia(s.training, "missing", image)).rejects.toThrow("gone");
+    expect(s.all("media")).toHaveLength(0);
+  });
+
+  it("keeps the media through clearing both copies", async () => {
+    const s = await setup();
+    const id = await createWorkout(s.training, {});
+    const { mediaId } = await setWorkoutCoverToNewMedia(s.training, id, image);
+    const copy = await copyWorkout(s.training, id, null);
+    expect(s.one("workout", copy)).toMatchObject({ cover_media_id: mediaId });
+    // Clearing one keeps the media for the other.
+    expect(await setWorkoutCover(s.training, id, null)).toBe(true);
+    expect(s.one("media", mediaId)).toBeDefined();
+    expect(await setWorkoutCover(s.training, copy, null)).toBe(true);
+    expect(s.one("media", mediaId)).toBeDefined();
+  });
+
+  it("keeps the cover into and out of a Program", async () => {
+    const s = await setup();
+    const programId = await createProgram(s.training, programInput);
+    const id = await createWorkout(s.training, {});
+    const { mediaId } = await setWorkoutCoverToNewMedia(s.training, id, image);
+    const { workoutId } = await copyWorkoutIntoProgram(s.training, id, programId);
+    expect(s.one("workout", workoutId)).toMatchObject({ cover_media_id: mediaId });
+    const out = await copyWorkout(s.training, workoutId, null);
+    expect(s.one("workout", out)).toMatchObject({ cover_media_id: mediaId });
+  });
+
+  it("keeps the media after deleting both copies", async () => {
+    const s = await setup();
+    const id = await createWorkout(s.training, {});
+    const { mediaId } = await setWorkoutCoverToNewMedia(s.training, id, image);
+    const copy = await copyWorkout(s.training, id, null);
+    const deleted = await deleteWorkout(s.training, id);
+    expect(deleted?.workout.cover_media_id).toBe(mediaId);
+    expect(s.one("workout", copy)).toMatchObject({ cover_media_id: mediaId });
+    await deleteWorkout(s.training, copy);
+    expect(s.one("media", mediaId)).toBeDefined();
   });
 });
 

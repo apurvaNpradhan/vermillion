@@ -27,6 +27,9 @@ const syncOptions = {
 
 type Value = string | number | null;
 
+/** What a snapshot looks like on the wire, before the server validates it. */
+type Json = string | number | boolean | null | Json[] | { [key: string]: Json | undefined };
+
 describe("session upload handlers", () => {
   let app: TestApp;
   let weightReps: string;
@@ -246,9 +249,18 @@ describe("session upload handlers", () => {
     const [row] = await app.rows(
       table === "session_set"
         ? sql`SELECT id, user_id, session_exercise_id, position, kind, weight_kg, reps, duration_s, distance_m, floors, steps, rpe, completed_at, timer_started_at, generated_warmup, deleted_at, target::text AS target FROM session_set WHERE id = ${id}`
-        : sql`SELECT * FROM ${sql.identifier(table)} WHERE id = ${id}`,
+        : table === "exercise_setting"
+          ? sql`SELECT id, user_id, exercise_id, bar_id, unit, log_effort, progression_per_set, auto_warmups, note, created_at, updated_at, deleted_at, progression_rule::text AS progression_rule FROM exercise_setting WHERE id = ${id}`
+          : sql`SELECT * FROM ${sql.identifier(table)} WHERE id = ${id}`,
     );
     return row;
+  };
+  /** The snapshot of a Session exercise, read as text like the set target. */
+  const storedPrescription = async (id: string) => {
+    const [row] = await app.rows(
+      sql`SELECT prescription::text AS prescription FROM session_exercise WHERE id = ${id}`,
+    );
+    return row?.prescription ? JSON.parse(String(row.prescription)) : null;
   };
   const deletedAt = async (table: string, id: string) =>
     (await stored(table, id))?.deleted_at ?? null;
@@ -273,6 +285,101 @@ describe("session upload handlers", () => {
     return ids;
   }
 
+  it("validates and keeps one prescription per owned entry across installs", async () => {
+    const client = app.client(await createSignedInUser(app, "prescribed@example.com"));
+    const { userId } = await client.sync.credentials();
+    const me = installOf(client, userId);
+    const otherInstall = installOf(client, userId);
+    const stranger = await writer("prescription-stranger@example.com");
+    const t = await training(me);
+    const snapshot = {
+      exerciseId: weightReps,
+      revision: uuidv7(),
+      previousRevision: null as string | null,
+      reason: "add_weight",
+      incrementKg: 2.5,
+      breakDays: null,
+      capKg: 65,
+      gymId: null as string | null,
+      sets: [
+        {
+          id: t.set1,
+          ghosts: { weight: 62.5, reps: 8, rpe: 8 },
+          outcome: { reason: "add_weight", changeKg: 2.5 },
+          basis: "0a1b2c3d",
+        },
+        {
+          id: t.set2,
+          ghosts: { weight: 65, reps: 8 },
+          outcome: { reason: "capped", capKg: 65, limit: "equipment" },
+        },
+      ],
+    };
+    const patch = (value: Json) =>
+      op("PATCH", "session_exercise", t.exerciseId, { prescription: JSON.stringify(value) });
+
+    expect(await stranger.send([patch(snapshot)])).toMatchObject(rejected("SYNC_ROW_NOT_FOUND"));
+    expect(await me.send([patch({ ...snapshot, exerciseId: duration })])).toMatchObject(
+      rejected("SYNC_INVALID_OP"),
+    );
+    expect(
+      await me.send([patch({ ...snapshot, sets: [...snapshot.sets, ...snapshot.sets] })]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await me.send([patch(snapshot)])).toEqual(applied);
+    expect(
+      await otherInstall.send([patch({ ...snapshot, revision: uuidv7(), capKg: 70 })]),
+    ).toEqual(applied);
+    expect(await storedPrescription(t.exerciseId)).toEqual(snapshot);
+
+    const revision = {
+      ...snapshot,
+      revision: uuidv7(),
+      previousRevision: snapshot.revision,
+      capKg: 70,
+    };
+    expect(await me.send([patch(revision)])).toEqual(applied);
+    expect(await storedPrescription(t.exerciseId)).toEqual(revision);
+    expect(
+      await me.send([op("PATCH", "session_exercise", t.exerciseId, { note: "Seat 3" })]),
+    ).toEqual(applied);
+    expect(await storedPrescription(t.exerciseId)).toEqual(revision);
+
+    // A same-day adjustment is a revision that names the snapshot it replaces.
+    const [kept, lowered] = revision.sets;
+    if (!kept || !lowered) throw new Error("Expected two sets");
+    const adjusted = {
+      ...revision,
+      revision: uuidv7(),
+      previousRevision: revision.revision,
+      adjustments: [
+        {
+          setId: t.set1,
+          reason: "reps_short",
+          reps: 3,
+          moved: [{ id: t.set2, fromKg: 65 }],
+        },
+      ],
+      sets: [kept, { ...lowered, ghosts: { weight: 62.5, reps: 8 }, unadjustedWeightKg: 65 }],
+    };
+    const [only] = adjusted.adjustments;
+    if (!only) throw new Error("Expected an adjustment");
+    expect(
+      await me.send([patch({ ...adjusted, adjustments: [{ ...only, reason: "x" }] })]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(
+      await me.send([patch({ ...adjusted, adjustments: [{ ...only, extra: 1 }] })]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await me.send([patch(adjusted)])).toEqual(applied);
+    expect(await storedPrescription(t.exerciseId)).toEqual(adjusted);
+    // Another install that never saw the adjustment names the older snapshot: it does not win.
+    expect(
+      await otherInstall.send([
+        patch({ ...revision, revision: uuidv7(), previousRevision: revision.revision, capKg: 99 }),
+      ]),
+    ).toEqual(applied);
+    expect(await storedPrescription(t.exerciseId)).toEqual(adjusted);
+  });
+
   it.each(["top", "backoff", "myo"] as const)(
     "persists %s and its effort through sync upload",
     async (kind) => {
@@ -289,6 +396,32 @@ describe("session upload handlers", () => {
       expect(await stored("session_set", t.set1)).toMatchObject({ kind, rpe: 9 });
     },
   );
+
+  it("syncs a stall deload on only the chosen Session entry", async () => {
+    const me = await writer("session-stall-deload@example.com");
+    const other = await writer("session-stall-other@example.com");
+    const t = await training(me);
+    const second = uuidv7();
+    expect(
+      await me.send([putExercise(second, t.sessionId, weightReps, { position: "a2" })]),
+    ).toEqual(applied);
+    expect((await stored("session_exercise", t.exerciseId))?.stall_deload).toBeNull();
+    const mark = op("PATCH", "session_exercise", t.exerciseId, { stall_deload: 1 });
+    expect(await other.send([mark])).toMatchObject(rejected("SYNC_ROW_NOT_FOUND"));
+    expect(await me.send([mark])).toEqual(applied);
+    expect(
+      await me.send([op("PATCH", "session_exercise", t.exerciseId, { note: "Follow up" })]),
+    ).toEqual(applied);
+    expect((await stored("session_exercise", t.exerciseId))?.stall_deload).toBe(true);
+    expect((await stored("session_exercise", second))?.stall_deload).toBeNull();
+    expect(
+      await me.send([op("PATCH", "session_exercise", t.exerciseId, { stall_deload: 2 })]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(
+      await me.send([op("PATCH", "session_exercise", t.exerciseId, { stall_deload: 0 })]),
+    ).toEqual(applied);
+    expect((await stored("session_exercise", t.exerciseId))?.stall_deload).toBe(false);
+  });
 
   it("creates, patches dirty fields and deletes each table", async () => {
     const me = await writer("session-crud@example.com");
@@ -525,6 +658,78 @@ describe("session upload handlers", () => {
     expect(await stored("exercise_setting", settingId)).toMatchObject({ note: null });
   });
 
+  it("uploads, validates and clears an exercise's unit without resetting other settings", async () => {
+    const me = await writer("session-setting-unit@example.com");
+    const other = await writer("session-setting-unit-other@example.com");
+    const id = uuidv7();
+    const patch = (unit: string | null) => op("PATCH", "exercise_setting", id, { unit });
+
+    expect(await me.send([putSetting(id, weightReps, { unit: "stone" })])).toMatchObject(
+      rejected("SYNC_INVALID_OP"),
+    );
+    expect(await me.send([putSetting(id, weightReps, { unit: "lb", note: "Pause" })])).toEqual(
+      applied,
+    );
+    expect(await stored("exercise_setting", id)).toMatchObject({ unit: "lb", note: "Pause" });
+    expect(await me.send([putSetting(id, weightReps, { auto_warmups: 1 })])).toEqual(applied);
+    expect(await stored("exercise_setting", id)).toMatchObject({ unit: "lb", auto_warmups: true });
+    expect(await me.send([patch("stone")])).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await other.send([patch("kg")])).not.toEqual(applied);
+    expect(await me.send([patch("kg")])).toEqual(applied);
+    expect(await stored("exercise_setting", id)).toMatchObject({ unit: "kg" });
+    expect(await me.send([patch(null)])).toEqual(applied);
+    expect(await stored("exercise_setting", id)).toMatchObject({ unit: null, note: "Pause" });
+  });
+
+  it("uploads, validates and clears an exercise's progression rule without touching other settings", async () => {
+    const me = await writer("session-setting-rule@example.com");
+    const other = await writer("session-setting-rule-other@example.com");
+    const id = uuidv7();
+    const rule = (value: Json | null) => (value === null ? null : JSON.stringify(value));
+    const patch = (value: Json | null) =>
+      op("PATCH", "exercise_setting", id, { progression_rule: rule(value) });
+    const storedRule = async () => (await stored("exercise_setting", id))?.["progression_rule"];
+
+    // A legacy upload has no rule: it is Double.
+    expect(await me.send([putSetting(id, weightReps, { unit: "lb", note: "Pause" })])).toEqual(
+      applied,
+    );
+    expect(await storedRule()).toBeNull();
+
+    // Anything but a known rule, in its range, is refused and changes nothing.
+    for (const bad of [
+      { id: "waves" },
+      { id: "linear", reset_percent: 90 },
+      { id: "linear", reset_percent: 2.5 },
+      { id: "top_backoff", backoff_percent: 20 },
+      { id: "maintain", extra: 1 },
+      [],
+    ]) {
+      expect(await me.send([patch(bad)])).toMatchObject(rejected("SYNC_INVALID_OP"));
+    }
+    expect(
+      await me.send([op("PATCH", "exercise_setting", id, { progression_rule: "not json" })]),
+    ).toMatchObject(rejected("SYNC_INVALID_OP"));
+    expect(await storedRule()).toBeNull();
+
+    // Another account cannot set it, and a patch leaves the other settings as they were.
+    expect(await other.send([patch({ id: "maintain" })])).not.toEqual(applied);
+    expect(await me.send([patch({ id: "linear", reset_percent: 15 })])).toEqual(applied);
+    expect(JSON.parse(String(await storedRule()))).toEqual({ id: "linear", reset_percent: 15 });
+    expect(await stored("exercise_setting", id)).toMatchObject({ unit: "lb", note: "Pause" });
+    expect(await me.send([patch({ id: "top_backoff", backoff_percent: 85 })])).toEqual(applied);
+    expect(JSON.parse(String(await storedRule()))).toEqual({
+      id: "top_backoff",
+      backoff_percent: 85,
+    });
+    // A PUT that omits the rule keeps it; Double is no rule.
+    expect(await me.send([putSetting(id, weightReps, { auto_warmups: 1 })])).toEqual(applied);
+    expect(JSON.parse(String(await storedRule()))).toMatchObject({ id: "top_backoff" });
+    expect(await me.send([patch(null)])).toEqual(applied);
+    expect(await storedRule()).toBeNull();
+    expect(await stored("exercise_setting", id)).toMatchObject({ unit: "lb", auto_warmups: true });
+  });
+
   it("stores the per-set progression and workout structure columns, defaulting for legacy uploads", async () => {
     const me = await writer("session-new-columns@example.com");
     const legacySession = uuidv7();
@@ -538,6 +743,7 @@ describe("session upload handlers", () => {
     });
     expect(await stored("exercise_setting", legacySetting)).toMatchObject({
       progression_per_set: false,
+      unit: null,
     });
 
     const sessionId = uuidv7();

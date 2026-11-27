@@ -1,8 +1,45 @@
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
+import { KG_PER_LB } from "@workspace/shared";
 import { createI18n } from "@workspace/i18n";
 import { describe, expect, it } from "vitest";
 import { workoutLivePayloadSchema, workoutLiveState } from "./workout-live-state";
 import { loggingGhosts } from "../logging/logging-ghosts";
+import { buildGymLoads } from "../../gym/gym-loads";
+import { sessionPrescription } from "../../platform/training/session-prescription";
+import type { LoadGrid } from "@workspace/shared";
+
+/** The Ghost values of the first set: the prescription the Session and the notification share. */
+function ghostsOfFirst(
+  planned: SessionExerciseDetail,
+  history: Parameters<typeof sessionPrescription>[1],
+  grid: LoadGrid | null,
+) {
+  const prescribed = sessionPrescription(
+    planned,
+    history,
+    {
+      previousSource: "same_workout",
+      unit: "kg",
+      weightIncrementKg: null,
+      lighterWeeks: [],
+      bodyweightKg: null,
+      stallMemory: () => ({ dismissed: false }),
+    },
+    {
+      workoutId: null,
+      gymId: "garage",
+      grid,
+      phaseLoad: 1,
+      phase: null,
+      testEntryId: undefined,
+      exerciseOrdinal: 0,
+      duplicateEntry: false,
+      stalls: false,
+      suggest: true,
+    },
+  );
+  return loggingGhosts(planned, 0, prescribed);
+}
 
 const T0 = Date.parse("2026-01-01T10:00:00.000Z");
 const at = (seconds: number) => new Date(T0 + seconds * 1000).toISOString();
@@ -60,6 +97,8 @@ const session = (
   programId: null,
   runId: null,
   slotId: null,
+  phase: null,
+  phaseModifiers: null,
   cycle: null,
   title: "Push",
   titleDerived: false,
@@ -84,7 +123,15 @@ const state = (s: SessionDetail, now = T0 + 60_000, restEndedAt: number | null =
     restEndedAt,
     ghostsFor: () => ({ weight: 80, reps: 8 }),
     unit: "kg",
-    options: { weightUnit: "kg", weightIncrementKg: null, lighterWeeks: [], soundOn: false },
+    options: {
+      weightUnit: "kg",
+      weightIncrementKg: null,
+      lighterWeeks: [],
+      previousSource: "same_workout",
+      bodyweightKg: null,
+      soundOn: false,
+      vibrate: true,
+    },
     url: "sigil:///session/s",
     t,
   });
@@ -99,6 +146,26 @@ describe("workout live notification", () => {
       canComplete: true,
     });
     expect(state(s, T0 + 61_000)).toEqual(state(s));
+  });
+  it("numbers working sets as the rows show them and names a warm-up", () => {
+    const warm = [set("w1", { kind: "warmup" }), set("w2", { kind: "warmup" })];
+    const s = session([exercise("a", [...warm, set("1"), set("2")])]);
+    expect(state(s)).toMatchObject({
+      text: "Title a · Warm-up · 80 kg × 8",
+      next: "Next: Warm-up",
+    });
+    const done = warm.map((item, i) => ({ ...item, completedAt: at(i + 1) }));
+    const later = session([exercise("a", [...done, set("1"), set("2")])]);
+    expect(state(later, T0 + 10_000)).toMatchObject({
+      text: "Title a · Set 1 of 2 · 80 kg × 8",
+      next: "Next: Set 2",
+    });
+  });
+  it("shows the unit of the next exercise when it differs from the account", () => {
+    const first = set("1", { weightKg: 45 * KG_PER_LB, reps: 5, completedAt: at(30) });
+    const next = set("2", { weightKg: 25 * KG_PER_LB, reps: 8 });
+    const s = session([exercise("a", [first]), exercise("b", [next], { unit: "lb" })]);
+    expect(state(s).text).toBe("Title b · Set 1 of 1 · 25 lb × 8");
   });
   it("moves the chronometer base by the paused time so it shows the time trained", () => {
     const s = { ...session([exercise("a", [set("1")])]), pausedMs: 90_000 };
@@ -169,24 +236,88 @@ describe("workout live notification", () => {
       unit: "kg",
       url: "sigil:///session/s",
       t,
-      options: { weightUnit: "kg", weightIncrementKg: null, lighterWeeks: [], soundOn: false },
+      options: {
+        weightUnit: "kg",
+        weightIncrementKg: null,
+        lighterWeeks: [],
+        previousSource: "same_workout",
+        bodyweightKg: null,
+        soundOn: false,
+        vibrate: true,
+      },
     });
     expect(result.canLog).toBe(false);
     expect(workoutLivePayloadSchema.parse(JSON.parse(JSON.stringify(result)))).toEqual(result);
+  });
+  it("steps a Ghost value by the grid of the Session's gym, and stops at its cap", () => {
+    const planned = exercise(
+      "press",
+      [set("1", { target: { kind: "working", reps_min: 8, reps_max: 8 } })],
+      {
+        sourceWorkoutExerciseId: "plan",
+        exercise: {
+          equipment: "machine",
+          primaryMuscle: "chest",
+          secondaryMuscles: [],
+          thumbnailKey: null,
+        },
+      },
+    );
+    const done = (weight: number) => [
+      {
+        started_at: "2026-11-20T10:00:00Z",
+        id: "past",
+        gymId: "garage",
+        finished_at: "2026-11-20T11:00:00Z",
+        title: "Press",
+        durationS: 3600,
+        pausedMs: 0,
+        workoutId: null,
+        sets: [
+          {
+            id: "x",
+            exercise_id: planned.exerciseId,
+            exercise_type: "weight_reps" as const,
+            kind: "working" as const,
+            completed_at: "2026-11-20T10:30:00Z",
+            // The extended ceiling of 8 reps: the 12% jump to the next pin is earned.
+            reps: 12,
+            weight_kg: weight,
+          },
+        ],
+      },
+    ];
+    const stack = (max: number) =>
+      buildGymLoads({
+        gymId: "garage",
+        unit: "kg",
+        kit: [],
+        settings: [
+          {
+            exerciseId: planned.exerciseId,
+            setupNote: null,
+            loadRanges: [{ min: 5, max, step: 5 }],
+          },
+        ],
+      }).gridFor(planned.exerciseId, "machine");
+    const next = (weight: number, max: number) =>
+      ghostsOfFirst(planned, done(weight), stack(max)).weight;
+    expect(next(40, 90)).toBe(45);
+    expect(next(90, 90)).toBe(90);
+    // The same history with no grid steps by the equipment's own step instead.
+    expect(ghostsOfFirst(planned, done(40), null).weight).not.toBe(45);
   });
   it("uses planned ghosts when there is no history and leaves genuinely empty cells empty", () => {
     const e = exercise("a", [
       set("1", { target: { kind: "working", weight_kg: 80, reps_min: 8, reps_max: 8 } }),
     ]);
-    expect(loggingGhosts(e, 0, [], { weightUnit: "kg", weightIncrementKg: null })).toMatchObject({
+    expect(ghostsOfFirst(e, [], null)).toMatchObject({
       weight: 80,
       reps: 8,
     });
-    expect(
-      loggingGhosts(exercise("b", [set("2")]), 0, [], {
-        weightUnit: "kg",
-        weightIncrementKg: null,
-      }),
-    ).toMatchObject({ weight: null, reps: null });
+    expect(ghostsOfFirst(exercise("b", [set("2")]), [], null)).toMatchObject({
+      weight: null,
+      reps: null,
+    });
   });
 });

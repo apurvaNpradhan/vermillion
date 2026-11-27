@@ -1,16 +1,18 @@
 import type { QueryResult } from "@powersync/common";
 import {
+  ALWAYS_AVAILABLE_EQUIPMENT,
   EQUIPMENT,
   EXERCISE_TYPES,
   MUSCLE_GROUPS,
   detailLikePattern,
+  type Equipment,
   type MuscleDetail,
 } from "@workspace/shared";
 import { z } from "zod";
 
 import { parseMuscleDetails } from "./details";
 import type { LibraryRow } from "./library";
-import { LIBRARY_ROW_COLUMNS, type LibraryQuery } from "./library-query";
+import { IS_PINNED_SQL, LIBRARY_ROW_COLUMNS, type LibraryQuery } from "./library-query";
 import type { ExerciseDatabase } from "./store";
 
 /** The most swap candidates the detail screen shows. */
@@ -41,6 +43,7 @@ const detailRowSchema = z.object({
   image_media_id: z.string().nullable().optional(),
   thumbnail_key: z.string().nullable(),
   retired_at: z.string().nullable(),
+  is_pinned: z.number(),
 });
 
 /** PowerSync hands a Postgres array over as JSON text. */
@@ -75,38 +78,70 @@ export type ExerciseDetail = {
   thumbnailKey: string | null;
   isCustom: boolean;
   isArchived: boolean;
+  isPinned: boolean;
 };
 
 /** The lookup of one exercise by id, retired or not. */
 export function exerciseDetailQuery(id: string): LibraryQuery {
-  return { sql: `SELECT ${DETAIL_COLUMNS} FROM exercise WHERE id = ? LIMIT 1`, params: [id] };
+  return {
+    sql: `SELECT ${DETAIL_COLUMNS}, ${IS_PINNED_SQL} AS is_pinned FROM exercise WHERE id = ? LIMIT 1`,
+    params: [id],
+  };
 }
 
 /**
- * Live exercises with the same primary muscle and a different equipment, most shared primary
- * details first (ADR 0050), then best rank first, then title, then id; at most `limit`. The
- * exercise itself is never listed (it has its own equipment). Without details the order is rank.
+ * The exercise types that can stand in for each other in a swap: a weighted lift is not offered a
+ * timed or a plain bodyweight alternative. A type outside these groups swaps only with its own.
+ */
+const COMPATIBLE_TYPES = [
+  ["weight_reps", "bodyweight_weighted_reps"],
+  ["bodyweight_reps", "reps_only", "bodyweight_assisted_reps"],
+] as const satisfies readonly (readonly (typeof EXERCISE_TYPES)[number][])[];
+
+/** The types a swap for `type` may be, itself included. */
+export function compatibleSwapTypes(type: (typeof EXERCISE_TYPES)[number]): string[] {
+  return [...(COMPATIBLE_TYPES.find((group) => group.some((member) => member === type)) ?? [type])];
+}
+
+/**
+ * Live exercises with the same primary muscle and a compatible type, equipment of any kind (a
+ * cable fly is a fine swap for a machine fly). Exercises whose equipment the gym has come first
+ * (`unavailable` lists what it lacks; bodyweight is always there), then most shared primary
+ * details (ADR 0050), then best rank, then title, then id; at most `limit`, applied after that
+ * ordering, so a lacking-equipment exercise only fills what the rest leaves. The exercise itself
+ * is never listed. Without details the order is rank.
  */
 export function swapCandidatesQuery(
   exercise: {
     id: string;
     primaryMuscle: string;
-    equipment: string;
+    exerciseType?: (typeof EXERCISE_TYPES)[number];
     primaryDetail?: readonly MuscleDetail[];
+    /** Equipment types the gym does not have. */
+    unavailable?: readonly Equipment[];
   },
   limit: number = SWAP_CANDIDATE_LIMIT,
 ): LibraryQuery {
   const details = exercise.primaryDetail ?? [];
   const overlap = details.map(() => `(primary_detail LIKE ? ESCAPE '\\')`);
   const shared = overlap.length > 0 ? `(${overlap.join(" + ")}) DESC, ` : "";
+  const types = exercise.exerciseType ? compatibleSwapTypes(exercise.exerciseType) : [];
+  const typeFilter =
+    types.length > 0 ? ` AND exercise_type IN (${types.map(() => "?").join(", ")})` : "";
+  const lacking = (exercise.unavailable ?? []).filter(
+    (equipment) => !ALWAYS_AVAILABLE_EQUIPMENT.includes(equipment),
+  );
+  const here =
+    lacking.length > 0 ? `(equipment IN (${lacking.map(() => "?").join(", ")})) ASC, ` : "";
   return {
-    sql: `SELECT ${LIBRARY_ROW_COLUMNS} FROM exercise
-      WHERE retired_at IS NULL AND primary_muscle = ? AND equipment <> ? AND id <> ?
-      ORDER BY ${shared}rank DESC, title COLLATE NOCASE, id LIMIT ?`,
+    sql: `SELECT ${LIBRARY_ROW_COLUMNS}, ${IS_PINNED_SQL} AS is_pinned FROM exercise
+      WHERE retired_at IS NULL AND primary_muscle = ? AND id <> ?${typeFilter}
+      ORDER BY ${here}${shared}rank DESC, title COLLATE NOCASE, id LIMIT ?`,
     params: [
       exercise.primaryMuscle,
-      exercise.equipment,
       exercise.id,
+      ...types,
+      ...lacking,
       ...details.map(detailLikePattern),
       limit,
     ],
@@ -124,6 +159,7 @@ const candidateRowSchema = z.object({
   image_media_id: z.string().nullable().optional(),
   thumbnail_key: z.string().nullable(),
   retired_at: z.string().nullable(),
+  is_pinned: z.number(),
 });
 
 /** Watches one exercise; `null` when no row has that id (yet). */
@@ -170,6 +206,7 @@ export function watchExercise(
         imageMediaId: row.image_media_id ?? null,
         isCustom: row.user_id !== null,
         isArchived: row.retired_at !== null,
+        isPinned: row.is_pinned === 1,
       });
     },
     handlers.onError,
@@ -182,8 +219,9 @@ export function watchSwapCandidates(
   exercise: {
     id: string;
     primaryMuscle: string;
-    equipment: string;
+    exerciseType?: (typeof EXERCISE_TYPES)[number];
     primaryDetail?: readonly MuscleDetail[];
+    unavailable?: readonly Equipment[];
   },
   handlers: { onRows: (rows: LibraryRow[]) => void; onError: (error: Error) => void },
 ): () => void {
@@ -208,6 +246,7 @@ export function watchSwapCandidates(
           imageMediaId: row.image_media_id ?? null,
           isCustom: row.user_id !== null,
           isArchived: row.retired_at !== null,
+          isPinned: row.is_pinned === 1,
         })),
       );
     },
@@ -233,7 +272,11 @@ function watch(
         if (!controller.signal.aborted) onError(error);
       },
     },
-    { signal: controller.signal, tables: ["exercise"], throttleMs: THROTTLE_MS },
+    {
+      signal: controller.signal,
+      tables: ["exercise", "exercise_pin"],
+      throttleMs: THROTTLE_MS,
+    },
   );
   return () => controller.abort();
 }

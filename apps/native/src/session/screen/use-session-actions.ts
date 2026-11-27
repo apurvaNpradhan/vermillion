@@ -1,9 +1,18 @@
-import { EXERCISE_TYPE_KEYS, type Ghosts, type PlannedSet } from "@workspace/shared";
+import {
+  EXERCISE_TYPE_KEYS,
+  type AdjustmentLoads,
+  type Ghosts,
+  type PlannedSet,
+  type PrescriptionDraft,
+} from "@workspace/shared";
 import {
   addSessionExercises,
   addSet,
   adjustRest,
   clearRest,
+  capturePrescription,
+  revisePrescription,
+  undoSessionAdjustment,
   discardSession,
   releaseSessionPhotos,
   finishSession,
@@ -21,6 +30,7 @@ import {
   resumeSession,
   setDerivedTitle,
   setSessionStart,
+  setStallDeload,
   setExerciseSetting,
   supersetSessionWithNext,
   takeOver,
@@ -63,9 +73,16 @@ export function useSessionActions() {
    * is given, in one write. `null` when the write failed.
    */
   const tick = useCallback(
-    (setId: string, ghosts: Ghosts, restSeconds: number | null = null, expiresAt?: number) =>
+    (
+      setId: string,
+      ghosts: Ghosts,
+      restSeconds: number | null = null,
+      expiresAt?: number,
+      draft?: PrescriptionDraft | null,
+      loads?: AdjustmentLoads,
+    ) =>
       write<TickResult | null>(
-        (db) => tickSet(db, setId, ghosts, writeScope, restSeconds, expiresAt),
+        (db) => tickSet(db, setId, ghosts, writeScope, restSeconds, expiresAt, draft, loads),
         null,
         t("session__tick_failed_toast"),
       ),
@@ -76,6 +93,24 @@ export function useSessionActions() {
    * Moves the running Rest. The wrapper distinguishes a successfully ended Rest (`rest: null`)
    * from a failed write (`null`), so the immediate preview can roll back either kind of nudge.
    */
+  const savePrescription = useCallback(
+    (id: string, draft: PrescriptionDraft) =>
+      write((db) => capturePrescription(db, id, draft, writeScope), null),
+    [write, writeScope],
+  );
+
+  /** A fresh suggestion for the unticked sets that went stale, and for sets added since. */
+  const reviseSnapshot = useCallback(
+    (id: string, draft: PrescriptionDraft, replace: readonly string[]) =>
+      write((db) => revisePrescription(db, id, draft, replace, writeScope), false),
+    [write, writeScope],
+  );
+
+  const undoAdjustment = useCallback(
+    (id: string) => write((db) => undoSessionAdjustment(db, id, writeScope), false),
+    [write, writeScope],
+  );
+
   const nudgeRest = useCallback(
     (sessionId: string, deltaSeconds: number) =>
       write(
@@ -95,9 +130,10 @@ export function useSessionActions() {
     [write, writeScope],
   );
 
+  /** Edits a set; correcting a ticked one with `loads` also reads its adjustment again. */
   const updateValues = useCallback(
-    (setId: string, patch: SetPatch) =>
-      write((db) => updateSet(db, setId, patch, writeScope), null),
+    (setId: string, patch: SetPatch, loads?: AdjustmentLoads) =>
+      write((db) => updateSet(db, setId, patch, writeScope, loads), null),
     [write, writeScope],
   );
 
@@ -118,11 +154,11 @@ export function useSessionActions() {
   );
 
   const removeOneSet = useCallback(
-    async (setId: string) => {
+    async (setId: string, onRestored: () => void) => {
       const removed = await write((db) => removeSet(db, setId, writeScope), null);
       if (!removed) return false;
-      undoToast(t("session__set_removed_toast"), () => {
-        void write((db) => restoreSet(db, removed, writeScope), false);
+      undoToast(t("session__set_removed_toast"), async () => {
+        if (await write((db) => restoreSet(db, removed, writeScope), false)) onRestored();
       });
       return true;
     },
@@ -188,6 +224,12 @@ export function useSessionActions() {
   const moveExercise = useCallback(
     (id: string, beforeId: string | null) =>
       write((db) => moveSessionExercise(db, id, beforeId, writeScope), false),
+    [write, writeScope],
+  );
+
+  const setExerciseDeload = useCallback(
+    (id: string, applied: boolean, draft?: PrescriptionDraft | null) =>
+      write((db) => setStallDeload(db, id, applied, writeScope, draft), false),
     [write, writeScope],
   );
 
@@ -303,6 +345,9 @@ export function useSessionActions() {
   return useMemo(
     () => ({
       tick,
+      savePrescription,
+      reviseSnapshot,
+      undoAdjustment,
       nudgeRest,
       skipRest,
       untick,
@@ -315,6 +360,7 @@ export function useSessionActions() {
       removeExercise,
       moveExercise,
       updateExercise,
+      setExerciseDeload,
       setPinnedNote,
       superset,
       leaveSuperset,
@@ -328,6 +374,9 @@ export function useSessionActions() {
     }),
     [
       tick,
+      savePrescription,
+      reviseSnapshot,
+      undoAdjustment,
       nudgeRest,
       skipRest,
       untick,
@@ -340,6 +389,7 @@ export function useSessionActions() {
       removeExercise,
       moveExercise,
       updateExercise,
+      setExerciseDeload,
       setPinnedNote,
       superset,
       leaveSuperset,

@@ -1,38 +1,78 @@
 import {
   ACTIVE_SESSIONS_SQL,
+  FINISHED_OF_WORKOUT_SQL,
   beginSession,
   newSessionId,
   parseActiveSessions,
+  parseFinishedOfWorkout,
+  readWorkoutDetail,
   restoreSession,
   type ActiveSession,
+  type BeginSource,
 } from "@workspace/sync";
+import { finishedToday, type RunSlot } from "@workspace/shared";
 import { useRouter } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
+import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
+import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
+import { warmPreviousSets } from "@/session/logging/use-previous-sets";
+import { useLocalData } from "@/sync";
 import { useTrainingWrite } from "@/training";
 
 import { StartConflictSheet } from "./start-conflict-sheet";
-
-const NO_ACTIVE: ActiveSession[] = [];
+import { openSessionOf } from "./open-session-of";
 
 /** What a new Session is made from: a Workout (or nothing), or a finished Session to repeat. */
-type Source = { workoutId: string | null } | { againOf: string };
-type Pending = { source: Source; active: ActiveSession[] };
+type Pending = { source: BeginSource; active: ActiveSession[] };
+
+/** A Workout that already has a finished Session today, waiting for "Start again". */
+type Repeat = { source: BeginSource; title: string };
 
 /**
  * Starting a Session, from a Workout, empty, or as an exact copy of a finished one (Perform again). When one is already active the user is asked
  * whether to resume it or to discard it and start the new one (ADR 0038); nothing is discarded
- * without asking. Render `sheet` next to the screen that starts. A start is idempotent: it has
- * one id, so a double tap or a retry opens the same Session.
+ * without asking. A Workout already finished today asks once before it starts again. Render
+ * `sheet` next to the screen that starts. A start is idempotent: it has one id, so a double tap
+ * or a retry opens the same Session.
  */
-export function useStartSession() {
+export function useStartSession({ resumeSameWorkout = false } = {}) {
   const { t } = useTranslation();
   const router = useRouter();
   const { write, writeScope, undoToast } = useTrainingWrite();
+  const timeZone = useDeviceTimeZone();
   const [pending, setPending] = useState<Pending | null>(null);
+  const local = useLocalData();
+  const database = local?.status === "ready" ? local.database : null;
+  const pendingWorkoutId =
+    pending && "workoutId" in pending.source ? pending.source.workoutId : null;
+  useEffect(() => {
+    if (!database || !pendingWorkoutId || !writeScope) return;
+    let cancelled = false;
+    let stop: (() => void) | undefined;
+    void readWorkoutDetail(database, pendingWorkoutId).then(
+      (workout) => {
+        if (!cancelled && workout)
+          stop = warmPreviousSets(
+            database,
+            writeScope,
+            workout.exercises.map((entry) => entry.exerciseId),
+          );
+      },
+      () => undefined,
+    );
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [database, pendingWorkoutId, writeScope]);
+  // Mounted closed and opened by a change, as dialogs are; `repeat` stays for the closing animation.
+  const [repeat, setRepeat] = useState<Repeat | null>(null);
+  const [repeatOpen, setRepeatOpen] = useState(false);
   const starting = useRef(false);
+  const checking = useRef(false);
 
   const open = useCallback(
     (id: string) => router.push({ pathname: "/session/[id]", params: { id } }),
@@ -40,7 +80,7 @@ export function useStartSession() {
   );
 
   const begin = useCallback(
-    async (source: Source, discard: readonly ActiveSession[]) => {
+    async (source: BeginSource, discard: readonly ActiveSession[]) => {
       if (starting.current) return;
       starting.current = true;
       try {
@@ -51,7 +91,9 @@ export function useStartSession() {
           (db) =>
             beginSession(
               db,
-              source,
+              // The Run's calendar week, and so the phase, is counted in the user's time zone.
+              "againOf" in source ? source : { ...source, timeZone },
+
               t("session__untitled"),
               { id, discardIds: discard.map((old) => old.id) },
               writeScope,
@@ -72,22 +114,62 @@ export function useStartSession() {
         starting.current = false;
       }
     },
-    [write, writeScope, t, undoToast, open],
+    [write, writeScope, t, undoToast, open, timeZone],
   );
 
-  /** Starts a Session from `workoutId` (or empty), or asks first when one is active. */
+  /**
+   * The one way into a Session from the Train strip, Home, the Workout page and the editor. A
+   * Workout with a Session already finished today (local day) asks once; resuming, an empty
+   * Session and Perform again are the lifter's own choice and are not asked.
+   */
   const startFrom = useCallback(
-    async (source: Source) => {
-      const active = await write(
-        async (db) => parseActiveSessions(await db.getAll(ACTIVE_SESSIONS_SQL)),
-        NO_ACTIVE,
-      );
-      if (active.length > 0) setPending({ source, active });
-      else await begin(source, []);
+    async (source: BeginSource, confirmedRepeat = false) => {
+      if (checking.current || starting.current) return;
+      checking.current = true;
+      try {
+        const active = await write(
+          async (db) => parseActiveSessions(await db.getAll(ACTIVE_SESSIONS_SQL)),
+          null,
+        );
+        if (!active) return;
+        const workoutId = "workoutId" in source ? source.workoutId : null;
+        const matching = resumeSameWorkout ? openSessionOf(active, workoutId) : undefined;
+        if (matching) {
+          open(matching.id);
+          return;
+        }
+        if (active.length > 0) {
+          setPending({ source, active });
+          return;
+        }
+        if (workoutId && !confirmedRepeat) {
+          const now = new Date();
+          const done = await write(
+            async (db) =>
+              parseFinishedOfWorkout(
+                await db.getAll(FINISHED_OF_WORKOUT_SQL, [workoutId, now.toISOString()]),
+              ),
+            [],
+          );
+          const today = finishedToday(done, workoutId, now, timeZone);
+          if (today) {
+            setRepeat({ source, title: today.title });
+            setRepeatOpen(true);
+            return;
+          }
+        }
+        await begin(source, []);
+      } finally {
+        checking.current = false;
+      }
     },
-    [write, begin],
+    [write, resumeSameWorkout, open, timeZone, begin],
   );
   const start = useCallback((workoutId: string | null) => startFrom({ workoutId }), [startFrom]);
+  const startSlot = useCallback(
+    (workoutId: string, day: RunSlot) => startFrom({ workoutId, day }),
+    [startFrom],
+  );
   /** Starts a Session that repeats the finished Session `sessionId`, or asks first when one is active. */
   const startAgain = useCallback(
     (sessionId: string) => startFrom({ againOf: sessionId }),
@@ -95,23 +177,36 @@ export function useStartSession() {
   );
 
   const sheet = (
-    <StartConflictSheet
-      active={pending?.active ?? []}
-      isOpen={pending !== null}
-      onOpenChange={(isOpen) => {
-        if (!isOpen) setPending(null);
-      }}
-      onResume={(id) => {
-        setPending(null);
-        open(id);
-      }}
-      onDiscardAndStart={() => {
-        const current = pending;
-        setPending(null);
-        if (current) void begin(current.source, current.active);
-      }}
-    />
+    <>
+      <ConfirmationDialog
+        isOpen={repeatOpen}
+        onOpenChange={setRepeatOpen}
+        title={t("guard__again_title")}
+        description={t("guard__again_body", { title: repeat?.title ?? "" })}
+        cancelLabel={t("common__cancel")}
+        confirmLabel={t("guard__again_confirm")}
+        onConfirm={() => {
+          if (repeat) void startFrom(repeat.source, true);
+        }}
+      />
+      <StartConflictSheet
+        active={pending?.active ?? []}
+        isOpen={pending !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setPending(null);
+        }}
+        onResume={(id) => {
+          setPending(null);
+          open(id);
+        }}
+        onDiscardAndStart={() => {
+          const current = pending;
+          setPending(null);
+          if (current) void begin(current.source, current.active);
+        }}
+      />
+    </>
   );
 
-  return { start, startAgain, sheet };
+  return { start, startSlot, startAgain, sheet };
 }

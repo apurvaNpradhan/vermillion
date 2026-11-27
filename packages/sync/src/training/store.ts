@@ -28,6 +28,7 @@ export {
   addExercises,
   type WorkoutExercisePatch,
   updateWorkoutExercise,
+  raiseWorkoutRepRange,
   moveWorkoutExercise,
   replaceExercise,
   removeWorkoutExercise,
@@ -51,8 +52,10 @@ export {
   removeFromRotation,
   restoreFromRotation,
 } from "./plans/slot-store";
+export { skipSlot, unskipSlot } from "./plans/skip-store";
 export {
   setProgramCover,
   setProgramCoverToNewMedia,
-  releaseProgramCover,
+  setWorkoutCover,
+  setWorkoutCoverToNewMedia,
 } from "./plans/cover-store";

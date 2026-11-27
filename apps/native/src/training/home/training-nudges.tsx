@@ -1,21 +1,28 @@
 import {
-  activeLighterWeek,
-  endLighterWeek,
   offerLighterWeek,
   sessionsInRange,
   stalledExerciseIds,
-  startLighterWeek,
   weekRange,
 } from "@workspace/shared";
 import { useRouter } from "expo-router";
+import { useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { useExercise, useTopSetText } from "@/exercise";
+import {
+  stallMemory,
+  useExercise,
+  useExerciseUnit,
+  useStallVersion,
+  useTopSetText,
+} from "@/exercise";
+import { useExerciseRules } from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { usePreferences } from "@/preferences";
 import { sessionRecords, usePreviousSets, useRecordHistory } from "@/session";
 import { ANCHORED } from "@/platform/navigation/anchored";
+import { useDeloadWeek } from "@/training/phases/use-deload-week";
+import type { useActiveProgram } from "@/training/programs/use-active-program";
 
 import { useHomeTraining } from "./use-home-training";
 
@@ -24,34 +31,95 @@ const RECORDS_DAYS = 7;
 const DAY_MS = 86_400_000;
 
 /**
- * Home's contextual cards, each only when it applies: a running Lighter week (a line with its end
- * date and "End now"), otherwise the Lighter week offer when several lifts trained this week have
- * stalled, or a note about the one or two that have; and the records of the last Session.
+ * Home's contextual cards, each only when it applies: a running deload without a program (a line
+ * with its end date and "Undo deload", or "End now" once a workout was logged in it), otherwise
+ * the offer when several lifts trained this week have stalled ("Deload this week", for the active
+ * program or on its own), or a note about the one or two that have; and the records of the last
+ * workout.
  */
-export function TrainingNudges({ state }: { state: ReturnType<typeof useHomeTraining> }) {
+export function TrainingNudges({
+  state,
+  program,
+}: {
+  state: ReturnType<typeof useHomeTraining>;
+  /** Home's active Program, so the nudges do not watch it a second time. */
+  program: ReturnType<typeof useActiveProgram>;
+}) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const { preferences, setUi } = usePreferences();
+  const stallVersion = useStallVersion();
+  const run = program.run;
   const now = new Date();
   const { lighterWeeks, deloadCardDismissedAt } = preferences.ui;
+  const sessionStarts = useMemo(
+    () => state.finished?.map((session) => session.started_at),
+    [state.finished],
+  );
+  const deload = useDeloadWeek({ run, sessionStarts, hasPlan: program.program?.phasePlan != null });
   const week = weekRange(now, state.timezone, state.weekStart);
-  const thisWeek = sessionsInRange(state.sessions, week, state.timezone);
-  const exerciseIds = [
-    ...new Set(thisWeek.flatMap((session) => session.sets.map((set) => set.exercise_id))),
-  ];
+  const { start: weekStartMs, end: weekEndMs } = week;
+  const thisWeek = useMemo(
+    () => sessionsInRange(state.sessions, { start: weekStartMs, end: weekEndMs }, state.timezone),
+    [state.sessions, weekStartMs, weekEndMs, state.timezone],
+  );
+  const exerciseIds = useMemo(
+    () => [...new Set(thisWeek.flatMap((session) => session.sets.map((set) => set.exercise_id)))],
+    [thisWeek],
+  );
   const histories = usePreviousSets(exerciseIds);
-  const active = activeLighterWeek(lighterWeeks, now);
+  const rules = useExerciseRules();
+  const { lighter } = deload;
+  const { previousSource, weightUnit, weightIncrementKg, weightIncrementUnit } = preferences.ui;
+  const { history, ready, bodyweightOn } = histories;
+  const bodyweightKg = bodyweightOn(now.toISOString());
+  const rulesByExercise = rules.value;
+  const rulesLoading = rules.loading;
+  // The verdict scans each exercise's history; Home renders often, so it is worked out again only
+  // when what it reads changes (a new watch result, a dismissal, a different bodyweight).
+  const stalled = useMemo(() => {
+    if (!ready || rulesLoading) return [];
+    return stalledExerciseIds(
+      thisWeek,
+      history,
+      {
+        previousSource,
+        unit: weightUnit,
+        weightIncrementKg,
+        weightIncrementUnit,
+        lighterWeeks,
+        bodyweightKg,
+        stallMemory,
+      },
+      // A maintained lift is never stalled.
+      rulesByExercise ?? new Map(),
+    );
+    // `stallVersion` tracks what the verdict reads from device-local stall memory.
+  }, [
+    thisWeek,
+    history,
+    ready,
+    bodyweightKg,
+    rulesByExercise,
+    rulesLoading,
+    previousSource,
+    weightUnit,
+    weightIncrementKg,
+    weightIncrementUnit,
+    lighterWeeks,
+    stallVersion,
+  ]);
   const latest = state.recent[0];
   const showRecords =
     latest !== undefined && now.getTime() - Date.parse(latest.started_at) <= RECORDS_DAYS * DAY_MS;
   const records = showRecords ? <RecordsCard session={latest} /> : null;
-  if (active) {
+  if (lighter) {
     const date = new Intl.DateTimeFormat(i18n.language, {
       weekday: "short",
       day: "numeric",
       month: "short",
       timeZone: state.timezone,
-    }).format(new Date(active.until));
+    }).format(new Date(lighter.until));
     return (
       <>
         <View className="min-h-11 flex-row items-center justify-between gap-3 px-1">
@@ -61,37 +129,48 @@ export function TrainingNudges({ state }: { state: ReturnType<typeof useHomeTrai
           <Pressable
             accessibilityRole="button"
             hitSlop={8}
-            onPress={() => setUi(endLighterWeek(lighterWeeks, new Date()))}
+            onPress={deload.endLighter}
             className="min-h-11 justify-center"
           >
-            <Text className="text-caption font-medium text-foreground">{t("lighter__end")}</Text>
+            <Text className="text-caption font-medium text-foreground">
+              {t(deload.canUndoLighter ? "deload__undo" : "lighter__end")}
+            </Text>
           </Pressable>
         </View>
+        {deload.dialog}
         {records}
       </>
     );
   }
-  if (!histories.ready) return records;
-  const stalled = stalledExerciseIds(thisWeek, histories.history, { lighterWeeks });
-  const offer = offerLighterWeek({
-    stalledCount: stalled.length,
-    periods: lighterWeeks,
-    now,
-    dismissedAt: deloadCardDismissedAt,
-    weekStartMs: week.start,
-  });
+  if (!histories.ready || rules.loading) return records;
+  // A week that is already a Deload needs no offer of one.
+  const offer =
+    program.ready &&
+    !program.paused &&
+    program.phase?.phase !== "deload" &&
+    offerLighterWeek({
+      stalledCount: stalled.length,
+      periods: lighterWeeks,
+      now,
+      dismissedAt: deloadCardDismissedAt,
+      weekStartMs: week.start,
+    });
   const stalledId = stalled[0];
   return (
     <>
       {offer ? (
         <View className="gap-3 rounded-2xl bg-surface p-4">
-          <Text className="font-normal text-body text-foreground">{t("lighter__card_title")}</Text>
+          <View className="gap-1">
+            <Text className="font-semibold text-body text-foreground">
+              {t("deload__offer_title")}
+            </Text>
+            <Text className="font-normal text-caption text-muted">
+              {t(run ? "deload__offer_body_run" : "deload__offer_body")}
+            </Text>
+          </View>
           <View className="flex-row gap-3">
-            <Button
-              className="flex-1"
-              onPress={() => setUi(startLighterWeek(lighterWeeks, new Date()))}
-            >
-              <Button.Label>{t("lighter__start")}</Button.Label>
+            <Button className="flex-1" variant="secondary" onPress={deload.ask}>
+              <Button.Label>{t("deload__action")}</Button.Label>
             </Button>
             <Button
               className="flex-1"
@@ -110,6 +189,7 @@ export function TrainingNudges({ state }: { state: ReturnType<typeof useHomeTrai
           }
         />
       ) : null}
+      {deload.dialog}
       {records}
     </>
   );
@@ -146,17 +226,17 @@ function RecordsCard({
   const { preferences } = usePreferences();
   const history = useRecordHistory(session.sets.map((set) => set.exercise_id));
   const topSetText = useTopSetText(preferences.ui.weightUnit);
-  if (history.loading || history.failed) return null;
   const { total, flags } = sessionRecords({
     history: history.sessions,
     session,
     bodyweightKg: preferences.ui.bodyweightKg,
   });
-  if (total === 0) return null;
   // The set that carries the most records is the one worth naming.
   const flagged = session.sets
     .filter((set) => (flags.get(set.id)?.length ?? 0) > 0)
     .sort((a, b) => (flags.get(b.id)?.length ?? 0) - (flags.get(a.id)?.length ?? 0))[0];
+  const exerciseUnit = useExerciseUnit(flagged?.exercise_id ?? "");
+  if (history.loading || history.failed || total === 0) return null;
   return (
     <Pressable
       accessibilityRole="button"
@@ -172,7 +252,7 @@ function RecordsCard({
         {flagged
           ? t("home__records_body", {
               title: session.title,
-              set: topSetText(flagged, flagged.exercise_type),
+              set: topSetText(flagged, flagged.exercise_type, exerciseUnit.value ?? undefined),
             })
           : session.title}
       </Text>

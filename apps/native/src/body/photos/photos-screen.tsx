@@ -215,6 +215,16 @@ export function PhotosScreen() {
               ]}
               onIndexChange={() => undefined}
               onClose={() => setViewing(null)}
+              action={{
+                label: t("body__photo_delete"),
+                icon: Trash,
+                tone: "danger",
+                // The viewer is a modal: close it first so the confirmation is not hidden behind it.
+                onPress: () => {
+                  setDeleting(viewing.photo);
+                  setViewing(null);
+                },
+              }}
             />
           ) : null}
           <ActionSheet

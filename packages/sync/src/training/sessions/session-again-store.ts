@@ -3,6 +3,7 @@ import { v7 as uuidv7 } from "uuid";
 import { EFFORT_STEPS, plannedSetSchema, sessionInput, type PlannedSet } from "@workspace/shared";
 import { asc, eq } from "drizzle-orm";
 
+import { activeGymIdOf } from "../gyms/gym-store";
 import { keysAfterLast } from "../position";
 import { nowIso, ownerOf, write, type Tx, type TrainingDatabase } from "../store-common";
 import { session, sessionExercise, sessionSet } from "../tables";
@@ -94,6 +95,10 @@ async function copyInto(
     program_id: null,
     run_id: null,
     slot_id: null,
+    gym_id: await activeGymIdOf(tx),
+    // Made from a past Session, not from the Run week: it carries no phase.
+    phase: null,
+    phase_modifiers: null,
     cycle: null,
     title: source.title_derived ? derivedTitle : source.title,
     title_derived: source.title_derived,

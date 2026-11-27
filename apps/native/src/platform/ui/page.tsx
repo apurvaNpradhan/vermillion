@@ -19,6 +19,7 @@ import { useTabBarClearance } from "@/platform/navigation/tab-bar-metrics";
 import { OfflinePill, useOfflineIndicator } from "@/sync";
 
 import { FloatingSurface } from "./floating-surface";
+import { useDismissSwipeRows } from "./swipe-row";
 
 const ROW_HEIGHT = 44;
 const ROW_PADDING = 8;
@@ -46,6 +47,7 @@ export type PageScroll = {
   ref: (node: ScrollTarget | null) => void;
   onScroll: ReturnType<typeof useAnimatedScrollHandler>;
   scrollEventThrottle: number;
+  onScrollBeginDrag: () => void;
   /** Clears the header above and the tab bar below; merge into the content container style. */
   contentContainerStyle: { paddingTop: number; paddingBottom: number };
   /** The large title; render it first in the scrolling content. */
@@ -74,6 +76,8 @@ export function Page({
   back = false,
   backFallback = "/",
   actions,
+  onTitlePress,
+  titleHint,
   pinned,
   hero,
   stickyTitle = false,
@@ -87,6 +91,9 @@ export function Page({
   backFallback?: Href;
   /** Icon buttons on the right of the header row, in a floating capsule. */
   actions?: ReactNode;
+  /** Makes the large title tappable (a quick rename); `titleHint` is its accessibility hint. */
+  onTitlePress?: () => void;
+  titleHint?: string;
   /** Keeps the large root title in the header while the content scrolls. */
   stickyTitle?: boolean;
   /**
@@ -113,6 +120,7 @@ export function Page({
   const scrollY = useSharedValue(0);
   const target = useRef<ScrollTarget | null>(null);
   useScrollToTop(target);
+  const dismissSwipeRows = useDismissSwipeRows();
 
   const onScroll = useAnimatedScrollHandler((event) => {
     scrollY.value = event.contentOffset.y;
@@ -135,6 +143,7 @@ export function Page({
           },
           onScroll,
           scrollEventThrottle: 16,
+          onScrollBeginDrag: dismissSwipeRows,
           // Without a back button the large title shares the header row with the actions.
           contentContainerStyle: {
             paddingTop: hero ? 0 : back || stickyTitle ? height : rowTop,
@@ -151,6 +160,8 @@ export function Page({
                   scrollY={scrollY}
                   back={back}
                   collapse={collapse}
+                  onPress={onTitlePress}
+                  hint={titleHint}
                 />
               ) : null}
               {pinned ? <View style={{ height: pinned.height }} /> : null}
@@ -285,12 +296,16 @@ function PageTitle({
   scrollY,
   back,
   collapse,
+  onPress,
+  hint,
 }: {
   title: string;
   overline?: string;
   scrollY: SharedValue<number>;
   back: boolean;
   collapse: readonly [number, number];
+  onPress?: () => void;
+  hint?: string;
 }) {
   const style = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, collapse, [1, 0], Extrapolation.CLAMP),
@@ -301,17 +316,32 @@ function PageTitle({
       style={style}
     >
       {overline ? <Text className="font-normal text-caption text-muted">{overline}</Text> : null}
-      <Text
-        accessibilityRole="header"
-        numberOfLines={1}
-        className={
-          back
-            ? "font-semibold text-title-xl text-foreground"
-            : "font-semibold text-display-lg text-foreground"
-        }
-      >
-        {title}
-      </Text>
+      {onPress ? (
+        <Pressable accessibilityRole="button" accessibilityHint={hint} onPress={onPress}>
+          <Text
+            numberOfLines={1}
+            className={
+              back
+                ? "font-semibold text-title-xl text-foreground"
+                : "font-semibold text-display-lg text-foreground"
+            }
+          >
+            {title}
+          </Text>
+        </Pressable>
+      ) : (
+        <Text
+          accessibilityRole="header"
+          numberOfLines={1}
+          className={
+            back
+              ? "font-semibold text-title-xl text-foreground"
+              : "font-semibold text-display-lg text-foreground"
+          }
+        >
+          {title}
+        </Text>
+      )}
     </Animated.View>
   );
 }

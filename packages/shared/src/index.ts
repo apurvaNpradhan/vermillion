@@ -1,6 +1,7 @@
 export * from "./errors";
 export * from "./locale";
 export * from "./preferences";
+export * from "./hints";
 export * from "./http";
 export * from "./sync";
 export * from "./otp";

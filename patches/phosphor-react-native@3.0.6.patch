@@ -1,0 +1,50 @@
+diff --git i/lib/commonjs/lib/icon-base.js w/lib/commonjs/lib/icon-base.js
+index 1bbeda178508edb6292cf9a86c2f7c14d671502d..d6d308fb5624eaa21d92221b9c03eee479bc7add 100644
+--- i/lib/commonjs/lib/icon-base.js
++++ w/lib/commonjs/lib/icon-base.js
+@@ -41,7 +41,11 @@ function IconBase({
+       })
+     }],
+     className: `${name}-${weight}__svg-icon-phosphor`,
+-    testID: props.testID ?? `phosphor-react-native-${name}-${weight}`,
++    // Sigil: icons are decorative by default; a caller opts in with its own props. The default
++    // testID ("phosphor-react-native-<name>-undefined") is dropped: it read as the node's name.
++    accessible: false,
++    accessibilityElementsHidden: true,
++    importantForAccessibility: "no-hide-descendants",
+     fill: "currentColor",
+     viewBox: "0 0 256 256",
+     width: size ?? contextSize,
+diff --git i/lib/module/lib/icon-base.js w/lib/module/lib/icon-base.js
+index e7b06415e4a72e328b21a84dd61ad44dafa28ae3..cdd95ccf20fb26769e75f8e46374775181022cc5 100644
+--- i/lib/module/lib/icon-base.js
++++ w/lib/module/lib/icon-base.js
+@@ -36,7 +36,11 @@ function IconBase({
+       })
+     }],
+     className: `${name}-${weight}__svg-icon-phosphor`,
+-    testID: props.testID ?? `phosphor-react-native-${name}-${weight}`,
++    // Sigil: icons are decorative by default; a caller opts in with its own props. The default
++    // testID ("phosphor-react-native-<name>-undefined") is dropped: it read as the node's name.
++    accessible: false,
++    accessibilityElementsHidden: true,
++    importantForAccessibility: "no-hide-descendants",
+     fill: "currentColor",
+     viewBox: "0 0 256 256",
+     width: size ?? contextSize,
+diff --git i/src/lib/icon-base.tsx w/src/lib/icon-base.tsx
+index 28da945d155e294fb7408f4c5aff525767598465..ff8236c89427d7c7867d02752b816bf5604a7edc 100644
+--- i/src/lib/icon-base.tsx
++++ w/src/lib/icon-base.tsx
+@@ -46,7 +46,10 @@ function IconBase({
+         },
+       ]}
+       className={`${name}-${weight}__svg-icon-phosphor`}
+-      testID={props.testID ?? `phosphor-react-native-${name}-${weight}`}
++      // Sigil: decorative unless the caller supplies accessibility props.
++      accessible={false}
++      accessibilityElementsHidden
++      importantForAccessibility="no-hide-descendants"
+       fill="currentColor"
+       viewBox="0 0 256 256"
+       width={size ?? contextSize}

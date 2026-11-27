@@ -1,11 +1,11 @@
 import { EQUIPMENT_KEYS, MUSCLE_GROUP_KEYS } from "@workspace/shared";
 import type { LibraryRow } from "@workspace/sync";
-import { ArrowCounterClockwise, Archive, CaretRight } from "phosphor-react-native";
+import { ArrowCounterClockwise, Archive, CaretRight, PushPin } from "phosphor-react-native";
 import { memo, useMemo } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
-import { useSubtleColor } from "@/platform/theme";
+import { useAccentTextColor, useSubtleColor } from "@/platform/theme";
 import { SwipeRow, type SwipeA11yProps, type SwipeAction } from "@/platform/ui/swipe-row";
 
 import { ExerciseThumbnail } from "./exercise-thumbnail";
@@ -20,6 +20,7 @@ export type ExerciseRowProps = {
   disabled?: boolean;
   /** Called with the id; without it a browse row is not pressable and shows no chevron. */
   onPress?: (id: string) => void;
+  onSetPinned?: (id: string, pinned: boolean) => Promise<void>;
   /**
    * Swipe a Custom exercise to archive it (or restore it, once archived). Pass them only in the
    * Custom and Archived views; a row without them does not swipe.
@@ -39,6 +40,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   selectedOrder,
   disabled = false,
   onPress,
+  onSetPinned,
   onArchive,
   onRestore,
 }: ExerciseRowProps) {
@@ -71,6 +73,7 @@ export const ExerciseRow = memo(function ExerciseRow({
     return [];
   }, [mode, isCustom, isArchived, id, title, onArchive, onRestore, t]);
   const subtle = useSubtleColor();
+  const accent = useAccentTextColor();
   const selectedLabel = selected ? t("exercise__pick_position", { position: selectedOrder }) : "";
   const subtitle = t("exercise__row_subtitle", {
     muscle: t(MUSCLE_GROUP_KEYS[exercise.primaryMuscle]),
@@ -113,8 +116,8 @@ export const ExerciseRow = memo(function ExerciseRow({
       </View>
       {mode === "pick" ? (
         <View
-          className={`size-7 items-center justify-center rounded-full border ${
-            selected ? "border-accent bg-accent" : "border-transparent bg-default"
+          className={`size-7 items-center justify-center rounded-full ${
+            selected ? "bg-accent" : "bg-default"
           }`}
         >
           {selected ? (
@@ -128,5 +131,26 @@ export const ExerciseRow = memo(function ExerciseRow({
       ) : null}
     </Pressable>
   );
-  return swipe.length > 0 ? <SwipeRow actions={swipe}>{content}</SwipeRow> : content({});
+  if (swipe.length > 0) return <SwipeRow actions={swipe}>{content}</SwipeRow>;
+  if (!onSetPinned || (isArchived && !exercise.isPinned)) return content({});
+  return (
+    <View className={`flex-row items-center ${selected ? "bg-default" : "bg-background"}`}>
+      <View className="flex-1">{content({})}</View>
+      <Pressable
+        className="mr-2 size-11 items-center justify-center rounded-full active:bg-default"
+        accessibilityRole="button"
+        accessibilityState={{ selected: exercise.isPinned }}
+        accessibilityLabel={t(exercise.isPinned ? "exercise__unpin_named" : "exercise__pin_named", {
+          title,
+        })}
+        onPress={() => void onSetPinned(id, !exercise.isPinned).catch(() => undefined)}
+      >
+        <PushPin
+          size={20}
+          weight={exercise.isPinned ? "fill" : "regular"}
+          color={exercise.isPinned ? accent : subtle}
+        />
+      </Pressable>
+    </View>
+  );
 });

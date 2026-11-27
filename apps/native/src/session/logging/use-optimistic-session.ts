@@ -9,6 +9,7 @@ import { blockOf, highlightOf } from "./blocks";
 import { previewValuePatch, savedSession, type PendingWrite, type SetChange } from "./optimistic";
 import { RestNudges } from "@/session/rest/rest-nudges";
 import type { useSessionActions } from "@/session/screen/use-session-actions";
+import { adjustmentLoadsOf } from "@/session/store/derive";
 import type { SessionStore } from "@/session/store/session-store";
 
 type Actions = ReturnType<typeof useSessionActions>;
@@ -85,7 +86,7 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
               ? pending.filter((write) => write.id !== id)
               : pending,
           );
-      if (!change?.set && !change?.rest && !change?.clock) {
+      if (!change?.set && !change?.removedSetId && !change?.rest && !change?.clock) {
         drop();
         return;
       }
@@ -102,15 +103,20 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
   const updateValues = useCallback(
     (setId: string, patch: SetPatch) => {
       const value = previewValuePatch(patch);
+      const state = store.getState();
+      const at = state.found.get(setId);
+      const entry = at && state.cache.get(at.exercise.id);
+      // Correcting a ticked set reads its adjustment again, with the loads a tick uses.
+      const loads = entry && !entry.finished ? adjustmentLoadsOf(entry) : undefined;
       const { id, set } = addPreview(setId, value);
       return enqueueWrite(async () => {
-        const wrote = await actions.updateValues(setId, patch);
+        const wrote = await actions.updateValues(setId, patch, loads);
         settle(id, wrote ? { set } : undefined);
         // A patch that was already saved is safe to tick; a failed patch is not.
         return wrote !== null;
       });
     },
-    [actions.updateValues, addPreview, enqueueWrite, settle],
+    [actions.updateValues, addPreview, enqueueWrite, settle, store],
   );
 
   const tick = useCallback(
@@ -124,6 +130,9 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
     ) => {
       const state = store.getState();
       const at = state.found.get(setId);
+      const draft = at && state.views.get(at.exercise.id)?.prescriptionDraft;
+      const entry = at && state.cache.get(at.exercise.id);
+      const loads = entry && !entry.finished ? adjustmentLoadsOf(entry) : undefined;
       const block = at && blockOf(state.blocks, at.exercise.id);
       const finishesBlock =
         at && block && state.expanded.has(at.exercise.id) && !highlightOf(block, setId);
@@ -135,7 +144,7 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
         }
         await nudges.release();
         const before = savedSession(store.getState()).rest;
-        const result = await actions.tick(setId, ghosts, restSeconds, expiresAt);
+        const result = await actions.tick(setId, ghosts, restSeconds, expiresAt, draft, loads);
         if (!result?.ok || !result.wrote) {
           settle(id);
           return result;
@@ -185,6 +194,22 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
       });
     },
     [actions.untick, addPreview, enqueueWrite, nudges, settle, store],
+  );
+
+  const removeOneSet = useCallback(
+    (setId: string) => {
+      const state = store.getState();
+      if (!state.setsById.has(setId)) return Promise.resolve(false);
+      const id = Symbol();
+      state.updatePending((pending) => [...pending, { id, removedSetId: setId }]);
+      return enqueueWrite(async () => {
+        await nudges.release();
+        const removed = await actions.removeOneSet(setId, () => settle(id));
+        settle(id, removed ? { removedSetId: setId } : undefined);
+        return removed;
+      });
+    },
+    [actions.removeOneSet, enqueueWrite, nudges, settle, store],
   );
 
   const skipRest = useCallback(
@@ -237,12 +262,23 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
       ...actions,
       tick,
       untick,
+      removeOneSet,
       skipRest,
       nudgeRest,
       updateValues,
       awaitWrites,
       togglePause,
     }),
-    [actions, tick, untick, skipRest, nudgeRest, updateValues, awaitWrites, togglePause],
+    [
+      actions,
+      tick,
+      untick,
+      removeOneSet,
+      skipRest,
+      nudgeRest,
+      updateValues,
+      awaitWrites,
+      togglePause,
+    ],
   );
 }

@@ -1,12 +1,17 @@
 import {
+  resolveExerciseUnit,
+  type WeightUnit,
   type Equipment,
   type ExerciseType,
   type PlannedSet,
   type SetKind,
+  incrementInUnit,
 } from "@workspace/shared";
+import { Trash } from "phosphor-react-native";
 import { useState } from "react";
 import { View } from "react-native";
 
+import { useGymLoads } from "@/gym";
 import { useTranslation } from "@/platform/i18n";
 
 import {
@@ -27,20 +32,25 @@ import { SetTypeSheet } from "./set-type-sheet";
 /** Shared by the inline row and the detailed screen: custom sets have identical behavior. */
 export function DetailedTargets({
   sets,
+  exerciseId,
   type,
   equipment = null,
+  unit,
   animateRows = true,
   onSets,
 }: {
   sets: readonly PlannedSet[];
+  exerciseId: string;
   type: ExerciseType;
   /** The exercise's equipment, for the keypad's step. */
   equipment?: Equipment | null;
+  unit?: WeightUnit | null;
   animateRows?: boolean;
   onSets: (sets: PlannedSet[]) => void;
 }) {
   const { t } = useTranslation();
   const preferences = useTrainingPreferences();
+  const gym = useGymLoads();
   const [kindFor, setKindFor] = useState<number | null>(null);
   const [effortFor, setEffortFor] = useState<number | null>(null);
   // Draft ids follow the rows through edits, adds and removals, so row state stays with its set.
@@ -67,9 +77,14 @@ export function DetailedTargets({
         sets={sets}
         ids={ids}
         chips={chipTexts(sets, letters)}
-        weightUnit={preferences.weightUnit}
-        weightIncrementKg={preferences.weightIncrementKg}
+        weightUnit={resolveExerciseUnit(preferences.weightUnit, unit)}
+        weightIncrementKg={incrementInUnit(
+          preferences.weightIncrementKg,
+          preferences.weightIncrementUnit ?? preferences.weightUnit,
+          resolveExerciseUnit(preferences.weightUnit, unit),
+        )}
         equipment={equipment}
+        grid={gym.gridFor(exerciseId, equipment ?? "other", unit)}
         animateRows={animateRows}
         effortScale={preferences.effortScale}
         onChange={(index, change) => {
@@ -88,6 +103,19 @@ export function DetailedTargets({
         }}
         value={kindFor === null ? "working" : (sets[kindFor]?.kind ?? "working")}
         warmupsAllowed={supportsWarmups(type)}
+        extras={
+          kindFor !== null && sets.length > 1
+            ? [
+                {
+                  key: "remove",
+                  label: t("training__remove"),
+                  icon: Trash,
+                  tone: "danger",
+                  onPress: () => onSets(removeSetAt(sets, kindFor)),
+                },
+              ]
+            : undefined
+        }
         onSelect={(kind) => {
           const index = kindFor;
           const set = index === null ? undefined : sets[index];

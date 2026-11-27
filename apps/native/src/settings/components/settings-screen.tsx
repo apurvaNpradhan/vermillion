@@ -1,15 +1,14 @@
 import { AvatarPicker } from "@/account";
-import { useBodyReminderRows, HidePhotosRow, WeightPreferenceRow } from "@/body";
+import { HidePhotosRow, WeightPreferenceRow } from "@/body";
 import { isNetworkError } from "@workspace/client/network-error";
 import { useRouter } from "expo-router";
 import {
   Barbell,
+  Bell,
   ChatCircleText,
   Database,
-  Hash,
   Info,
   ListChecks,
-  LinkSimple,
   SignOut,
   Trash,
 } from "phosphor-react-native";
@@ -31,10 +30,11 @@ import { SyncBanner, useSignOutConfirmation } from "@/sync";
 
 import { CrashReportsRow } from "./crash-reports-row";
 import { FeedbackSheet } from "./feedback-sheet";
+import { ShowTipsRow } from "./show-tips-row";
 
 /**
  * Settings as grouped rows: the profile picture, Preferences (appearance, language, time zone,
- * units), Workouts (a pushed page of its own), Body, Help, Data and Account. Rows that open picker
+ * units), Workouts (a pushed page of its own), Body, Notifications (a pushed page of its own), Help, Data and Account. Rows that open picker
  * sheets show their current value.
  */
 export function SettingsScreen() {
@@ -43,7 +43,6 @@ export function SettingsScreen() {
   const signOut = useSignOut();
   const online = useIsOnline();
   const { requestSignOut, confirmationProps } = useSignOutConfirmation(() => signOut.mutate());
-  const reminders = useBodyReminderRows();
   const training = useTrainingPreferenceRows();
   const { session } = useSession();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -52,7 +51,6 @@ export function SettingsScreen() {
     <>
       <ConfirmationDialog {...confirmationProps} />
       {training.sheets}
-      {reminders.editor}
       <FeedbackSheet
         isOpen={feedbackOpen}
         onOpenChange={setFeedbackOpen}
@@ -71,6 +69,8 @@ export function SettingsScreen() {
             description={t("settings__workouts_hint")}
             onPress={() => router.push("/settings/workouts")}
           />
+          {training.rows.equipment}
+          {training.rows.gyms}
         </ListSection>
         <ListSection title={t("settings__section_body")}>
           <WeightPreferenceRow />
@@ -80,7 +80,14 @@ export function SettingsScreen() {
             title={t("body__tracked_metrics")}
             onPress={() => router.push("/settings/tracked-metrics")}
           />
-          {reminders.rows}
+        </ListSection>
+        <ListSection title={t("settings__section_notifications")}>
+          <ListRow
+            icon={Bell}
+            title={t("settings__notifications_screen")}
+            description={t("settings__notifications_hint")}
+            onPress={() => router.push("/settings/notifications")}
+          />
         </ListSection>
         <ListSection title={t("settings__section_help")}>
           <ListRow
@@ -98,6 +105,7 @@ export function SettingsScreen() {
                 );
             }}
           />
+          <ShowTipsRow />
           <CrashReportsRow />
           <ListRow
             icon={Info}
@@ -107,20 +115,6 @@ export function SettingsScreen() {
               name: appConfig.displayName,
               version: appConfig.version,
             })}
-          />
-        </ListSection>
-        <ListSection title={t("settings__section_sharing")}>
-          <ListRow
-            icon={Hash}
-            title={t("share__enter_code_title")}
-            description={t("settings__enter_code_hint")}
-            onPress={() => router.push("/import")}
-          />
-          <ListRow
-            icon={LinkSimple}
-            title={t("share__links_title")}
-            description={t("settings__shared_links_hint")}
-            onPress={() => router.push("/settings/shared-links")}
           />
         </ListSection>
         <ListSection title={t("settings__section_data")}>

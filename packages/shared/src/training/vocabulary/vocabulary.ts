@@ -21,6 +21,14 @@ export function rirToRpe(rir: number): number {
 export const WEIGHT_UNITS = ["kg", "lb"] as const;
 export type WeightUnit = (typeof WEIGHT_UNITS)[number];
 
+/** Exercises follow the account preference until they have a unit of their own. */
+export function resolveExerciseUnit(
+  preferred: WeightUnit,
+  override: WeightUnit | null | undefined,
+): WeightUnit {
+  return override ?? preferred;
+}
+
 /**
  * Deprecated: the full-screen Timer is gone and every workout opens on its sets. "timer" stays a
  * valid value so stored preferences and older apps' writes still validate; nothing reads it.
@@ -76,6 +84,14 @@ export const TRAINING_LIMITS = {
   /** Live Programs and Workouts (standalone and owned) one account may hold. */
   livePrograms: 100,
   liveWorkouts: 500,
+  /** Live gyms one account may hold. */
+  liveGyms: 10,
+  /** Live Slot skips one Run may hold (one per Slot and Cycle). */
+  skipsPerRun: 1000,
+  /** The highest Cycle a skip may name. */
+  cycleMax: 10_000,
+  /** Deload weeks one Run may have inserted. */
+  insertedDeloadsMax: 52,
 } as const;
 
 /**

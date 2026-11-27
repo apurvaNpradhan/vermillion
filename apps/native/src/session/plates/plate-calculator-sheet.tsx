@@ -1,5 +1,6 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { BottomSheet } from "heroui-native";
 
 import { mountOnOpen } from "@/platform/ui/mount-on-open";
@@ -15,11 +16,13 @@ import { Button } from "@/platform/ui/button";
 import { SegmentedControl } from "@/platform/ui/segmented-control";
 import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
 import {
+  formatEquipmentWeight,
   addToStack,
   clearStack,
   formatDifference,
   hasTarget,
   loadChoices,
+  withinCap,
   plateGroups,
   overInventory,
   plateRole,
@@ -100,6 +103,8 @@ function PlateCalculatorSheetBody({
   targetKg,
   exerciseId,
   equipment,
+  gymId,
+  unitOverride,
   onUse,
   onClose,
 }: {
@@ -110,13 +115,19 @@ function PlateCalculatorSheetBody({
   exerciseId: string;
   /** The exercise's equipment: an EZ bar or trap bar opens on its own bar. */
   equipment?: Equipment;
+  /** The Session's gym, whose kit and cap the calculator uses; none is the gym trained at. */
+  gymId?: string | null;
+  unitOverride?: WeightUnit | null;
   onUse: (weightKg: number) => void;
   onClose: () => void;
 }) {
   const animation = useSheetAnimation();
   const { t } = useTranslation();
   // Data hooks stay above the portal host; closed sheets subscribe to neither inventory nor bars.
-  const state = usePlates(targetKg, exerciseId, isOpen, equipment);
+  const state = usePlates(targetKg, exerciseId, isOpen, equipment, gymId, unitOverride);
+  const equipmentRoute = gymId
+    ? ({ pathname: "/session/equipment", params: { gymId } } as const)
+    : "/session/equipment";
   return (
     <BottomSheet
       animation={animation}
@@ -125,7 +136,7 @@ function PlateCalculatorSheetBody({
         if (!open) onClose();
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         {/* A fixed height and the sheet's own scroll view: a plain ScrollView loses its drags to
             the sheet's pan gesture, so the body could not be scrolled. */}
@@ -139,9 +150,16 @@ function PlateCalculatorSheetBody({
           <View className="px-4 pb-3 pt-2">
             <BottomSheet.Title>{t("plates__title")}</BottomSheet.Title>
           </View>
-          {isOpen ? <CalculatorBody state={state} onUse={onUse} onClose={onClose} /> : null}
+          {isOpen ? (
+            <CalculatorBody
+              state={state}
+              equipmentRoute={equipmentRoute}
+              onUse={onUse}
+              onClose={onClose}
+            />
+          ) : null}
         </FixedSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }
@@ -152,10 +170,13 @@ type Mode = "calculate" | "build";
 
 function CalculatorBody({
   state,
+  equipmentRoute,
   onUse,
   onClose,
 }: {
   state: ReturnType<typeof usePlates>;
+  /** Bars and plates of the Session's gym, when it has one. */
+  equipmentRoute: Href;
   onUse: (weightKg: number) => void;
   onClose: () => void;
 }) {
@@ -163,14 +184,16 @@ function CalculatorBody({
   const router = useRouter();
   const { bottom } = useSafeAreaInsets();
   const label = useEquipmentLabel();
-  const unit = state.barUnit;
+  const unit = state.displayUnit;
   const weight = (kg: number, own: WeightUnit = unit) =>
     t("plates__weight", { weight: formatWeight(kg, own), unit: own });
+  const plateWeight = (kg: number) =>
+    t("plates__weight", { weight: formatEquipmentWeight(kg, unit), unit });
   const [picked, setPicked] = useState<{ barId: string; side: LoadSide } | null>(null);
   const [mode, setMode] = useState<Mode>("calculate");
   const [stack, setStack] = useState<LoadPlate[]>([]);
   const result = state.result;
-  const choices = result ? loadChoices(state.target, result) : [];
+  const choices = result ? loadChoices(state.target, result, state.cap) : [];
   const choice = selectedChoice(
     choices,
     picked && picked.barId === state.bar?.id ? picked.side : null,
@@ -188,8 +211,11 @@ function CalculatorBody({
           plates: plateGroups(platesPerSide)
             .map((group) =>
               group.count === 1
-                ? weight(group.weightKg)
-                : t("plates__plate_count", { count: group.count, weight: weight(group.weightKg) }),
+                ? plateWeight(group.weightKg)
+                : t("plates__plate_count", {
+                    count: group.count,
+                    weight: plateWeight(group.weightKg),
+                  }),
             )
             .join(", "),
         });
@@ -197,11 +223,12 @@ function CalculatorBody({
     t(kg < 0 ? "plates__under" : "plates__over", {
       weight: t("plates__weight", { weight: formatDifference(kg, unit), unit }),
     });
-  const canUse = building ? true : choice !== null;
+  const barFits = withinCap(barKg, state.cap);
+  const canUse = withinCap(totalKg, state.cap) && (building || choice !== null);
   const use = async () => {
     if (!canUse || !state.bar) return;
     if (await state.chooseBar(state.bar.id)) {
-      onUse(totalKg);
+      onUse(Math.min(totalKg, state.cap ?? totalKg));
       onClose();
     }
   };
@@ -217,7 +244,7 @@ function CalculatorBody({
     indicator: state.indicator,
   });
   const unitPlates = state.rows.flatMap((p) =>
-    p.kind === "plate" && p.unit === unit && p.enabled ? [p] : [],
+    p.kind === "plate" && p.unit === state.barUnit && p.enabled ? [p] : [],
   );
   const over = overInventory(stack, state.plates);
   const loaded = !state.failed && !state.loading;
@@ -254,7 +281,7 @@ function CalculatorBody({
                 accessibilityLabel={t("plates__missing_bar", { name: state.missingBar })}
                 onPress={() => {
                   onClose();
-                  router.push("/session/equipment");
+                  router.push(equipmentRoute);
                 }}
                 className="min-h-11 justify-center active:opacity-70"
               >
@@ -265,6 +292,13 @@ function CalculatorBody({
             ) : null}
             {!state.bar ? (
               <Text className="font-normal text-body text-muted">{t(noBarKey)}</Text>
+            ) : !barFits ? (
+              <View className="gap-1">
+                <Text className="text-caption text-muted">
+                  {state.cap === null ? null : t("gym__plate_cap", { weight: weight(state.cap) })}
+                </Text>
+                <Text className="text-body text-muted">{t("gym__plate_bar_above_cap")}</Text>
+              </View>
             ) : (
               <>
                 <SegmentedControl
@@ -292,6 +326,11 @@ function CalculatorBody({
                   </View>
                 ) : null}
                 <View className="gap-1">
+                  {state.cap !== null ? (
+                    <Text className="text-caption text-muted">
+                      {t("gym__plate_cap", { weight: weight(state.cap) })}
+                    </Text>
+                  ) : null}
                   {!building && hasTarget(state.target) ? (
                     <Text className="font-medium text-label text-muted tabular-nums">
                       {t("plates__target", { weight: weight(state.target) })}
@@ -333,12 +372,13 @@ function CalculatorBody({
                 </View>
                 <BarDiagram
                   platesPerSide={platesPerSide}
-                  unit={unit}
+                  unit={state.barUnit}
+                  displayUnit={unit}
                   label={sideText}
                   onPlatePress={
                     building ? (index) => setStack(removeFromStack(stack, index)) : undefined
                   }
-                  plateLabel={(kg) => t("plates__remove_plate", { weight: weight(kg) })}
+                  plateLabel={(kg) => t("plates__remove_plate", { weight: plateWeight(kg) })}
                 />
                 {building ? (
                   <>
@@ -371,9 +411,12 @@ function CalculatorBody({
                           removeLabel={t("plates__remove_plate", { weight: label(p) })}
                           onRemove={() => setStack(removeKindFromStack(stack, p.id))}
                           onPress={() =>
-                            setStack(
-                              addToStack(stack, { id: p.id, weightKg: p.weightKg, count: p.count }),
-                            )
+                            setStack((current) => {
+                              const next = addToStack(current, p);
+                              return withinCap(stackTotalKg(barKg, next), state.cap)
+                                ? next
+                                : current;
+                            })
                           }
                         />
                       ))}
@@ -397,7 +440,7 @@ function CalculatorBody({
           variant="ghost"
           onPress={() => {
             onClose();
-            router.push("/session/equipment");
+            router.push(equipmentRoute);
           }}
         >
           {t("plates__manage")}

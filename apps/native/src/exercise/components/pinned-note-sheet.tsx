@@ -1,4 +1,5 @@
 import { SESSION_LIMITS } from "@workspace/shared";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { useEffect, useState } from "react";
 import { Keyboard, TextInput, View } from "react-native";
@@ -38,7 +39,7 @@ export function PinnedNoteSheet({
         onOpenChange(open);
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
           bottomInset={keyboardHeight}
@@ -79,7 +80,7 @@ export function PinnedNoteSheet({
             <Button.Label>{t("training__effort_done")}</Button.Label>
           </Button>
         </BottomSheet.Content>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

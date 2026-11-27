@@ -14,6 +14,21 @@ The app and the server release independently: installed apps lag the server by d
 
 If the container loops on start, a migration failed. The old container is already gone, so the API is down: roll back (below) and read the `db.startup` error.
 
+### Pre-deploy data repairs
+
+Run these once for the release that needs them (the table says whether that is before or after the API deploy). Each script defaults to a dry run that prints the rows it would change and writes nothing; read them, then rerun with `--apply`. Point `DATABASE_URL` at the production database through the Dokploy database service (never from a laptop's saved connection), and take a manual backup first (see Postgres and backups).
+
+| Release     | Script                                                                                                                                                                                                                                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Week phases | `scripts/ops/repair-run-started-at.sh`: resets `program_run.started_at` to the start of the Run's earliest live Session where it is empty or later than that Session. A Run's phases count weeks from `started_at`, so a Run that starts late would put a Session in the wrong week. Runs with no live Session are left alone. |
+
+```sh
+DATABASE_URL=postgres://… scripts/ops/repair-run-started-at.sh           # dry run
+DATABASE_URL=postgres://… scripts/ops/repair-run-started-at.sh --apply   # one transaction
+```
+
+Run it dry first, then with `--apply`, **after the API deploy** (and before the app release). From that deploy on the server keeps the earlier of the stored and the uploaded `started_at`, so a Run can no longer start late through an upload, and a second run is not needed. Old app builds that still upload a later start are handled by the same rule. The repair is safe to rerun: a second run finds nothing.
+
 ## Roll back
 
 | Half   | How                                                                                                                                                                                                                                                                                                  |

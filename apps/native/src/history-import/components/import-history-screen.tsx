@@ -177,6 +177,11 @@ export function ImportHistoryScreen({
                   count: file.workouts,
                 })}
               </Text>
+              {file.from && file.to ? (
+                <Text className="font-normal text-caption text-muted">
+                  {`${formatSourceDate(file.from)} – ${formatSourceDate(file.to)}`}
+                </Text>
+              ) : null}
             </View>
             <StatTiles
               items={[
@@ -187,13 +192,6 @@ export function ImportHistoryScreen({
                 {
                   label: t("import__stat_sets"),
                   value: summary.planning ? "…" : String(summary.sets),
-                },
-                {
-                  label: t("import__stat_dates"),
-                  value:
-                    file.from && file.to
-                      ? `${formatSourceDate(file.from)} – ${formatSourceDate(file.to)}`
-                      : "–",
                 },
                 {
                   label: t("import__stat_skipped"),
@@ -266,12 +264,12 @@ export function ImportHistoryScreen({
                 ))}
               </ListSection>
             ) : (
-              <Text className="font-normal px-1 text-caption text-muted">
+              <Text className="font-normal text-caption text-muted">
                 {t("import__all_matched", { count: flow.matchedCount })}
               </Text>
             )}
             {!summary.planning && summary.skippedOther > 0 ? (
-              <Text className="font-normal px-1 text-caption text-muted">
+              <Text className="font-normal text-caption text-muted">
                 {t("import__skipped_other", { count: summary.skippedOther })}
               </Text>
             ) : null}

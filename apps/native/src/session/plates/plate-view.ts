@@ -1,8 +1,7 @@
 import {
   defaultGymKit,
-  EZ_BAR_LABEL,
   KG_PER_LB,
-  TRAP_BAR_LABEL,
+  withinLoadCap,
   type BarLoad,
   type BarLoading,
   type Equipment,
@@ -12,93 +11,28 @@ import {
 } from "@workspace/shared";
 import type { EquipmentRow } from "@workspace/sync";
 
+export { defaultBar, enabledBars, missingBarLabel, platesForBar } from "@workspace/shared";
+
 /** Pure view logic of the plate calculator and the equipment screen. */
+
+/** Inventory weights can use quarter-pound plates, even though logged sets use half-pound steps. */
+export function formatEquipmentWeight(kg: number, unit: WeightUnit): string {
+  return String(Number((unit === "kg" ? kg : kg / KG_PER_LB).toFixed(2)));
+}
+
+export function parseEquipmentWeight(text: string, unit: WeightUnit): number | null {
+  const cleaned = text.trim().replace(",", ".");
+  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null;
+  const weight = Number(cleaned);
+  return unit === "kg" ? weight : weight * KG_PER_LB;
+}
 
 /** Kilograms of difference below which two weights are the same load. */
 const SAME = 0.0005;
 
-/** The enabled bars, in the stored order. */
-export function enabledBars(rows: readonly EquipmentRow[]): EquipmentRow[] {
-  return rows.filter((row) => row.kind === "bar" && row.enabled);
-}
-
-/** The plates the solver may use for a bar: enabled, and in the bar's own unit. */
-export function platesForBar(
-  rows: readonly EquipmentRow[],
-  bar: Pick<EquipmentRow, "unit">,
-): LoadPlate[] {
-  return rows.flatMap((row) =>
-    row.kind === "plate" && row.enabled && row.unit === bar.unit
-      ? [{ id: row.id, weightKg: row.weightKg, count: row.count }]
-      : [],
-  );
-}
-
-const STANDARD_BAR_KG = { kg: 20, lb: 45 * KG_PER_LB } as const satisfies Record<
-  WeightUnit,
-  number
->;
-
 /** Whether the plate calculator is offered for an exercise's equipment: bars loaded with plates. */
 export function usesPlateCalculator(equipment: Equipment | undefined): boolean {
   return equipment === "barbell" || equipment === "ez_bar" || equipment === "trap_bar";
-}
-
-/** The bar label an EZ bar or trap bar exercise opens on; null for other equipment. */
-export function barLabelFor(equipment: Equipment | null | undefined): string | null {
-  if (equipment === "ez_bar") return EZ_BAR_LABEL;
-  if (equipment === "trap_bar") return TRAP_BAR_LABEL;
-  return null;
-}
-
-const sameLabel = (a: string | null, b: string) =>
-  (a ?? "").trim().toLowerCase() === b.toLowerCase();
-
-/** The enabled bar labelled for the equipment (case-insensitive), the preferred unit's first. */
-function labelledBar(
-  bars: readonly EquipmentRow[],
-  equipment: Equipment | null | undefined,
-  preferred: WeightUnit,
-): EquipmentRow | undefined {
-  const label = barLabelFor(equipment);
-  if (label === null) return undefined;
-  const found = bars.filter((bar) => sameLabel(bar.label, label));
-  return found.find((bar) => bar.unit === preferred) ?? found[0];
-}
-
-/**
- * The label an EZ bar or trap bar exercise needs when no enabled bar carries it, so the sheet can
- * point at Manage equipment; null when the bar exists or the equipment needs none.
- */
-export function missingBarLabel(
-  bars: readonly EquipmentRow[],
-  equipment: Equipment | null | undefined,
-): string | null {
-  const label = barLabelFor(equipment);
-  return label !== null && !bars.some((bar) => sameLabel(bar.label, label)) ? label : null;
-}
-
-/**
- * The bar the calculator starts on: the one the exercise remembers if it is still enabled; for an
- * EZ bar or trap bar exercise the enabled bar labelled "EZ" or "Trap"; else the standard bar of
- * the preferred unit (20 kg, 45 lb), else the first bar of that unit, else the first bar.
- */
-export function defaultBar(
-  bars: readonly EquipmentRow[],
-  rememberedId: string | null | undefined,
-  preferred: WeightUnit,
-  equipment?: Equipment | null,
-): EquipmentRow | undefined {
-  const remembered = rememberedId ? bars.find((bar) => bar.id === rememberedId) : undefined;
-  if (remembered) return remembered;
-  const labelled = labelledBar(bars, equipment, preferred);
-  if (labelled) return labelled;
-  const inUnit = bars.filter((bar) => bar.unit === preferred);
-  return (
-    inUnit.find((bar) => Math.abs(bar.weightKg - STANDARD_BAR_KG[preferred]) < SAME) ??
-    inUnit[0] ??
-    bars[0]
-  );
 }
 
 /** A target the calculator can work with; zero or empty asks the user to enter a weight. */
@@ -114,25 +48,33 @@ export type LoadChoice = { side: LoadSide; load: BarLoad; differenceKg: number }
  * nearest load below and above the target, each with its signed distance from it (negative is
  * under the target). A target below the bar has only the bare bar, as the `above` choice.
  */
-export function loadChoices(targetKg: number, result: BarLoading): LoadChoice[] {
+export function loadChoices(
+  targetKg: number,
+  result: BarLoading,
+  capKg: number | null = null,
+): LoadChoice[] {
   if (result.exact) {
     const load = result.below ?? result.above ?? result;
-    return [{ side: "below", load, differenceKg: 0 }];
+    return withinCap(load.totalKg, capKg) ? [{ side: "below", load, differenceKg: 0 }] : [];
   }
   const choices: LoadChoice[] = [];
-  if (result.below)
+  if (result.below && withinCap(result.below.totalKg, capKg))
     choices.push({
       side: "below",
       load: result.below,
       differenceKg: result.below.totalKg - targetKg,
     });
-  if (result.above)
+  if (result.above && withinCap(result.above.totalKg, capKg))
     choices.push({
       side: "above",
       load: result.above,
       differenceKg: result.above.totalKg - targetKg,
     });
   return choices;
+}
+
+export function withinCap(weightKg: number, capKg: number | null): boolean {
+  return withinLoadCap(weightKg, capKg);
 }
 
 /** The nearest choice to the target; a tie goes to the lower load. Null with no choices. */

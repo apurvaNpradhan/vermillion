@@ -130,13 +130,15 @@ export function RestPicker({
   value,
   onChange,
   group = false,
-  chip = false,
+  compact = false,
+  beforeOpen,
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
   group?: boolean;
-  /** A small chip ("Rest 2:00", muted text and icon, no fill) instead of a full-width row. */
-  chip?: boolean;
+  /** Use an icon button in the exercise header. */
+  compact?: boolean;
+  beforeOpen?: (proceed: () => void) => void;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
@@ -148,6 +150,10 @@ export function RestPicker({
   const choose = (next: number) => {
     setDraft(next);
     setVersion((current) => current + 1);
+  };
+  const openPicker = () => {
+    choose(value ?? 120);
+    setOpen(true);
   };
   return (
     <>
@@ -162,23 +168,17 @@ export function RestPicker({
         accessibilityState={{ expanded: open }}
         onPress={() => {
           Keyboard.dismiss();
-          choose(value ?? 120);
-          setOpen(true);
+          if (beforeOpen) beforeOpen(openPicker);
+          else openPicker();
         }}
         className={
-          chip
-            ? "min-h-11 flex-row items-center gap-1.5 self-start rounded-full px-2 active:bg-default"
+          compact
+            ? "h-11 w-11 items-center justify-center rounded-full active:bg-default"
             : "min-h-11 flex-row items-center gap-2 rounded-xl bg-default px-3"
         }
       >
-        <Timer size={chip ? 16 : 20} color={subtle} />
-        {chip ? (
-          <Text className="font-medium text-label text-muted tabular-nums">
-            {t(group ? "session__rest_chip_group" : "session__rest_chip", {
-              value: value === null ? t("session__chip_off") : formatClock(value),
-            })}
-          </Text>
-        ) : (
+        <Timer size={20} color={subtle} />
+        {compact ? null : (
           <>
             <Text className="font-medium flex-1 text-label text-muted">
               {t(group ? "training__rest_group_title" : "training__rest_title")}

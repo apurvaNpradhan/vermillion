@@ -1,20 +1,144 @@
 import type { DbExecutor } from "@workspace/db";
-import type { SessionInput } from "@workspace/shared";
-import { eq } from "drizzle-orm";
+import {
+  deloadLogged,
+  insertedDeloadsSchema,
+  PHASE_WEEK_MAX,
+  runPausesSchema,
+  timezoneSchema,
+  TRAINING_LIMITS,
+  type RunPause,
+  type SessionInput,
+} from "@workspace/shared";
+import { and, eq, exists, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { SyncRejection, type SyncTableHandler } from "../platform/sync/handler";
 import { liveProgram, lockUserTraining } from "./operations/lookup";
-import { accept, idOf, newRowId, now } from "./sync-common";
-import { programRun, programSlot } from "./tables";
+import { accept, idOf, jsonText, newRowId, now } from "./sync-common";
+import { programRun, programSlot, session, sessionExercise, sessionSet } from "./tables";
 
-const input = z.strictObject({
+const fields = {
   program_id: z.uuid(),
   activated_at: z.iso.datetime({ offset: true }),
-  started_at: z.iso.datetime({ offset: true }).nullable().default(null),
-  finished_at: z.iso.datetime({ offset: true }).nullable().default(null),
-  outcome: z.enum(["completed", "stopped"]).nullable().default(null),
-  continued_at: z.iso.datetime({ offset: true }).nullable().default(null),
+  started_at: z.iso.datetime({ offset: true }).nullable(),
+  finished_at: z.iso.datetime({ offset: true }).nullable(),
+  outcome: z.enum(["completed", "stopped"]).nullable(),
+  continued_at: z.iso.datetime({ offset: true }).nullable(),
+  // JSON text of the Run weeks turned into Deload weeks; absent from an older app's write.
+  inserted_deloads: jsonText(insertedDeloadsSchema).nullable(),
+  pauses: jsonText(runPausesSchema).nullable(),
+};
+// A write fills what it leaves out; a PATCH must not (zod applies defaults to `.partial()` too).
+const input = z.strictObject({
+  ...fields,
+  started_at: fields.started_at.default(null),
+  finished_at: fields.finished_at.default(null),
+  outcome: fields.outcome.default(null),
+  continued_at: fields.continued_at.default(null),
+  inserted_deloads: fields.inserted_deloads.default(null),
+  pauses: fields.pauses.default(null),
 });
+// The weeks stay text here: `input` parses them once, after the patch is merged onto the row.
+const patchInput = z
+  .strictObject({
+    ...fields,
+    inserted_deloads: z.string().nullable(),
+    pauses: z.string().nullable(),
+    deload_change: z.string().optional(),
+  })
+  .partial();
+const deloadWeek = z.int().min(1).max(PHASE_WEEK_MAX);
+const deloadChange = jsonText(
+  z.discriminatedUnion("action", [
+    z.strictObject({ action: z.literal("insert"), week: deloadWeek }),
+    z.strictObject({ action: z.literal("undo"), week: deloadWeek, timezone: timezoneSchema }),
+  ]),
+);
+
+/** Legacy snapshots can add weeks, except weeks already taken back by an explicit undo. */
+function mergeLegacyWeeks(
+  stored: readonly number[] | null,
+  incoming: readonly number[] | null,
+  undone: readonly number[],
+) {
+  if (incoming === null && stored === null) return null;
+  const added = (incoming ?? []).filter((week) => !undone.includes(week));
+  return [...new Set([...(stored ?? []), ...added])].sort((a, b) => a - b);
+}
+
+/**
+ * An undo is refused once a counted Session was started as the Deload in that Run week. A Build
+ * Session logged earlier in the week does not count: it was not the Deload. The rule is the shared
+ * one. The query reads the Deload Sessions already uploaded when the undo is applied.
+ */
+async function assertNoCountedDeload(
+  db: DbExecutor,
+  run: typeof programRun.$inferSelect,
+  week: number,
+  timezone: string,
+) {
+  const starts = await db
+    .select({ at: session.startedAt })
+    .from(session)
+    .where(
+      and(
+        eq(session.runId, run.id),
+        eq(session.userId, run.userId),
+        eq(session.phase, "deload"),
+        isNull(session.deletedAt),
+        isNotNull(session.finishedAt),
+        exists(
+          db
+            .select({ id: sessionSet.id })
+            .from(sessionExercise)
+            .innerJoin(sessionSet, eq(sessionSet.sessionExerciseId, sessionExercise.id))
+            .where(
+              and(
+                eq(sessionExercise.sessionId, session.id),
+                isNull(sessionExercise.deletedAt),
+                isNull(sessionSet.deletedAt),
+                isNotNull(sessionSet.completedAt),
+                ne(sessionSet.kind, "warmup"),
+              ),
+            ),
+        ),
+      ),
+    );
+  const sessions = starts.map(({ at }) => ({
+    started_at: at.toISOString(),
+    phase: "deload" as const,
+  }));
+  if (
+    deloadLogged(
+      { started_at: run.startedAt?.toISOString() ?? null, pauses: run.pauses ?? [] },
+      week,
+      timezone,
+      sessions,
+    )
+  )
+    throw new SyncRejection("RUN_DELOAD_LOGGED");
+}
+
+/** Offline pauses merge by start time. A stale open copy cannot reopen a resumed interval. */
+function mergePauses(stored: readonly RunPause[] | null, incoming: readonly RunPause[] | null) {
+  if (stored === null && incoming === null) return null;
+  const pauses = new Map<number, RunPause>();
+  for (const pause of [...(stored ?? []), ...(incoming ?? [])]) {
+    const start = Date.parse(pause.from);
+    const existing = pauses.get(start);
+    if (
+      !existing ||
+      existing.until === null ||
+      (pause.until !== null && Date.parse(pause.until) < Date.parse(existing.until))
+    )
+      pauses.set(start, pause);
+  }
+  return accept(
+    runPausesSchema.safeParse(
+      [...pauses.values()].sort((a, b) => Date.parse(a.from) - Date.parse(b.from)),
+    ),
+  );
+}
+
 const date = (value: string | null) => (value === null ? null : new Date(value));
 export const runSyncHandler: SyncTableHandler = {
   table: "program_run",
@@ -25,7 +149,7 @@ export const runSyncHandler: SyncTableHandler = {
     if (row && row.userId !== userId) throw new SyncRejection("RUN_NOT_FOUND");
     if (op.op === "DELETE") throw new SyncRejection("SYNC_INVALID_OP");
     if (op.op === "PATCH" && !row) throw new SyncRejection("RUN_NOT_FOUND");
-    const patch = accept(input.partial().safeParse(op.opData ?? {}));
+    const { deload_change: changeText, ...patch } = accept(patchInput.safeParse(op.opData ?? {}));
     const values = accept(
       input.safeParse({
         ...(row
@@ -36,6 +160,9 @@ export const runSyncHandler: SyncTableHandler = {
               finished_at: row.finishedAt?.toISOString() ?? null,
               outcome: row.outcome,
               continued_at: row.continuedAt?.toISOString() ?? null,
+              inserted_deloads:
+                row.insertedDeloads === null ? null : JSON.stringify(row.insertedDeloads),
+              pauses: row.pauses === null ? null : JSON.stringify(row.pauses),
             }
           : {}),
         ...patch,
@@ -51,6 +178,29 @@ export const runSyncHandler: SyncTableHandler = {
       throw new SyncRejection("SYNC_INVALID_OP");
     if ((values.finished_at === null) !== (values.outcome === null))
       throw new SyncRejection("SYNC_INVALID_OP");
+    let undoneDeloads = row?.undoneDeloads ?? null;
+    let insertedDeloads = mergeLegacyWeeks(
+      row?.insertedDeloads ?? null,
+      values.inserted_deloads,
+      undoneDeloads ?? [],
+    );
+    if (changeText !== undefined) {
+      if (!row || op.op !== "PATCH" || Object.keys(patch).length > 0)
+        throw new SyncRejection("SYNC_INVALID_OP");
+      const change = accept(deloadChange.safeParse(changeText));
+      const weeks = row.insertedDeloads ?? [];
+      if (change.action === "undo") {
+        if (!weeks.includes(change.week)) return;
+        await assertNoCountedDeload(db, row, change.week, change.timezone);
+        insertedDeloads = weeks.filter((week) => week !== change.week);
+        undoneDeloads = [...new Set([...(undoneDeloads ?? []), change.week])];
+      } else {
+        insertedDeloads = [...new Set([...weeks, change.week])].sort((a, b) => a - b);
+        undoneDeloads = undoneDeloads?.filter((week) => week !== change.week) ?? null;
+      }
+    }
+    if ((insertedDeloads?.length ?? 0) > TRAINING_LIMITS.insertedDeloadsMax)
+      throw new SyncRejection("SYNC_INVALID_OP");
     const columns = {
       programId: values.program_id,
       activatedAt: new Date(values.activated_at),
@@ -58,6 +208,9 @@ export const runSyncHandler: SyncTableHandler = {
       finishedAt: date(values.finished_at),
       outcome: values.outcome,
       continuedAt: date(values.continued_at),
+      insertedDeloads,
+      undoneDeloads,
+      pauses: mergePauses(row?.pauses ?? null, values.pauses),
     };
     if (!row) {
       accept(newRowId.safeParse(id));
@@ -65,7 +218,13 @@ export const runSyncHandler: SyncTableHandler = {
     } else
       await db
         .update(programRun)
-        .set({ ...columns, updatedAt: now() })
+        .set({
+          ...columns,
+          // Read the current value in the UPDATE too: the repair script can lower it between
+          // the SELECT above and this write. PostgreSQL LEAST ignores nulls.
+          startedAt: sql`least(${programRun.startedAt}, ${values.started_at}::timestamptz)`,
+          updatedAt: now(),
+        })
         .where(eq(programRun.id, id));
   },
   purgeTombstones: async () => 0,

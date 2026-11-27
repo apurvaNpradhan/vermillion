@@ -1,0 +1,63 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "ed7d14ba-bad0-4695-b692-72e0575c6a2d",
+  "prevIds": ["edbad2cf-8828-4906-aa84-8286bf53aeb4"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "program_run", "pauses"],
+      "writes": [
+        "s|col|public.program_run.pauses",
+        "n|col|public.program_run.pauses",
+        "e|col|public.program_run.pauses"
+      ],
+      "reads": ["n|tbl|public.program_run", "n|sch|public"]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "session_exercise", "stall_deload"],
+      "writes": [
+        "s|col|public.session_exercise.stall_deload",
+        "n|col|public.session_exercise.stall_deload",
+        "e|col|public.session_exercise.stall_deload"
+      ],
+      "reads": ["n|tbl|public.session_exercise", "n|sch|public"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "program_run",
+        "name": "pauses",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "session_exercise",
+        "name": "stall_deload",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

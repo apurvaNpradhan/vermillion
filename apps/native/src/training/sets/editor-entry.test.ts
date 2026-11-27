@@ -1,3 +1,5 @@
+import { formatWeight, gymGridsOf, KG_PER_LB, parseWeight } from "@workspace/shared";
+import { stepValue } from "../../platform/ui/keypad-entry";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -54,7 +56,7 @@ describe("editor keypad entry", () => {
 
   it("steps a weight by the equipment's step or the manual increment", () => {
     expect(pressStep(openEntry(cell({ value: 100 })), 1).value).toBe(102.5);
-    expect(pressStep(openEntry(cell({ value: 100, equipment: "machine" })), -1).value).toBe(99);
+    expect(pressStep(openEntry(cell({ value: 100, equipment: "machine" })), -1).value).toBe(97.5);
     expect(pressStep(openEntry(cell({ value: 100, incrementKg: 1.25 })), 1).value).toBe(101.25);
     expect(pressStep(openEntry(cell()), 1).value).toBe(2.5);
   });
@@ -86,4 +88,68 @@ describe("editor keypad entry", () => {
     expect(unbindTable(tables, null, "t2")).toBe(false);
     expect(tables.size).toBe(0);
   });
+});
+
+it.each([
+  {
+    unit: "kg",
+    accountUnit: "lb",
+    equipment: "dumbbell",
+    start: "18",
+    step: 3,
+    max: 21,
+    expected: "21",
+  },
+  {
+    unit: "lb",
+    accountUnit: "kg",
+    equipment: "dumbbell",
+    start: "40",
+    step: 10,
+    max: 50,
+    expected: "50",
+  },
+  {
+    unit: "kg",
+    accountUnit: "lb",
+    equipment: "cable",
+    start: "18",
+    step: 6,
+    max: null,
+    expected: "24",
+  },
+  {
+    unit: "lb",
+    accountUnit: "kg",
+    equipment: "cable",
+    start: "40",
+    step: 8,
+    max: null,
+    expected: "48",
+  },
+] as const)("steps the editor and Session alike for $equipment in $unit", (example) => {
+  const { unit, equipment } = example;
+  const toKg = (weight: number) => weight * (unit === "lb" ? KG_PER_LB : 1);
+  const gym = gymGridsOf({
+    unit: example.accountUnit,
+    kit: [],
+    settings: [
+      {
+        exerciseId: "lift",
+        loadRanges: [{ min: toKg(example.step), max: null, step: toKg(example.step) }],
+      },
+    ],
+    dumbbellMaxKg: example.max === null ? null : toKg(example.max),
+  });
+  const grid = gym.gridFor("lift", equipment, unit);
+  const current = parseWeight(example.start, unit);
+  const context = { equipment, unit, grid, incrementKg: null };
+  const entry = openEntry(cell({ ...context, value: current ?? undefined }));
+  const stepped = pressStep(entry, 1);
+  expect(stepped.value).toBe(stepValue("weight", current, null, 1, context));
+  expect(formatWeight(stepped.value, unit)).toBe(example.expected);
+  if (example.max !== null) {
+    expect(stepped.value).toBeLessThanOrEqual(toKg(example.max));
+    expect(pressStep(stepped.entry, 1).value).toBe(stepped.value);
+  }
 });

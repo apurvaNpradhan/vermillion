@@ -3,6 +3,7 @@ import { SyncRejection } from "../../platform/sync/handler";
 import { media, assertMediaReference } from "../../media/index";
 import type { DbExecutor } from "@workspace/db";
 import {
+  applyHintDismissal,
   experienceWarmupSteps,
   TARGET_MUSCLES,
   type MuscleGoals,
@@ -40,6 +41,13 @@ export async function updatePreferences(
     if (ui.trainingExperience && ui.warmupSteps === undefined) {
       const steps = experienceWarmupSteps(ui.trainingExperience, previous.ui.warmupSteps);
       if (steps) ui.warmupSteps = steps;
+    }
+    if (input.hintDismissal !== undefined) {
+      const dismissed = applyHintDismissal(
+        ui.dismissedHints ?? previous.ui.dismissedHints,
+        input.hintDismissal,
+      );
+      if (dismissed) ui.dismissedHints = dismissed;
     }
     // Only a changed avatar is checked: a device that merely re-sends the current one, or an old
     // one it never changed, must not lose its other edits to a media check.

@@ -8,10 +8,14 @@ import {
   exerciseSettingInput,
   gymEquipmentInput,
   importDigestSchema,
+  phaseSnapshotSchema,
   plannedSetSchema,
   SESSION_LIMITS,
   SYNC_LIMITS,
   sessionExerciseInput,
+  prescriptionFor,
+  prescriptionSchema,
+  ruleConfigSchema,
   sessionInput,
   sessionSetInput,
   sessionSetSchema,
@@ -33,6 +37,7 @@ import {
   restoreSessionCascade,
   restoreSessionExerciseCascade,
 } from "./operations/session-cascade";
+import { ensureDefaultGym, resolveSessionGym } from "./operations/gyms";
 import {
   countLiveSessionExercises,
   countLiveSessionSets,
@@ -41,6 +46,7 @@ import {
   findSession,
   findSessionExercise,
   findSessionSet,
+  liveGym,
   liveSession,
   liveSessionExercise,
   liveSettingFor,
@@ -56,6 +62,7 @@ import {
   checkPut,
   idOf,
   invalid,
+  jsonText,
   liveRow,
   newRowId,
   now,
@@ -85,6 +92,13 @@ const wireTarget = z
 const iso = (date: Date | null) => (date === null ? null : date.toISOString());
 const date = (text: string | null) => (text === null ? null : new Date(text));
 
+/** The gym a Session writes: its own live gym, no gym for a deleted or unknown one. */
+async function sessionGym(db: DbExecutor, userId: string, gymId: string | null) {
+  const resolved = await resolveSessionGym(db, userId, gymId);
+  if (resolved === "refuse") throw new SyncRejection("SESSION_PARENT_NOT_FOUND");
+  return resolved.gymId;
+}
+
 function parentMissing(): never {
   throw new SyncRejection("SESSION_PARENT_NOT_FOUND");
 }
@@ -94,6 +108,8 @@ async function exerciseVisible(db: DbExecutor, userId: string, exerciseId: strin
 }
 
 // ---- Session ----
+
+const wirePhaseModifiers = jsonText(phaseSnapshotSchema).nullable();
 
 const putSession = z.strictObject({
   restore: restoreMarker,
@@ -106,6 +122,10 @@ const putSession = z.strictObject({
   program_id: sessionInput.shape.program_id.default(null),
   run_id: sessionInput.shape.run_id.default(null),
   slot_id: sessionInput.shape.slot_id.default(null),
+  gym_id: sessionInput.shape.gym_id.default(null),
+  phase: sessionInput.shape.phase.default(null),
+  // JSON text on the wire; an older app's write has none.
+  phase_modifiers: wirePhaseModifiers.default(null),
   cycle: sessionInput.shape.cycle.default(null),
   title: sessionInput.shape.title,
   title_derived: wireBoolean.default(true),
@@ -128,7 +148,11 @@ const undoImport = z.strictObject({
     .pipe(z.tuple([z.uuid(), z.uuid()])),
 });
 const patchSession = z
-  .strictObject({ ...sessionInput.shape, title_derived: wireBoolean })
+  .strictObject({
+    ...sessionInput.shape,
+    title_derived: wireBoolean,
+    phase_modifiers: wirePhaseModifiers,
+  })
   .partial();
 
 function sessionRowAsInput(row: SessionRow): SessionInput {
@@ -137,6 +161,9 @@ function sessionRowAsInput(row: SessionRow): SessionInput {
     program_id: row.programId,
     run_id: row.runId,
     slot_id: row.slotId,
+    gym_id: row.gymId,
+    phase: row.phase,
+    phase_modifiers: row.phaseModifiers,
     cycle: row.cycle,
     title: row.title,
     title_derived: row.titleDerived,
@@ -159,6 +186,9 @@ function sessionColumns(values: SessionInput) {
     programId: values.program_id,
     runId: values.run_id,
     slotId: values.slot_id,
+    gymId: values.gym_id,
+    phase: values.phase,
+    phaseModifiers: values.phase_modifiers,
     cycle: values.cycle,
     title: values.title,
     titleDerived: values.title_derived,
@@ -272,6 +302,7 @@ const sessionSyncHandler: SyncTableHandler = {
         ),
       );
       await checkSessionRun(db, userId, values);
+      values.gym_id = await sessionGym(db, userId, values.gym_id);
       if (found.kind === "absent") {
         accept(newRowId.safeParse(id));
         checkSessionTimes(values, null);
@@ -386,6 +417,7 @@ const sessionSyncHandler: SyncTableHandler = {
       }
     }
     await checkSessionRun(db, userId, merged);
+    if (patch.gym_id !== undefined) merged.gym_id = await sessionGym(db, userId, merged.gym_id);
     checkSessionTimes(merged, before.started_at);
     await db
       .update(session)
@@ -397,7 +429,10 @@ const sessionSyncHandler: SyncTableHandler = {
 
 // ---- Session exercise ----
 
+const wirePrescription = jsonText(prescriptionSchema).nullable();
+
 const putSessionExercise = z.strictObject({
+  prescription: wirePrescription.optional(),
   restore: restoreMarker,
   session_id: sessionExerciseInput.shape.session_id,
   exercise_id: sessionExerciseInput.shape.exercise_id,
@@ -411,6 +446,7 @@ const putSessionExercise = z.strictObject({
   log_effort: wireBoolean.default(false),
   warmup_key: wireWarmupKey.optional(),
   repeated: wireBoolean.optional(),
+  stall_deload: wireBoolean.nullable().optional(),
   workout_swap_fragment: wireBoolean.nullable().optional(),
 });
 // An exercise never moves to another Session.
@@ -418,6 +454,8 @@ const patchSessionExercise = z
   .strictObject({
     ...sessionExerciseInput.omit({ session_id: true }).shape,
     log_effort: wireBoolean,
+    stall_deload: wireBoolean.nullable(),
+    prescription: wirePrescription,
     warmup_key: wireWarmupKey,
     workout_swap_fragment: wireBoolean.nullable(),
   })
@@ -470,15 +508,20 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
         restore,
         warmup_key: warmupKey,
         repeated,
+        prescription,
+        stall_deload: stallDeload,
         workout_swap_fragment: workoutSwapFragment,
         ...data
       } = accept(putSessionExercise.safeParse(op.opData ?? {}));
       checkPut(found, restore);
       const values = accept(sessionExerciseInput.safeParse(data));
+      if (prescription && prescription.exerciseId !== values.exercise_id) return invalid();
       const extra = {
+        ...(found.kind === "absent" && prescription ? { prescription } : {}),
         ...(warmupKey === undefined ? {} : { warmupKey }),
         // Set when the exercise is created and never edited, so a PUT that omits it keeps it.
         ...(repeated === undefined ? {} : { repeated }),
+        ...(stallDeload === undefined ? {} : { stallDeload }),
         ...(workoutSwapFragment === undefined ? {} : { workoutSwapFragment }),
       };
       if (found.kind === "own" && found.row.sessionId !== values.session_id) return invalid();
@@ -511,6 +554,8 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
     const row = liveRow(found);
     const {
       warmup_key: warmupKey,
+      prescription,
+      stall_deload: stallDeload,
       workout_swap_fragment: workoutSwapFragment,
       ...patch
     } = accept(patchSessionExercise.safeParse(op.opData ?? {}));
@@ -529,6 +574,13 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
         ...patch,
       }),
     );
+    if (prescription && prescription.exerciseId !== merged.exercise_id) return invalid();
+    const current = prescriptionFor(row.prescription, merged.exercise_id);
+    // The first capture wins. A later revision must name the snapshot it was based on.
+    const next =
+      prescription && prescription.previousRevision === (current?.revision ?? null)
+        ? prescription
+        : undefined;
     if (patch.exercise_id !== undefined) await exerciseVisible(db, userId, patch.exercise_id);
     if (patch.exercise_id !== undefined && patch.exercise_id !== row.exerciseId) {
       await assertExerciseHasNoCompletedSets(db, id);
@@ -537,6 +589,8 @@ const sessionExerciseSyncHandler: SyncTableHandler = {
       .update(sessionExercise)
       .set({
         ...columns(merged),
+        ...(next ? { prescription: next } : {}),
+        ...(stallDeload === undefined ? {} : { stallDeload }),
         ...(warmupKey === undefined ? {} : { warmupKey }),
         ...(workoutSwapFragment === undefined ? {} : { workoutSwapFragment }),
         updatedAt: now(),
@@ -707,6 +761,8 @@ const sessionSetSyncHandler: SyncTableHandler = {
 const putEquipment = z.strictObject({
   restore: restoreMarker,
   seed: newRowId.optional(),
+  // Rows written before gyms existed carry none: they belong to the default gym.
+  gym_id: z.uuid().nullable().optional(),
   kind: gymEquipmentInput.shape.kind,
   weight_kg: gymEquipmentInput.shape.weight_kg,
   unit: gymEquipmentInput.shape.unit,
@@ -748,7 +804,7 @@ const gymEquipmentSyncHandler: SyncTableHandler = {
 
     if (op.op === "PUT") {
       if (found.kind === "other-user") throw new SyncRejection("SYNC_ID_CONFLICT");
-      const { restore, seed, ...data } = accept(putEquipment.safeParse(op.opData ?? {}));
+      const { restore, seed, gym_id, ...data } = accept(putEquipment.safeParse(op.opData ?? {}));
       const values = accept(gymEquipmentInput.safeParse(data));
       if (seed) {
         if (restore) invalid();
@@ -768,14 +824,21 @@ const gymEquipmentSyncHandler: SyncTableHandler = {
         }
       }
       checkPut(found, restore);
+      if (gym_id && !(await liveGym(db, userId, gym_id))) parentMissing();
       if (found.kind === "absent") {
         accept(newRowId.safeParse(id));
-        await db.insert(gymEquipment).values({ id, userId, ...equipmentColumns(values) });
+        const gymId = gym_id ?? (await ensureDefaultGym(db, userId));
+        await db.insert(gymEquipment).values({ id, userId, gymId, ...equipmentColumns(values) });
         return;
       }
       await db
         .update(gymEquipment)
-        .set({ ...equipmentColumns(values), deletedAt: null, updatedAt: now() })
+        .set({
+          ...equipmentColumns(values),
+          ...(gym_id ? { gymId: gym_id } : {}),
+          deletedAt: null,
+          updatedAt: now(),
+        })
         .where(eq(gymEquipment.id, id));
       return;
     }
@@ -803,13 +866,17 @@ const gymEquipmentSyncHandler: SyncTableHandler = {
 
 // ---- Exercise setting ----
 
+const wireRule = jsonText(ruleConfigSchema).nullable();
+
 const putSetting = z.strictObject({
   restore: restoreMarker,
   exercise_id: exerciseSettingInput.shape.exercise_id,
   bar_id: exerciseSettingInput.shape.bar_id.default(null),
+  unit: exerciseSettingInput.shape.unit,
   log_effort: wireBoolean.default(false),
   progression_per_set: wireBoolean.optional(),
   auto_warmups: wireBoolean.optional(),
+  progression_rule: wireRule.optional(),
   // Unwrap the default: an omitted note must stay omitted, not become null and erase the value.
   note: exerciseSettingInput.shape.note.unwrap().optional(),
 });
@@ -817,9 +884,11 @@ const putSetting = z.strictObject({
 const patchSetting = z
   .strictObject({
     bar_id: exerciseSettingInput.shape.bar_id,
+    unit: exerciseSettingInput.shape.unit,
     log_effort: wireBoolean,
     progression_per_set: wireBoolean,
     auto_warmups: wireBoolean,
+    progression_rule: wireRule,
     note: exerciseSettingInput.shape.note.unwrap(),
   })
   .partial();
@@ -860,11 +929,15 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
       await assertOwnBar(db, userId, values.bar_id);
       const fields = {
         barId: values.bar_id,
+        ...(data.unit !== undefined ? { unit: values.unit } : {}),
         logEffort: values.log_effort,
         ...(data.progression_per_set !== undefined
           ? { progressionPerSet: values.progression_per_set }
           : {}),
         ...(data.auto_warmups !== undefined ? { autoWarmups: values.auto_warmups } : {}),
+        ...(data.progression_rule !== undefined
+          ? { progressionRule: values.progression_rule ?? null }
+          : {}),
         ...(data.note !== undefined ? { note: values.note } : {}),
         updatedAt: now(),
       };
@@ -896,11 +969,15 @@ const exerciseSettingSyncHandler: SyncTableHandler = {
       .update(exerciseSetting)
       .set({
         ...(patch.bar_id !== undefined ? { barId: patch.bar_id } : {}),
+        ...(patch.unit !== undefined ? { unit: patch.unit } : {}),
         ...(patch.log_effort !== undefined ? { logEffort: patch.log_effort } : {}),
         ...(patch.progression_per_set !== undefined
           ? { progressionPerSet: patch.progression_per_set }
           : {}),
         ...(patch.auto_warmups !== undefined ? { autoWarmups: patch.auto_warmups } : {}),
+        ...(patch.progression_rule !== undefined
+          ? { progressionRule: patch.progression_rule }
+          : {}),
         ...(patch.note !== undefined ? { note: patch.note } : {}),
         updatedAt: now(),
       })

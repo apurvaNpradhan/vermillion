@@ -1,0 +1,37 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "ea4e80c7-0e6e-434e-8291-709e14898188",
+  "prevIds": ["ed7d14ba-bad0-4695-b692-72e0575c6a2d"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "session_exercise", "prescription"],
+      "writes": [
+        "s|col|public.session_exercise.prescription",
+        "n|col|public.session_exercise.prescription",
+        "e|col|public.session_exercise.prescription"
+      ],
+      "reads": ["n|tbl|public.session_exercise", "n|sch|public"]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "session_exercise",
+        "name": "prescription",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

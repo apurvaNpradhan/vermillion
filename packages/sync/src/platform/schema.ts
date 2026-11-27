@@ -2,16 +2,19 @@ import { getTableName } from "drizzle-orm";
 import { DrizzleAppSchema } from "@powersync/drizzle-driver";
 
 import { bodyMeasurement, progressPhoto } from "../body/tables";
-import { exercise } from "../exercise/tables";
+import { exercise, exercisePin } from "../exercise/tables";
 import { attachments, media } from "../media/tables";
 import { userPreferences } from "../preferences/tables";
 import {
   exerciseSetting,
+  gym,
   gymEquipment,
+  gymExerciseSetting,
   historyImportReceipt,
   program,
   programRun,
   programSlot,
+  programSlotSkip,
   session,
   sessionExercise,
   sessionSet,
@@ -26,6 +29,7 @@ export const drizzleSchema = {
   bodyMeasurement,
   progressPhoto,
   exercise,
+  exercisePin,
   program,
   workout,
   workoutExercise,
@@ -34,12 +38,15 @@ export const drizzleSchema = {
   sessionExercise,
   sessionSet,
   sessionPhoto,
+  gym,
   gymEquipment,
+  gymExerciseSetting,
   exerciseSetting,
   media,
   userPreferences,
   attachments,
   programRun,
+  programSlotSkip,
   deviceOwner,
   installMeta,
   rejectedWrites,
@@ -54,8 +61,10 @@ export const powerSyncSchema = new DrizzleAppSchema({
   body_measurement: { tableDefinition: bodyMeasurement },
   progress_photo: { tableDefinition: progressPhoto },
   exercise: { tableDefinition: exercise },
+  exercise_pin: { tableDefinition: exercisePin },
   program: { tableDefinition: program },
-  program_run: { tableDefinition: programRun },
+  program_run: { tableDefinition: programRun, options: { trackMetadata: true } },
+  program_slot_skip: { tableDefinition: programSlotSkip },
   workout: { tableDefinition: workout },
   workout_exercise: { tableDefinition: workoutExercise },
   program_slot: { tableDefinition: programSlot },
@@ -74,7 +83,14 @@ export const powerSyncSchema = new DrizzleAppSchema({
       trackPrevious: { columns: ["completed_at", "timer_started_at"], onlyWhenChanged: false },
     },
   },
+  gym: {
+    tableDefinition: gym,
+    // A PATCH of the lacking equipment reports the list it started from, so the server can apply
+    // the toggle instead of replacing the list.
+    options: { trackPrevious: { columns: ["unavailable_equipment"], onlyWhenChanged: false } },
+  },
   gym_equipment: { tableDefinition: gymEquipment },
+  gym_exercise_setting: { tableDefinition: gymExerciseSetting },
   exercise_setting: { tableDefinition: exerciseSetting },
   media: { tableDefinition: media },
   user_preferences: { tableDefinition: userPreferences },
@@ -88,10 +104,12 @@ export const powerSyncSchema = new DrizzleAppSchema({
 /** Names of the tables that sync with the server (not the local-only ones). */
 export const SYNCED_TABLE_NAMES: readonly string[] = [
   getTableName(exercise),
+  getTableName(exercisePin),
   getTableName(bodyMeasurement),
   getTableName(progressPhoto),
   getTableName(program),
   getTableName(programRun),
+  getTableName(programSlotSkip),
   getTableName(workout),
   getTableName(workoutExercise),
   getTableName(programSlot),
@@ -99,7 +117,9 @@ export const SYNCED_TABLE_NAMES: readonly string[] = [
   getTableName(sessionExercise),
   getTableName(sessionSet),
   getTableName(sessionPhoto),
+  getTableName(gym),
   getTableName(gymEquipment),
+  getTableName(gymExerciseSetting),
   getTableName(exerciseSetting),
   getTableName(media),
   getTableName(userPreferences),

@@ -6,6 +6,7 @@ export { WorkoutEditorScreen } from "./workouts/workout-editor";
 export { useTrainingPreferenceRows } from "./shared/training-preference-rows";
 export { NewProgramScreen } from "./programs/new-program-screen";
 export { ProgramDetailsScreen } from "./programs/program-details-screen";
+export { PlanWeeksScreen } from "./phases/plan-weeks-screen";
 export { ProgramScreen } from "./programs/program-screen";
 export { HomeScreen } from "./home/home-screen";
 export { MusclesScreen } from "./muscles/muscles-screen";
@@ -36,6 +37,3 @@ export { WorkoutShareScreen, ProgramShareScreen } from "./share/plan-share-scree
 export { WorkoutCard, ProgramOverview } from "./share/cards";
 
 export { useActiveProgram } from "./programs/use-active-program";
-
-export { EnterCodeScreen } from "./import/enter-code-screen";
-export { ImportPreviewScreen } from "./import/import-preview-screen";

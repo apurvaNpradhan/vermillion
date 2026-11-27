@@ -36,7 +36,8 @@ import { appConfig } from "../../app.config.ts";
 // 28: remove the react-native-webview dependency with Turnstile.
 // 30: Android App Links for /p/<code> and /w/<code> on the site host (an AndroidManifest change).
 // 31: AMOLED black and Lime brand images (icon, adaptive, notification, splash).
-const NATIVE_STACK_REVISION = 31;
+// 32: retire the native share-link intent filters.
+const NATIVE_STACK_REVISION = 32;
 
 /**
  * The Sigil brand colours (AMOLED black, white, Lime), for the places the native build needs a
@@ -65,25 +66,6 @@ const easProjectId = appConfig.easProjectId || process.env.EAS_PROJECT_ID;
  */
 const androidVersionCode = Number(process.env.ANDROID_VERSION_CODE);
 
-/**
- * Share links (ADR 0058): `https://<site>/p/<code>` and `/w/<code>` open the app when Android has
- * verified it for the site (`autoVerify` fetches `/.well-known/assetlinks.json`, whose
- * fingerprints are `androidCertSha256` in app.config.ts). Unverified, the link opens the web
- * preview in the browser instead.
- */
-const siteHost = new URL(appConfig.urls.site).host;
-const shareLinkIntentFilters = [
-  {
-    action: "VIEW",
-    autoVerify: true,
-    data: [
-      { scheme: "https", host: siteHost, pathPrefix: "/p/" },
-      { scheme: "https", host: siteHost, pathPrefix: "/w/" },
-    ],
-    category: ["BROWSABLE", "DEFAULT"],
-  },
-];
-
 const config: ExpoConfig = {
   name: appConfig.displayName,
   slug: appConfig.easSlug,
@@ -108,7 +90,6 @@ const config: ExpoConfig = {
       monochromeImage: ADAPTIVE_MONOCHROME,
     },
     predictiveBackGestureEnabled: false,
-    intentFilters: shareLinkIntentFilters,
     package: appConfig.bundleIds.android,
     ...(Number.isInteger(androidVersionCode) && androidVersionCode > 0
       ? { versionCode: androidVersionCode }

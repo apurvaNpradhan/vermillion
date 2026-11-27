@@ -1,4 +1,4 @@
-import { SET_FIELDS, addsLoad, type SetField } from "@workspace/shared";
+import { SET_FIELDS, addsLoad, type SetField, resolveExerciseUnit } from "@workspace/shared";
 import { Plus } from "phosphor-react-native";
 import { memo, useCallback, useMemo, useRef } from "react";
 import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
@@ -41,10 +41,13 @@ export type SetHandlers = {
   onCell: (setId: string, field: SetField) => void;
   onTick: (setId: string) => void;
   onKind: (setId: string) => void;
+  /** Long-press on a set's badge: this exercise's max load, step and setup note. */
+  onLimits: (setId: string) => void;
   onEffort: (setId: string) => void;
   onPrevious: (setId: string) => void;
   onCopySets: (setId: string, mode: "previous" | "remaining") => void;
   onRemoveSet: (setId: string) => Promise<boolean>;
+  onSwipeOpen?: () => void;
   onTimer: (setId: string) => void;
   /** Lets the screen scroll a row into view above the keypad. */
   registerRow: (setId: string) => (node: View | null) => void;
@@ -81,13 +84,15 @@ const SetRowItem = memo(function SetRowItem({
         type: exercise?.type,
         logEffort: exercise?.logEffort ?? false,
         historyReady: view?.historyReady ?? false,
+        previousReady: view?.previousReady ?? false,
         current: state.currentSetId === setId,
         record: showsRecord(state, setId) ? (state.setsById.get(setId)?.completedAt ?? null) : null,
         refusal: state.refusal?.setId === setId ? state.refusal : null,
         cell: state.cell?.setId === setId ? state.cell : null,
         raw: state.cell?.setId === setId ? state.raw : "",
         fresh: state.cell?.setId === setId ? state.fresh : true,
-        unit: state.inputs.unit,
+        draftValue: state.cell?.setId === setId ? state.draftValue : null,
+        unit: resolveExerciseUnit(state.inputs.unit, exercise?.unit),
         display: state.inputs.display,
         effortScale: state.ui.effortScale,
         readOnly: state.ui.readOnly,
@@ -102,8 +107,11 @@ const SetRowItem = memo(function SetRowItem({
     const { y, height } = event.nativeEvent.layout;
     layout.current = { y, height };
   }, []);
-  const { set, row, type, cell, raw, fresh } = data;
-  const entry = useMemo(() => (cell ? { cell, raw, fresh } : null), [cell, raw, fresh]);
+  const { set, row, type, cell, raw, fresh, draftValue } = data;
+  const entry = useMemo(
+    () => (cell ? { cell, raw, fresh, draftValue } : null),
+    [cell, raw, fresh, draftValue],
+  );
   if (!set || !row || !type) return null;
   // Only a set added while the grid is open enters and one removed fades out: the grid sits in a
   // LayoutAnimationConfig that skips both for its first render and for the whole grid closing.
@@ -116,6 +124,7 @@ const SetRowItem = memo(function SetRowItem({
         row={row}
         logEffort={data.logEffort}
         historyReady={data.historyReady}
+        previousReady={data.previousReady}
         unit={data.unit}
         display={data.display}
         effortScale={data.effortScale}
@@ -130,10 +139,12 @@ const SetRowItem = memo(function SetRowItem({
         onCell={handlers.onCell}
         onTick={handlers.onTick}
         onKind={handlers.onKind}
+        onLimits={handlers.onLimits}
         onEffort={handlers.onEffort}
         onPrevious={handlers.onPrevious}
         onCopySets={handlers.onCopySets}
         onRemove={handlers.onRemoveSet}
+        onSwipeOpen={handlers.onSwipeOpen}
         onTimer={handlers.onTimer}
       />
       {row.optional ? (
@@ -174,9 +185,8 @@ export const SetGrid = memo(function SetGrid({
         type: exercise?.type,
         logEffort: exercise?.logEffort ?? false,
         setIds: state.views.get(exerciseId)?.setIds,
-        unit: state.inputs.unit,
+        unit: resolveExerciseUnit(state.inputs.unit, exercise?.unit),
         display: state.inputs.display,
-        effortScale: state.ui.effortScale,
         readOnly: state.ui.readOnly,
         editingFinished: state.session.finishedAt !== null,
       };
@@ -208,7 +218,7 @@ export const SetGrid = memo(function SetGrid({
     },
     [grid, viewport],
   );
-  const { type, logEffort, setIds, unit, display, effortScale, readOnly, editingFinished } = layout;
+  const { type, logEffort, setIds, unit, display, readOnly, editingFinished } = layout;
   if (!type || !setIds) return null;
   const fields: readonly SetField[] = SET_FIELDS[type];
   const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
@@ -258,7 +268,7 @@ export const SetGrid = memo(function SetGrid({
               numberOfLines={1}
               className="font-normal w-11 text-center text-caption text-muted"
             >
-              {t(effortScale === "rpe" ? "training__effort_rpe" : "training__effort_rir")}
+              {t("session__col_effort")}
             </Text>
           ) : null}
           {editingFinished ? null : <View className="w-11" />}

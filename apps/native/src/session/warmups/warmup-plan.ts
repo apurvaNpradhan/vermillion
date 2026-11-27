@@ -1,5 +1,10 @@
 import {
   DEFAULT_WARMUP_STEPS,
+  capOnlyOf,
+  barKitFor,
+  rangeGrid,
+  loadGridOf,
+  type LoadRange,
   hasWarmupRamp,
   type Equipment,
   warmupRamp,
@@ -11,7 +16,7 @@ import {
 } from "@workspace/shared";
 import type { EquipmentRow, SessionExerciseDetail } from "@workspace/sync";
 
-import { defaultBar, enabledBars, loadInputKey, platesForBar } from "../plates/plate-view";
+import { loadInputKey } from "../plates/plate-view";
 
 /** The parts of a set the plan reads. */
 type PlanSet = Pick<
@@ -21,13 +26,15 @@ type PlanSet = Pick<
 
 /**
  * The first working weight of an exercise: what is typed into its first non-warm-up set, else its
- * Ghost value (Previous, the suggestion or the target). Null when there is none to ramp to.
+ * Ghost value (Previous, the suggestion or the target). In a Test, ramp to the first work-up
+ * when present. Null when there is none to ramp to.
  */
 export function firstWorkingWeightKg(
   exercise: { sets: readonly PlanSet[] },
   ghostWeightOf: (setId: string) => number | null,
+  workupIds: readonly string[] = [],
 ): number | null {
-  const set = exercise.sets.find((candidate) => candidate.kind !== "warmup");
+  const set = exercise.sets.find((row) => row.kind !== "warmup" || workupIds.includes(row.id));
   if (!set) return null;
   return set.weightKg ?? ghostWeightOf(set.id);
 }
@@ -47,35 +54,51 @@ const equipmentOf = (exercise: Pick<SessionExerciseDetail, "exercise">): Equipme
   exercise.exercise?.equipment ?? "other";
 
 /**
- * What the user can load for this exercise: its remembered bar and the plates of that bar's unit.
- * The key holds what the ramp reads: the equipment class, the bar and plates only for a barbell
- * (anything else rounds to the step), and the step; so a ramp made before the library's metadata
- * arrived is rebuilt when it does.
+ * The Session gym's exercise ranges take priority. Without them, use the remembered bar and
+ * plates or the global step. The key changes when a range, cap or fallback input changes.
  */
 export function warmupLoading(
-  exercise: Pick<SessionExerciseDetail, "barId" | "exercise">,
+  exercise: Pick<SessionExerciseDetail, "barId" | "exercise" | "unit">,
   rows: readonly EquipmentRow[],
   unit: WeightUnit,
   weightIncrementKg: number | null,
+  ranges: readonly LoadRange[] = [],
 ): WarmupLoadingKey {
+  const grid = rangeGrid(ranges);
+  if (grid) return { loading: { bar: null, grid }, key: JSON.stringify(ranges) };
+  const capKg = capOnlyOf(ranges);
   const equipment = equipmentOf(exercise);
-  const bar = defaultBar(enabledBars(rows), exercise.barId, unit);
-  const plates = bar ? platesForBar(rows, bar) : [];
+  const { bar, plates } = barKitFor(rows, {
+    unit,
+    equipment,
+    rememberedId: exercise.barId,
+    capKg,
+    preferMatchingUnit: exercise.unit != null,
+  });
   const barKey = equipment === "barbell" ? loadInputKey(bar, plates) : "-";
   return {
-    loading: { bar: bar ? { weightKg: bar.weightKg, plates } : null, stepKg: weightIncrementKg },
-    key: `${equipment}|${barKey}|${weightIncrementKg ?? "-"}`,
+    loading: {
+      grid:
+        equipment === "dumbbell" && weightIncrementKg === null
+          ? loadGridOf({ equipment, unit, ranges })
+          : null,
+      bar: bar ? { weightKg: bar.weightKg, plates } : null,
+      stepKg: weightIncrementKg,
+      capKg,
+    },
+    key: `${equipment}|${barKey}|${weightIncrementKg ?? "-"}${capKg === null ? "" : `|${capKg}`}`,
   };
 }
 
 /** The ramp as the Planned sets a warm-up row carries: its Ghost weight and reps. */
 export function rampTargets(
-  exercise: Pick<SessionExerciseDetail, "type" | "exercise" | "barId">,
+  exercise: Pick<SessionExerciseDetail, "type" | "exercise" | "barId" | "unit">,
   workingKg: number,
   rows: readonly EquipmentRow[],
   unit: WeightUnit,
   weightIncrementKg: number | null,
   settings?: WarmupSettings,
+  ranges?: readonly LoadRange[],
 ): PlannedSet[] {
   return warmupRamp({
     steps: settings?.steps,
@@ -84,7 +107,7 @@ export function rampTargets(
     exerciseType: exercise.type,
     equipment: equipmentOf(exercise),
     unit,
-    loading: warmupLoading(exercise, rows, unit, weightIncrementKg).loading,
+    loading: warmupLoading(exercise, rows, unit, weightIncrementKg, ranges).loading,
   }).map((step) => ({
     kind: "warmup",
     weight_kg: step.weightKg,
@@ -125,13 +148,14 @@ export function shouldAutoWarmup(
  */
 export function rampKey(
   workingKg: number,
-  exercise: Pick<SessionExerciseDetail, "barId" | "type" | "exercise">,
+  exercise: Pick<SessionExerciseDetail, "barId" | "type" | "exercise" | "unit">,
   rows: readonly EquipmentRow[],
   unit: WeightUnit,
   weightIncrementKg: number | null,
   settings?: WarmupSettings,
+  ranges?: readonly LoadRange[],
 ): string {
-  const loading = warmupLoading(exercise, rows, unit, weightIncrementKg).key;
+  const loading = warmupLoading(exercise, rows, unit, weightIncrementKg, ranges).key;
   const base = `${workingKg}|${exercise.type}|${unit}|${loading}`;
   // The default ramp keeps its old key, so no stored ramp is rebuilt by this setting existing.
   const text = settings ? settingsText(settings) : DEFAULT_SETTINGS_TEXT;

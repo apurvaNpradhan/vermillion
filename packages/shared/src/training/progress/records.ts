@@ -41,7 +41,7 @@ function setMetrics(set: LoggedSet, bodyweightKg: number | null): [RecordKey, nu
     const ranked = addsLoad(set.exercise_type) ? (set.weight_kg ?? 0) : weight;
     const reps = set.reps ?? 0;
     if (ranked > 0) metrics.push(["heaviest_weight", ranked]);
-    const oneRepMax = estimatedOneRepMax(weight, reps);
+    const oneRepMax = estimatedOneRepMax(weight, reps, set.rpe);
     if (oneRepMax !== null) metrics.push(["estimated_one_rep_max", oneRepMax]);
     if (ranked > 0 && reps >= 1 && reps <= 12) metrics.push([`reps_${reps}`, ranked]);
   }
@@ -181,4 +181,29 @@ export function recordCount(
   sets: readonly { id: string; exercise_id: string }[],
 ): number {
   return recordEntries(flags, sets).reduce((count, entry) => count + entry.keys.length, 0);
+}
+
+/**
+ * Whether the effort logged in these Sessions moves any estimated 1RM, against reading every set
+ * as its reps alone: the one-time note that explains why Records changed shows only then.
+ */
+export function recordsMovedByEffort(
+  sessions: readonly SessionHistory[],
+  bodyweightKg: number | null = null,
+): boolean {
+  const aware = exerciseRecords(sessions, bodyweightKg);
+  const plain = exerciseRecords(
+    sessions.map((session) => ({
+      ...session,
+      sets: session.sets.map((set) => ({ ...set, rpe: null })),
+    })),
+    bodyweightKg,
+  );
+  return [...aware].some(
+    ([exerciseId, bests]) =>
+      Math.abs(
+        (bests.get("estimated_one_rep_max") ?? 0) -
+          (plain.get(exerciseId)?.get("estimated_one_rep_max") ?? 0),
+      ) > 1e-6,
+  );
 }

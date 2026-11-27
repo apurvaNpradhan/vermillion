@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet, Switch } from "heroui-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
@@ -39,7 +40,7 @@ export function FeedbackSheet({
 
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={close}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent
           footer={
@@ -91,7 +92,7 @@ export function FeedbackSheet({
             </View>
           ) : null}
         </ScrollableSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

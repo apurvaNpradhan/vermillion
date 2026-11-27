@@ -2,19 +2,37 @@ import { v7 as uuidv7 } from "uuid";
 
 import {
   REST_SECONDS_MAX,
+  needsTestSeed,
+  phaseTargets,
   cycleState,
+  closeRunPauses,
   finishClock,
+  mainEntryOf,
+  loadCutRange,
+  plannedLoadFactors,
+  phaseFor,
+  revisedSets,
+  type PrescriptionDraft,
+  runPausedAt,
+  isTestSingle,
   sessionInput,
+  snapshotOf,
   sessionStartAllowed,
   sessionTimesConsistent,
   workoutStructureKey,
   type PlannedSet,
+  type RunSlot,
 } from "@workspace/shared";
 import { asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
-import { programRun, programSlot } from "../tables";
+import { program, programRun, programSlot, programSlotSkip } from "../tables";
+import { unskipSlotIn } from "../plans/skip-store";
 import { hasCountedSetSql } from "../plans/run-store";
+import { readInsertedDeloads, readPhasePlan } from "../plans/phase-plan";
+import { testWorkingLoadIn, phaseLoadsIn } from "./phase-inputs";
+import { activeGymIdOf } from "../gyms/gym-store";
 import { keysAfterLast } from "../position";
+import { nextRevision, readSnapshot, untickedIn } from "./prescription-store";
 import { performAgainIn } from "./session-again-store";
 import {
   assertSessionRoom,
@@ -22,6 +40,7 @@ import {
   installIdOf,
   isRestSeconds,
   requireSession,
+  requireSessionExercise,
   writeRest,
   type DeletedSession,
   type RestTimes,
@@ -37,14 +56,47 @@ import {
   workoutExercise,
 } from "../tables";
 
+/** Store the load cut on the exact entry so duplicate lifts and concurrent edits stay independent. */
+export function setStallDeload(
+  db: TrainingDatabase,
+  entryId: string,
+  applied: boolean,
+  writeScope?: string,
+  draft?: PrescriptionDraft | null,
+) {
+  return write(db, writeScope, async (tx) => {
+    const entry = await requireSessionExercise(tx, entryId);
+    const current = await requireSession(tx, entry.session_id);
+    if (current.finished_at !== null || current.device_id !== (await installIdOf(tx))) return false;
+    const saved = readSnapshot(entry);
+    // The lighter targets replace every unticked set's suggestion; ticked sets keep theirs.
+    const unticked =
+      draft && saved && draft.exerciseId === entry.exercise_id
+        ? [...(await untickedIn(tx, entryId)).keys()]
+        : [];
+    const prescription =
+      draft && saved && unticked.length > 0
+        ? nextRevision(revisedSets(saved, draft, new Set(unticked)), saved.revision)
+        : null;
+    await tx
+      .update(sessionExercise)
+      .set({ stall_deload: applied, ...(prescription ? { prescription } : {}) })
+      .where(eq(sessionExercise.id, entryId));
+    return true;
+  });
+}
+
 /** The Workout a Session starts from, or none; `derivedTitle` names a Session with no title of its own. */
 export type SessionSource = {
   workoutId: string | null;
+  day?: RunSlot;
   /**
    * The title when the Workout has none (it is derived) or there is no Workout, already
    * translated by the caller. The Session stays "derived" until the user renames it.
    */
   derivedTitle: string;
+  /** The user's time zone, for the Run's calendar week (and so the phase); UTC when absent. */
+  timeZone?: string;
 };
 
 /**
@@ -81,12 +133,21 @@ async function createSessionIn(
     : [];
   assertSessionRoom(0, planned.length, "exercisesPerSession");
 
-  const matching = activeRun && plan?.program_id === activeRun.program_id ? activeRun : null;
+  let matching = activeRun && plan?.program_id === activeRun.program_id ? activeRun : null;
+  const openPauses = matching?.pauses;
+  if (matching && !fields.backfill && openPauses?.some((pause) => pause.until === null)) {
+    const pauses = closeRunPauses(openPauses, fields.startedAt);
+    if (pauses.some((pause, index) => pause !== openPauses[index])) {
+      await tx.update(programRun).set({ pauses }).where(eq(programRun.id, matching.id));
+      matching = { ...matching, pauses };
+    }
+  }
   const runSessions = matching
     ? await tx
         .select({
           id: session.id,
           workoutId: session.workout_id,
+          slotId: session.slot_id,
           cycle: session.cycle,
           startedAt: session.started_at,
           finishedAt: session.finished_at,
@@ -103,7 +164,9 @@ async function createSessionIn(
     firstStart ??
     (matching ? new Date(Date.parse(matching.activated_at) - 86_400_000).toISOString() : null);
   const active =
-    matching && !(fields.backfill && runStart !== null && fields.startedAt < runStart)
+    matching &&
+    !runPausedAt(matching.pauses ?? [], fields.startedAt) &&
+    !(fields.backfill && runStart !== null && fields.startedAt < runStart)
       ? matching
       : null;
   const slots = active
@@ -115,23 +178,145 @@ async function createSessionIn(
     : [];
   // Out of order is fine: the cycle and slot come from the run's Sessions up to this start.
   const history = active ? runSessions.filter((item) => item.startedAt <= fields.startedAt) : [];
+  const skips = active
+    ? await tx
+        .select({ slotId: programSlotSkip.slot_id, cycle: programSlotSkip.cycle })
+        .from(programSlotSkip)
+        .where(eq(programSlotSkip.run_id, active.id))
+    : [];
   const progress = cycleState(
     slots.map((s) => ({ id: s.id, workoutId: s.workout_id })),
     history,
+    skips,
   );
-  const slot = slots.find((s) => s.workout_id === plan?.id && !progress.trained.has(s.id));
+  const day = source.day;
+  let slot = slots.find((s) => s.workout_id === plan?.id && !progress.trained.has(s.id));
+  if (day) {
+    slot = slots.find((s) => s.id === day.slotId && s.workout_id === plan?.id);
+    const skipped = skips.some((s) => s.slotId === day.slotId && s.cycle === day.cycle);
+    // A skip may have completed the displayed cycle while the conflict sheet was open.
+    // The selected day can still start if its skip is present and there is no later counted session.
+    if (
+      !slot ||
+      !active ||
+      day.runId !== active.id ||
+      day.cycle < progress.latestCountedCycle ||
+      (day.cycle !== progress.cycle && !(skipped && day.cycle < progress.cycle))
+    )
+      throw new Error("The selected day is no longer available");
+    if (skipped) await unskipSlotIn(tx, day);
+  }
   if (active && (!active.started_at || fields.startedAt < active.started_at))
     await tx
       .update(programRun)
       .set({ started_at: fields.startedAt })
       .where(eq(programRun.id, active.id));
   const title = plan?.title ?? source.derivedTitle;
+  // The phase of the Run week this Session starts in; its targets are adjusted as it is copied.
+  const [phasePlan] =
+    active && plan?.program_id
+      ? await tx
+          .select({ phase_plan: program.phase_plan })
+          .from(program)
+          .where(eq(program.id, plan.program_id))
+          .limit(1)
+      : [];
+  const runStartedAt =
+    active && active.started_at && active.started_at < fields.startedAt
+      ? active.started_at
+      : fields.startedAt;
+  const phase =
+    active && phasePlan
+      ? phaseFor(
+          readPhasePlan(phasePlan.phase_plan),
+          {
+            started_at: runStartedAt,
+            inserted_deloads: readInsertedDeloads(active.inserted_deloads),
+            pauses: active.pauses ?? [],
+          },
+          new Date(fields.startedAt),
+          source.timeZone ?? "UTC",
+          history.flatMap((item) =>
+            item.finishedAt && item.hasCountedSet ? [item.startedAt] : [],
+          ),
+        )
+      : null;
+  const gymId = await activeGymIdOf(tx);
+  // The loads a phase lowers or seeds are the Session gym's, in the user's unit.
+  const loads = phase ? await phaseLoadsIn(tx, gymId) : null;
+  const mainEntryId = mainEntryOf(
+    planned.map((entry) => entry.id),
+    plan?.main_entry_id,
+  );
+  const entries = [];
+  const factors: number[] = [];
+  for (const entry of planned) {
+    const info = await exerciseInfoOf(tx, entry.exercise_id);
+    const [setting] = await tx
+      .select({ log_effort: exerciseSetting.log_effort, unit: exerciseSetting.unit })
+      .from(exerciseSetting)
+      .where(eq(exerciseSetting.exercise_id, entry.exercise_id))
+      .orderBy(asc(exerciseSetting.id))
+      .limit(1);
+    const sessionExerciseId = uuidv7();
+    // Phases adjust the targets as the Session copies them; the Workout stays as planned.
+    const isMainLift = entry.id === mainEntryId;
+    const target = {
+      isMainLift,
+      type: info.exercise_type,
+      equipment: info.equipment,
+      accountUnit: loads?.unit ?? "kg",
+      unitOverride: setting?.unit,
+      grid: loads?.gridFor(entry.exercise_id, info.equipment, setting?.unit) ?? null,
+    } as const;
+    const sets =
+      phase && loads
+        ? phaseTargets(
+            entry.sets,
+            phase,
+            target,
+            // The Test seed uses the exercise estimate and the break clock.
+            needsTestSeed(phase, target)
+              ? await testWorkingLoadIn(tx, entry.exercise_id, info.exercise_type, {
+                  now: new Date(fields.startedAt),
+                  timeZone: source.timeZone ?? "UTC",
+                  single: phase.testTop === "single",
+                  lighterWeeks: loads.lighterWeeks,
+                })
+              : null,
+          )
+        : entry.sets;
+    assertSessionRoom(0, sets.length, "setsPerExercise");
+    if (phase && phase.modifiers.load < 1) factors.push(...plannedLoadFactors(entry.sets, sets));
+    const plannedWarmups = entry.sets.filter((set) => set.kind === "warmup").length;
+    const rows = sets.map((target) => ({ id: uuidv7(), target }));
+    const testWorkupIds =
+      phase?.phase === "test" && isMainLift && phase.testWorkups
+        ? rows
+            .slice(plannedWarmups)
+            .flatMap(({ id, target }) => (target.kind === "warmup" ? [id] : []))
+        : [];
+    entries.push({ entry, info, setting, sessionExerciseId, sets, rows, testWorkupIds });
+  }
+  const testEntry =
+    phase &&
+    entries.find(({ entry, sets }) => entry.id === mainEntryId && isTestSingle(phase.phase, sets));
   const parsed = sessionInput.parse({
     workout_id: plan?.id ?? null,
     program_id: plan?.program_id ?? null,
     run_id: active?.id ?? null,
     slot_id: slot?.id ?? null,
-    cycle: active ? progress.cycle : null,
+    gym_id: gymId,
+    phase: phase?.phase ?? null,
+    phase_modifiers: phase
+      ? {
+          ...snapshotOf(phase),
+          load_cuts: loadCutRange(factors),
+          test_entry_id: testEntry?.entry.id,
+          test_workup_ids: testEntry?.testWorkupIds.length ? testEntry.testWorkupIds : undefined,
+        }
+      : null,
+    cycle: active ? (day?.cycle ?? progress.cycle) : null,
     title,
     title_derived: plan?.title == null,
     note: null,
@@ -161,15 +346,7 @@ async function createSessionIn(
     ...parsed,
   });
 
-  for (const entry of planned) {
-    const info = await exerciseInfoOf(tx, entry.exercise_id);
-    const [setting] = await tx
-      .select({ log_effort: exerciseSetting.log_effort })
-      .from(exerciseSetting)
-      .where(eq(exerciseSetting.exercise_id, entry.exercise_id))
-      .limit(1);
-    const sessionExerciseId = uuidv7();
-    assertSessionRoom(0, entry.sets.length, "setsPerExercise");
+  for (const { entry, info, setting, sessionExerciseId, sets, rows } of entries) {
     await tx.insert(sessionExercise).values({
       id: sessionExerciseId,
       user_id: userId,
@@ -183,13 +360,13 @@ async function createSessionIn(
       note: entry.note,
       superset_group: entry.superset_group,
       // The effort column shows when the plan has an effort target or the user turned it on.
-      log_effort: setting?.log_effort === true || entry.sets.some(hasEffortTarget),
+      log_effort: setting?.log_effort === true || sets.some(hasEffortTarget),
       created_at: nowIso(),
     });
-    const keys = keysAfterLast([], entry.sets.length);
-    for (const [index, target] of entry.sets.entries()) {
+    const keys = keysAfterLast([], sets.length);
+    for (const [index, { id, target }] of rows.entries()) {
       await tx.insert(sessionSet).values({
-        id: uuidv7(),
+        id,
         user_id: userId,
         session_exercise_id: sessionExerciseId,
         position: keys[index] ?? "a0",
@@ -229,7 +406,7 @@ export function startSession(
 }
 
 /** What starts a Session: a Workout (or nothing), or a finished Session to repeat. */
-export type BeginSource = { workoutId: string | null } | { againOf: string };
+export type BeginSource = Omit<SessionSource, "derivedTitle"> | { againOf: string };
 
 /**
  * Starts a Session in ONE transaction: the source is read, the Sessions in `discardIds` are
@@ -268,7 +445,7 @@ export function beginSession(
     } else {
       await createSessionIn(
         tx,
-        { workoutId: source.workoutId, derivedTitle },
+        { ...source, derivedTitle },
         { id, startedAt: nowIso(), finishedAt: null, durationS: null },
         active,
       );
@@ -358,6 +535,9 @@ export function finishSession(
       program_id: current.program_id,
       run_id: current.run_id,
       slot_id: current.slot_id,
+      gym_id: current.gym_id,
+      phase: current.phase,
+      phase_modifiers: current.phase_modifiers,
       cycle: current.cycle,
       title: input.title ?? current.title,
       title_derived: edited ? false : current.title_derived,

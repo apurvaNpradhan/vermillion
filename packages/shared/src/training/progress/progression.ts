@@ -1,14 +1,9 @@
-import type { Equipment, ExerciseType } from "../../exercise/vocabulary";
 import type { LoggedSet } from "../logging/logged-set";
-import type { PlannedSet } from "../plans/planned-sets";
+import type { Phase } from "../phases/phases";
 import type { SetKind, WeightUnit } from "../vocabulary/vocabulary";
-import {
-  LIGHTER_WEEK_LOAD,
-  activeLighterWeek,
-  outsideLighterWeeks,
-  type LighterPeriod,
-} from "./lighter-week";
-import { incrementFor, lightenLoad, loadable } from "./progression-steps";
+import type { Evidence } from "./evidence";
+import type { LighterPeriod } from "./lighter-week";
+import type { LoadGrid } from "./load-grid";
 
 export { incrementFor } from "./progression-steps";
 
@@ -17,263 +12,162 @@ export type IncrementSettings = {
   weightIncrementKg: number | null;
   progressionPerSet?: boolean;
 };
-export type SuggestedSet = { weightKg: number | null; reps: number | null };
+/**
+ * What a set is suggested: its load and reps, and for timed and carried work its duration and
+ * distance. The two are absent for every type that does not record them.
+ */
+export type SuggestedSet = {
+  weightKg: number | null;
+  reps: number | null;
+  durationS?: number | null;
+  distanceM?: number | null;
+};
 
 /** Why a suggestion is what it is: a small closed set, each with its own short label. */
 export const PROGRESSION_REASONS = [
   "add_weight",
   "add_rep",
-  "hold",
+  /** The next load is a big jump: the reps climb past the range first. */
+  "more_reps",
+  "reset",
+  "hold_missed",
+  "hold_together",
   "hold_effort",
   "after_break",
   "same_as_last",
   "deload",
+  "test_single",
+  /** A back-off set follows its top set: a share of the top load. */
+  "backoff_share",
+  /** An assisted lift needs less help: the assistance steps down. */
+  "less_assist",
+  /** A timed set was made: five seconds more. */
+  "add_time",
+  /** A carry with no load was made: a few metres more. */
+  "add_distance",
+  /** A timed or carried set fell short: the target again. */
+  "hold_target",
+  /** The last load was above this gym's cap, so the cap is suggested. */
+  "capped",
+  /** At the cap with reps still to gain: the load stays, the reps climb. */
+  "cap_reps",
+  /** At the cap and past the extended rep ceiling: add a set or go single-arm. */
+  "cap_hint",
 ] as const;
 export type ProgressionReason = (typeof PROGRESSION_REASONS)[number];
+
+export type SetOutcome = {
+  reason: ProgressionReason;
+  /** Added load, when the set progresses in weight. */
+  changeKg?: number;
+  /** The suggested load when the last set exceeded the cap. */
+  capKg?: number;
+  limit?: "plates" | "equipment";
+  /** The share of the previous load after snapping to the equipment. */
+  loadFactor?: number;
+  /**
+   * For `backoff_share`: the share of the top set the rule meant, before the grid rounded it. The
+   * next Session reads it back when the back-off was done as suggested, so rounding never creeps it.
+   */
+  share?: number;
+  /** For `more_reps`: the reps to reach before the load goes up. */
+  ceiling?: number;
+  /** Seconds added to a timed set (`add_time`). */
+  changeS?: number;
+  /** Metres added to a carry (`add_distance`). */
+  changeM?: number;
+};
 
 export type Progression = {
   reason: ProgressionReason;
   sets: (SuggestedSet | null)[];
+  outcomes: (SetOutcome | null)[];
   /** The load the first progressing set adds, in kilograms (what "Add 2.5 kg" shows). */
   incrementKg: number;
   /** Whole days since the last Session with this exercise, for `after_break`; else null. */
   breakDays: number | null;
+  /** The Session, factor and snapping the suggestion rests on; absent for a Test single. */
+  evidence?: Evidence;
 };
 
 /** What a suggestion needs besides the history: the clock and the Lighter weeks. */
 export type ProgressionContext = {
   now: Date;
+  /** Fallback when a logged set has no bodyweight snapshot. */
+  bodyweightKg?: number | null;
+  /**
+   * The Sessions the loads and reps are read from, when fewer than the whole `history`: a
+   * baseline can prefer the same Workout and, for gym-bound equipment, the same gym. The break
+   * clock reads the exercise's full history across Workouts and gyms.
+   */
+  baselineHistory?: readonly ProgressionSession[];
+  /** Whole baseline entries that match the fixed-rep prescription, newest first. */
+  fixedBaselineHistory?: readonly ProgressionSession[];
+  fixedFallbackHistory?: readonly ProgressionSession[];
   /** Every Lighter week, past and running. Their Sessions are never a baseline. */
   lighterWeeks?: readonly LighterPeriod[];
   /** Suggest the stalled-lift deload: 90% of the last load at the bottom of the range. */
   deload?: boolean;
+  /**
+   * The load factor of this week's phase (0.9 in a Deload): below 1 it suggests that share of the
+   * last load at the bottom of the range, like the stalled-lift deload. Unlike a break, a Lighter
+   * week or the stalled-lift deload, which round to the nearest lower load, a phase rounds down only within five percentage
+   * points of the intended cut.
+   */
+  phaseLoad?: number;
+  /**
+   * The phase of the Session being prescribed. A Deload whose load share is 100% still asks for
+   * its baseline load at the bottom of the range rather than a heavier one.
+   */
+  phase?: Phase | null;
+  /** The loads this gym can make for the exercise, with its cap; null is the equipment default. */
+  grid?: LoadGrid | null;
+  /** The Test single uses its explicit target instead of progressing a previous top set. */
+  testSingle?: boolean;
 };
 
 /** The history a suggestion reads: Sessions newest first, each with its Logged sets. */
-export type ProgressionSession = { started_at: string; sets: readonly LoggedSet[] };
+export type ProgressionSession = {
+  /** The Session's id, named in the evidence when it is the baseline. */
+  id?: string;
+  started_at: string;
+  sets: readonly LoggedSet[];
+  /** The phase the Session started in; Test and Deload Sessions are never a baseline. */
+  phase?: Phase | null;
+};
 
 const DAY_MS = 86_400_000;
-/** Back after this many days: start at 90% of the last load, and after the longer one at 80%. */
+/** Break tiers and their starting shares of the last load. */
 const SHORT_BREAK_DAYS = 14;
 const LONG_BREAK_DAYS = 28;
+const EXTENDED_BREAK_DAYS = 84;
 const SHORT_BREAK_LOAD = 0.9;
 const LONG_BREAK_LOAD = 0.8;
-/** At this effort or harder a set was a grind; at the easier one it was easy. */
-const GRIND_RPE = 9.5;
-const EASY_RPE = 7;
+const EXTENDED_BREAK_LOAD = 0.7;
 
 /** Kinds that progress against their own previous counterparts; the rest only show Previous. */
 const PROGRESSING_KINDS: readonly SetKind[] = ["working", "top", "backoff"];
 export const progresses = (kind: SetKind) => PROGRESSING_KINDS.includes(kind);
 
-const done = (sets: readonly LoggedSet[]) => sets.filter((set) => set.completed_at !== null);
-
-/**
- * The set of `sets` a planned set progresses from: the same kind at the same position, or the
- * last one of that kind when this Session had fewer. With none of that kind (a back-off set
- * where there was none) there is no base: a heavy working set must not seed a lighter back-off
- * set, so the explicit prescription stands.
- */
-function counterpart(
-  sets: readonly LoggedSet[],
-  kind: SetKind,
-  ordinal: number,
-): LoggedSet | undefined {
-  const same = sets.filter((set) => set.kind === kind);
-  return same[Math.min(ordinal, same.length - 1)];
-}
-
-type Slot = { index: number; target: PlannedSet; ordinal: number };
-
-/** The planned sets that progress, with their position among sets of their own kind. */
-function slotsOf(planned: readonly PlannedSet[]): Slot[] {
-  const seen = new Map<SetKind, number>();
-  return planned.flatMap((target, index): Slot[] => {
-    const ordinal = seen.get(target.kind) ?? 0;
-    seen.set(target.kind, ordinal + 1);
-    return progresses(target.kind) ? [{ index, target, ordinal }] : [];
-  });
-}
-
-/** Whether the Session missed a planned range minimum at a grind (or with no effort logged). */
-function missedRange(slots: readonly Slot[], sets: readonly LoggedSet[]): boolean {
-  return slots.some(({ target, ordinal }) => {
-    const set = counterpart(sets, target.kind, ordinal);
-    return (
-      target.reps_min !== undefined &&
-      set?.reps != null &&
-      set.reps < target.reps_min &&
-      (set.rpe == null || set.rpe >= GRIND_RPE)
-    );
-  });
-}
-
-type Outcome = "add_weight" | "add_rep" | "hold" | "hold_effort" | "same";
-const OUTCOME_ORDER = ["add_weight", "add_rep", "hold_effort", "hold", "same"] as const;
-const REASON_OF = {
-  add_weight: "add_weight",
-  add_rep: "add_rep",
-  hold_effort: "hold_effort",
-  hold: "hold",
-  same: "same_as_last",
-} as const satisfies Record<Outcome, ProgressionReason>;
-
-/**
- * Progression for planned sets (ADR 0038). `history` is newest first. Matched sets grow reps
- * to the top of their range, then add load and reset the reps. By default working sets wait
- * for every working set to reach the ceiling before adding load. Top and back-off sets progress
- * independently.
- * Logged effort tempers that (a grind holds, an easy set adds double), a miss of the range
- * minimum on two Sessions running holds, a break lowers the load and a Lighter week or the
- * stalled-lift deload suggests 90%. Warm-ups and Lighter-week Sessions are never a baseline.
- */
-export function suggestNext(
-  planned: readonly PlannedSet[],
-  history: readonly ProgressionSession[],
-  type: ExerciseType,
-  equipment: Equipment,
-  settings: IncrementSettings,
-  context: ProgressionContext,
-): Progression | null {
-  const loaded = type === "weight_reps" || type === "bodyweight_weighted_reps";
-  if (!loaded && type !== "reps_only" && type !== "bodyweight_reps") return null;
-  const slots = slotsOf(planned);
-  if (slots.length === 0) return null;
-  const unit = settings.weightUnit;
-  const baselines = outsideLighterWeeks(history, context.lighterWeeks ?? []).flatMap((session) => {
-    const sets = done(session.sets).filter((set) => progresses(set.kind));
-    return sets.length > 0 ? [{ ...session, sets }] : [];
-  });
-  const last = baselines[0];
-  if (!last) return null;
-  // The break clock runs from the latest Session with a completed working set; a Session of only
-  // warm-ups or unticked sets is not training.
-  const lastTrained =
-    history.find((session) => done(session.sets).some((set) => progresses(set.kind))) ?? last;
-  const breakDays = Math.floor(
-    (context.now.getTime() - Date.parse(lastTrained.started_at)) / DAY_MS,
+/** The elapsed break and its load share, shared by ordinary progression and Test seeding. */
+export function trainingBreak(
+  history: readonly {
+    started_at: string;
+    sets: readonly Pick<LoggedSet, "kind" | "completed_at">[];
+  }[],
+  now: Date,
+) {
+  const trained = history.find((session) =>
+    session.sets.some((set) => set.completed_at !== null && progresses(set.kind)),
   );
-  const breakLoad =
-    breakDays >= LONG_BREAK_DAYS
-      ? LONG_BREAK_LOAD
-      : breakDays >= SHORT_BREAK_DAYS
-        ? SHORT_BREAK_LOAD
-        : null;
-  const lighter =
-    context.deload === true || activeLighterWeek(context.lighterWeeks ?? [], context.now) !== null;
-  // The stricter of a break and a Lighter week wins; a Lighter week names itself on a tie.
-  const factor = Math.min(
-    lighter ? LIGHTER_WEEK_LOAD : 1,
-    loaded && breakLoad !== null ? breakLoad : 1,
-  );
-  const resetReason: ProgressionReason | null =
-    factor === 1
-      ? null
-      : loaded && breakLoad !== null && breakLoad < (lighter ? LIGHTER_WEEK_LOAD : 1)
-        ? "after_break"
-        : "deload";
-
-  const sets: (SuggestedSet | null)[] = planned.map(() => null);
-  if (resetReason !== null) {
-    for (const { index, target, ordinal } of slots) {
-      const before = counterpart(last.sets, target.kind, ordinal);
-      if (!before) continue;
-      const weightKg =
-        before.weight_kg == null ? null : lightenLoad(before.weight_kg, factor, equipment, unit);
-      // A reset that cannot lower the load must not raise the reps either.
-      const lowered = weightKg !== null && before.weight_kg != null && weightKg < before.weight_kg;
-      const reset = target.reps_min ?? before.reps ?? null;
-      sets[index] = {
-        weightKg,
-        reps:
-          !lowered && reset !== null && before.reps != null ? Math.min(reset, before.reps) : reset,
-      };
-    }
-    return {
-      reason: resetReason,
-      sets,
-      incrementKg: incrementFor(null, equipment, settings),
-      breakDays: resetReason === "after_break" ? breakDays : null,
-    };
-  }
-
-  const older = baselines[1];
-  const held =
-    older !== undefined && missedRange(slots, last.sets) && missedRange(slots, older.sets);
-  // Without a weight to add, a rep range grows past its top only when every set topped it.
-  const allTopped = slots.every(({ target, ordinal }) => {
-    const before = counterpart(last.sets, target.kind, ordinal);
-    return (
-      target.reps_min !== undefined &&
-      before?.reps != null &&
-      before.reps >= (target.reps_max ?? target.reps_min)
-    );
-  });
-  const lastWorking = last.sets.filter((set) => set.kind === "working");
-  const workingReady = slots.every(({ target, ordinal }) => {
-    if (target.kind !== "working") return true;
-    const before = lastWorking[ordinal];
-    const ceiling = target.reps_max ?? target.reps_min;
-    return (
-      ceiling !== undefined &&
-      before?.reps != null &&
-      before.reps >= ceiling &&
-      before.weight_kg != null &&
-      (before.rpe == null || before.rpe < GRIND_RPE)
-    );
-  });
-  // Straight sets at one load share one increment: doubled only when every set there was easy.
-  const easyLoads = new Map<number, boolean>();
-  for (const set of lastWorking) {
-    if (set.weight_kg == null) continue;
-    const easy = set.rpe != null && set.rpe <= EASY_RPE;
-    easyLoads.set(set.weight_kg, (easyLoads.get(set.weight_kg) ?? true) && easy);
-  }
-  const outcomes: Outcome[] = [];
-  let incrementKg: number | null = null;
-  for (const { index, target, ordinal } of slots) {
-    const before = counterpart(last.sets, target.kind, ordinal);
-    if (!before) continue;
-    const same: SuggestedSet = { weightKg: before.weight_kg ?? null, reps: before.reps ?? null };
-    let outcome: Outcome = "same";
-    let next = same;
-    if (held) outcome = "hold";
-    else if (before.rpe != null && before.rpe >= GRIND_RPE) outcome = "hold_effort";
-    else if (target.reps_min !== undefined && before.reps != null) {
-      const max = target.reps_max ?? target.reps_min;
-      const canLoad = loaded && before.weight_kg != null;
-      if (before.reps >= max) {
-        if (canLoad && (target.kind !== "working" || settings.progressionPerSet || workingReady)) {
-          const easy =
-            target.kind === "working" && !settings.progressionPerSet
-              ? (easyLoads.get(before.weight_kg ?? 0) ?? false)
-              : before.rpe != null && before.rpe <= EASY_RPE;
-          const added = incrementFor(before.weight_kg ?? 0, equipment, settings) * (easy ? 2 : 1);
-          incrementKg ??= added;
-          outcome = "add_weight";
-          next = {
-            weightKg: loadable((before.weight_kg ?? 0) + added, unit),
-            reps: target.reps_min,
-          };
-        } else if (!canLoad) {
-          outcome = "add_rep";
-          next = { ...same, reps: allTopped ? before.reps + 1 : before.reps };
-        } else {
-          outcome = "hold";
-        }
-      } else {
-        outcome = "add_rep";
-        next = { ...same, reps: Math.min(max, before.reps + 1) };
-      }
-    }
-    outcomes.push(outcome);
-    sets[index] = next;
-  }
-  const top = OUTCOME_ORDER.find((outcome) => outcomes.includes(outcome)) ?? "same";
-  return {
-    reason: REASON_OF[top],
-    sets,
-    incrementKg: incrementKg ?? incrementFor(last.sets[0]?.weight_kg ?? null, equipment, settings),
-    breakDays: null,
-  };
+  const days = trained ? Math.floor((now.getTime() - Date.parse(trained.started_at)) / DAY_MS) : 0;
+  const load =
+    days >= EXTENDED_BREAK_DAYS
+      ? EXTENDED_BREAK_LOAD
+      : days >= LONG_BREAK_DAYS
+        ? LONG_BREAK_LOAD
+        : days >= SHORT_BREAK_DAYS
+          ? SHORT_BREAK_LOAD
+          : 1;
+  return { days, load };
 }

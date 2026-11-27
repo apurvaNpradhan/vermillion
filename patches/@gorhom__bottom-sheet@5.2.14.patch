@@ -1,14 +1,36 @@
-diff --git a/src/components/bottomSheet/BottomSheet.tsx b/src/components/bottomSheet/BottomSheet.tsx
-index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2893681c4 100644
---- a/src/components/bottomSheet/BottomSheet.tsx
-+++ b/src/components/bottomSheet/BottomSheet.tsx
+diff --git i/src/components/bottomSheet/BottomSheet.tsx w/src/components/bottomSheet/BottomSheet.tsx
+index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..d4efc65954f944055760b21a974e8413a1ede2da 100644
+--- i/src/components/bottomSheet/BottomSheet.tsx
++++ w/src/components/bottomSheet/BottomSheet.tsx
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';
  import invariant from 'invariant';
  import React, {
    forwardRef,
-@@ -211,7 +213,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+@@ -66,8 +68,6 @@ import { BottomSheetHostingContainer } from '../bottomSheetHostingContainer';
+ import { BottomSheetBody } from './BottomSheetBody';
+ import { BottomSheetContent } from './BottomSheetContent';
+ import {
+-  DEFAULT_ACCESSIBILITY_LABEL,
+-  DEFAULT_ACCESSIBILITY_ROLE,
+   DEFAULT_ACCESSIBLE,
+   DEFAULT_ANIMATE_ON_MOUNT,
+   DEFAULT_DYNAMIC_SIZING,
+@@ -163,10 +163,8 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+ 
+       // accessibility
+       accessible: _providedAccessible = DEFAULT_ACCESSIBLE,
+-      accessibilityLabel:
+-        _providedAccessibilityLabel = DEFAULT_ACCESSIBILITY_LABEL,
+-      accessibilityRole:
+-        _providedAccessibilityRole = DEFAULT_ACCESSIBILITY_ROLE,
++      accessibilityLabel: _providedAccessibilityLabel,
++      accessibilityRole: _providedAccessibilityRole,
+     } = props;
+     //#endregion
+ 
+@@ -211,7 +209,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
        }
  
        return containerHeight - highestDetentPosition;
@@ -17,7 +39,7 @@ index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2
      const animatedCurrentIndex = useReactiveSharedValue(
        animateOnMount ? -1 : _providedIndex
      );
-@@ -255,7 +257,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+@@ -255,7 +253,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
          isHandleHeightCalculated &&
          isSnapPointsNormalized
        );
@@ -26,7 +48,7 @@ index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2
      const isInTemporaryPosition = useSharedValue(false);
      const animatedContainerHeightDidChange = useSharedValue(false);
  
-@@ -340,7 +342,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+@@ -340,7 +338,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
        }
  
        return SHEET_STATE.OPENED;
@@ -35,7 +57,7 @@ index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2
        animatedLayoutState,
        animatedDetentsState,
        animatedKeyboardState,
-@@ -348,7 +350,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+@@ -348,7 +346,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
        animatedSheetHeight,
        isInTemporaryPosition,
        keyboardBehavior,
@@ -44,7 +66,7 @@ index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2
      const {
        state: animatedScrollableState,
        status: animatedScrollableStatus,
-@@ -422,7 +424,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+@@ -422,7 +420,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
        }
  
        return currentIndex;
@@ -53,7 +75,7 @@ index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2
        android_keyboardInputMode,
        animatedAnimationState,
        animatedLayoutState,
-@@ -431,7 +433,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+@@ -431,7 +429,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
        animatedDetentsState,
        isInTemporaryPosition,
        isLayoutCalculated,
@@ -62,7 +84,7 @@ index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2
      //#endregion
  
      //#region private methods
-@@ -1570,11 +1572,11 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+@@ -1570,11 +1568,11 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
            animateToPosition(closedDetentPosition, ANIMATION_SOURCE.GESTURE);
          }
        },
@@ -76,7 +98,7 @@ index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2
      );
  
      /**
-@@ -1617,7 +1619,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+@@ -1617,7 +1615,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
  
          evaluatePosition(ANIMATION_SOURCE.SNAP_POINT_CHANGE);
        },
@@ -85,7 +107,7 @@ index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2
      );
  
      /**
-@@ -1737,7 +1739,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+@@ -1737,7 +1735,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
          const animationConfigs = getKeyboardAnimationConfigs(easing, duration);
          evaluatePosition(ANIMATION_SOURCE.KEYBOARD, animationConfigs);
        },
@@ -94,7 +116,7 @@ index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2
          $modal,
          bottomInset,
          keyboardBehavior,
-@@ -1746,7 +1748,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+@@ -1746,7 +1744,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
          animatedKeyboardState,
          animatedLayoutState,
          getEvaluatedPosition,
@@ -103,7 +125,7 @@ index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2
      );
  
      /**
-@@ -1759,7 +1761,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+@@ -1759,7 +1757,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
            _providedAnimatedPosition.value = _animatedPosition + topInset;
          }
        },
@@ -112,7 +134,7 @@ index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2
      );
  
      /**
-@@ -1772,7 +1774,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
+@@ -1772,7 +1770,7 @@ const BottomSheetComponent = forwardRef<BottomSheet, BottomSheetProps>(
            _providedAnimatedIndex.value = _animatedIndex;
          }
        },
@@ -121,10 +143,10 @@ index fc520337115ce7a2c7aacb0f81f16b9046ce2c89..4429853e61abda0bf41b02a903e282b2
      );
  
      /**
-diff --git a/src/components/bottomSheet/BottomSheetBody.tsx b/src/components/bottomSheet/BottomSheetBody.tsx
+diff --git i/src/components/bottomSheet/BottomSheetBody.tsx w/src/components/bottomSheet/BottomSheetBody.tsx
 index 91b6a6a6291bbd3ef8df100b21f328e591ae180a..f88e7f7b48acee1a4a773bc092f2a2fc1a71bbd4 100644
---- a/src/components/bottomSheet/BottomSheetBody.tsx
-+++ b/src/components/bottomSheet/BottomSheetBody.tsx
+--- i/src/components/bottomSheet/BottomSheetBody.tsx
++++ w/src/components/bottomSheet/BottomSheetBody.tsx
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';
@@ -140,10 +162,10 @@ index 91b6a6a6291bbd3ef8df100b21f328e591ae180a..f88e7f7b48acee1a4a773bc092f2a2fc
    );
    const containerStyle = useMemo(
      () => [style, styles.container, containerAnimatedStyle],
-diff --git a/src/components/bottomSheet/BottomSheetContent.tsx b/src/components/bottomSheet/BottomSheetContent.tsx
+diff --git i/src/components/bottomSheet/BottomSheetContent.tsx w/src/components/bottomSheet/BottomSheetContent.tsx
 index 4a69a6892ff553836b72216b598451c56f6284cc..80b49e6b8ed069f6543f7cd19b9a41ecf7c37a2a 100644
---- a/src/components/bottomSheet/BottomSheetContent.tsx
-+++ b/src/components/bottomSheet/BottomSheetContent.tsx
+--- i/src/components/bottomSheet/BottomSheetContent.tsx
++++ w/src/components/bottomSheet/BottomSheetContent.tsx
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';
@@ -200,10 +222,30 @@ index 4a69a6892ff553836b72216b598451c56f6284cc..80b49e6b8ed069f6543f7cd19b9a41ec
    const contentContainerStyle = useMemo(
      () => [
        detached
-diff --git a/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx b/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx
+diff --git i/src/components/bottomSheet/constants.ts w/src/components/bottomSheet/constants.ts
+index 51ff1d9ce803a76f6a257c3cb2eb92f4d0faf64c..b7fac87a84a656cef729a9eebfdc22c75ed08f2b 100644
+--- i/src/components/bottomSheet/constants.ts
++++ w/src/components/bottomSheet/constants.ts
+@@ -26,13 +26,10 @@ const INITIAL_VALUE = Number.NEGATIVE_INFINITY;
+ const INITIAL_SNAP_POINT = -999;
+ 
+ // accessibility
+-const DEFAULT_ACCESSIBLE = true;
+-const DEFAULT_ACCESSIBILITY_LABEL = 'Bottom Sheet';
+-const DEFAULT_ACCESSIBILITY_ROLE = 'adjustable';
++// Sigil: the sheet and its handle are not "adjustable" items; the content inside is read directly.
++const DEFAULT_ACCESSIBLE = false;
+ 
+ export {
+-  DEFAULT_ACCESSIBILITY_LABEL,
+-  DEFAULT_ACCESSIBILITY_ROLE,
+   DEFAULT_ACCESSIBLE,
+   DEFAULT_ANIMATE_ON_MOUNT,
+   DEFAULT_DYNAMIC_SIZING,
+diff --git i/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx w/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx
 index a0345b013904e92e0c00ba55ff23ba191d96a395..7ce0303d4f40dc2a78138cff82b9c3e9a4586136 100644
---- a/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx
-+++ b/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx
+--- i/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx
++++ w/src/components/bottomSheetBackdrop/BottomSheetBackdrop.tsx
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';
@@ -228,10 +270,25 @@ index a0345b013904e92e0c00ba55ff23ba191d96a395..7ce0303d4f40dc2a78138cff82b9c3e9
    );
  
    // addressing updating the state after unmounting.
-diff --git a/src/components/bottomSheetDebugView/ReText.tsx b/src/components/bottomSheetDebugView/ReText.tsx
+diff --git i/src/components/bottomSheetBackground/BottomSheetBackground.tsx w/src/components/bottomSheetBackground/BottomSheetBackground.tsx
+index 11e7306b86b6a02d2635bd674f4830782c371cd7..3437c486b0ba44ab3b2696637856cc14201b335f 100644
+--- i/src/components/bottomSheetBackground/BottomSheetBackground.tsx
++++ w/src/components/bottomSheetBackground/BottomSheetBackground.tsx
+@@ -9,9 +9,7 @@ const BottomSheetBackgroundComponent = ({
+ }: BottomSheetBackgroundProps) => (
+   <View
+     pointerEvents={pointerEvents}
+-    accessible={true}
+-    accessibilityRole="adjustable"
+-    accessibilityLabel="Bottom Sheet"
++    accessible={false}
+     style={[styles.background, style]}
+   />
+ );
+diff --git i/src/components/bottomSheetDebugView/ReText.tsx w/src/components/bottomSheetDebugView/ReText.tsx
 index 3091565187fd02297a289cdce2c80152570ce81a..64e49bf634fc47c6b68f9aaf364f0abc353997c3 100644
---- a/src/components/bottomSheetDebugView/ReText.tsx
-+++ b/src/components/bottomSheetDebugView/ReText.tsx
+--- i/src/components/bottomSheetDebugView/ReText.tsx
++++ w/src/components/bottomSheetDebugView/ReText.tsx
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';
@@ -247,10 +304,10 @@ index 3091565187fd02297a289cdce2c80152570ce81a..64e49bf634fc47c6b68f9aaf364f0abc
    const animatedProps = useAnimatedProps(() => {
      return {
        text: providedValue.get(),
-diff --git a/src/components/bottomSheetFooter/BottomSheetFooter.tsx b/src/components/bottomSheetFooter/BottomSheetFooter.tsx
+diff --git i/src/components/bottomSheetFooter/BottomSheetFooter.tsx w/src/components/bottomSheetFooter/BottomSheetFooter.tsx
 index 639f2af3fdd106a6147972d9f2c853ab39b94b53..56f45fc54e0d58709a946d7336ea3f430458d4c5 100644
---- a/src/components/bottomSheetFooter/BottomSheetFooter.tsx
-+++ b/src/components/bottomSheetFooter/BottomSheetFooter.tsx
+--- i/src/components/bottomSheetFooter/BottomSheetFooter.tsx
++++ w/src/components/bottomSheetFooter/BottomSheetFooter.tsx
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';
@@ -266,10 +323,10 @@ index 639f2af3fdd106a6147972d9f2c853ab39b94b53..56f45fc54e0d58709a946d7336ea3f43
    const containerStyle = useMemo(
      () => [styles.container, style, containerAnimatedStyle],
      [style, containerAnimatedStyle]
-diff --git a/src/components/bottomSheetFooter/BottomSheetFooterContainer.tsx b/src/components/bottomSheetFooter/BottomSheetFooterContainer.tsx
+diff --git i/src/components/bottomSheetFooter/BottomSheetFooterContainer.tsx w/src/components/bottomSheetFooter/BottomSheetFooterContainer.tsx
 index 183903f7b9fb350646a44fa642c4f865f48a6ed1..7907b8e326bd2e99314826c1b905672d89358327 100644
---- a/src/components/bottomSheetFooter/BottomSheetFooterContainer.tsx
-+++ b/src/components/bottomSheetFooter/BottomSheetFooterContainer.tsx
+--- i/src/components/bottomSheetFooter/BottomSheetFooterContainer.tsx
++++ w/src/components/bottomSheetFooter/BottomSheetFooterContainer.tsx
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';
@@ -285,10 +342,59 @@ index 183903f7b9fb350646a44fa642c4f865f48a6ed1..7907b8e326bd2e99314826c1b905672d
    //#endregion
  
    return <FooterComponent animatedFooterPosition={animatedFooterPosition} />;
-diff --git a/src/hooks/useAnimatedDetents.ts b/src/hooks/useAnimatedDetents.ts
+diff --git i/src/components/bottomSheetHandle/BottomSheetHandle.tsx w/src/components/bottomSheetHandle/BottomSheetHandle.tsx
+index 0c95d13a1a74a815bc62a4e9465e2a18e15416b5..46843f0aadd5c3b699bb5f12f7bb7c3ad09cf5c6 100644
+--- i/src/components/bottomSheetHandle/BottomSheetHandle.tsx
++++ w/src/components/bottomSheetHandle/BottomSheetHandle.tsx
+@@ -1,11 +1,6 @@
+ import React, { memo, useMemo } from 'react';
+ import { StyleSheet, View } from 'react-native';
+-import {
+-  DEFAULT_ACCESSIBILITY_HINT,
+-  DEFAULT_ACCESSIBILITY_LABEL,
+-  DEFAULT_ACCESSIBILITY_ROLE,
+-  DEFAULT_ACCESSIBLE,
+-} from './constants';
++import { DEFAULT_ACCESSIBLE } from './constants';
+ import { styles } from './styles';
+ import type { BottomSheetDefaultHandleProps } from './types';
+ 
+@@ -13,9 +8,9 @@ function BottomSheetHandleComponent({
+   style,
+   indicatorStyle: _indicatorStyle,
+   accessible = DEFAULT_ACCESSIBLE,
+-  accessibilityRole = DEFAULT_ACCESSIBILITY_ROLE,
+-  accessibilityLabel = DEFAULT_ACCESSIBILITY_LABEL,
+-  accessibilityHint = DEFAULT_ACCESSIBILITY_HINT,
++  accessibilityRole,
++  accessibilityLabel,
++  accessibilityHint,
+   children,
+ }: BottomSheetDefaultHandleProps) {
+   //#region styles
+diff --git i/src/components/bottomSheetHandle/constants.ts w/src/components/bottomSheetHandle/constants.ts
+index 3af6afe3fa1fc7acb2b4b2abded392fedcbc4222..851bd2bfdfd3da89137c3c0ffb63878ebaaa4075 100644
+--- i/src/components/bottomSheetHandle/constants.ts
++++ w/src/components/bottomSheetHandle/constants.ts
+@@ -1,12 +1,3 @@
+-const DEFAULT_ACCESSIBLE = true;
+-const DEFAULT_ACCESSIBILITY_ROLE = 'adjustable';
+-const DEFAULT_ACCESSIBILITY_LABEL = 'Bottom sheet handle';
+-const DEFAULT_ACCESSIBILITY_HINT =
+-  'Drag up or down to extend or minimize the bottom sheet';
++const DEFAULT_ACCESSIBLE = false;
+ 
+-export {
+-  DEFAULT_ACCESSIBILITY_HINT,
+-  DEFAULT_ACCESSIBILITY_LABEL,
+-  DEFAULT_ACCESSIBILITY_ROLE,
+-  DEFAULT_ACCESSIBLE,
+-};
++export { DEFAULT_ACCESSIBLE };
+diff --git i/src/hooks/useAnimatedDetents.ts w/src/hooks/useAnimatedDetents.ts
 index cc34d3b059a6faab964392eb20b04711308c8e01..3499d9c33370f9897bf00667b19e2f4c26727dba 100644
---- a/src/hooks/useAnimatedDetents.ts
-+++ b/src/hooks/useAnimatedDetents.ts
+--- i/src/hooks/useAnimatedDetents.ts
++++ w/src/hooks/useAnimatedDetents.ts
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';
@@ -312,10 +418,10 @@ index cc34d3b059a6faab964392eb20b04711308c8e01..3499d9c33370f9897bf00667b19e2f4c
 +  ] : undefined);
    return state;
  };
-diff --git a/src/hooks/useAnimatedKeyboard.ts b/src/hooks/useAnimatedKeyboard.ts
+diff --git i/src/hooks/useAnimatedKeyboard.ts w/src/hooks/useAnimatedKeyboard.ts
 index d7051bfb9d2c623a3e1d4ed7cc4f862a26bfeea7..d46fd1067968dd8efd93c6e5ca3a7b6a65079568 100644
---- a/src/hooks/useAnimatedKeyboard.ts
-+++ b/src/hooks/useAnimatedKeyboard.ts
+--- i/src/hooks/useAnimatedKeyboard.ts
++++ w/src/hooks/useAnimatedKeyboard.ts
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';
@@ -331,10 +437,10 @@ index d7051bfb9d2c623a3e1d4ed7cc4f862a26bfeea7..d46fd1067968dd8efd93c6e5ca3a7b6a
    );
    //#endregion
  
-diff --git a/src/hooks/useAnimatedLayout.ts b/src/hooks/useAnimatedLayout.ts
+diff --git i/src/hooks/useAnimatedLayout.ts w/src/hooks/useAnimatedLayout.ts
 index 68c674de6287b89a97be778f7e5273f6b6b1c929..24145735b9e41517c63feb09f9d5fa4a215c65b6 100644
---- a/src/hooks/useAnimatedLayout.ts
-+++ b/src/hooks/useAnimatedLayout.ts
+--- i/src/hooks/useAnimatedLayout.ts
++++ w/src/hooks/useAnimatedLayout.ts
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';
@@ -359,10 +465,10 @@ index 68c674de6287b89a97be778f7e5273f6b6b1c929..24145735b9e41517c63feb09f9d5fa4a
    );
    useEffect(() => {
      Dimensions.addEventListener('change', ({ window }) => {
-diff --git a/src/hooks/useBottomSheetContentContainerStyle.ts b/src/hooks/useBottomSheetContentContainerStyle.ts
+diff --git i/src/hooks/useBottomSheetContentContainerStyle.ts w/src/hooks/useBottomSheetContentContainerStyle.ts
 index 6c0bffe15dc3496066c3aba248f54e54ca22f0d3..4c8fb362721ba984aca2f6f4356addf4e9d7505f 100644
---- a/src/hooks/useBottomSheetContentContainerStyle.ts
-+++ b/src/hooks/useBottomSheetContentContainerStyle.ts
+--- i/src/hooks/useBottomSheetContentContainerStyle.ts
++++ w/src/hooks/useBottomSheetContentContainerStyle.ts
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';
@@ -378,10 +484,10 @@ index 6c0bffe15dc3496066c3aba248f54e54ca22f0d3..4c8fb362721ba984aca2f6f4356addf4
    );
    //#endregion
    return style;
-diff --git a/src/hooks/useScrollHandler.ts b/src/hooks/useScrollHandler.ts
+diff --git i/src/hooks/useScrollHandler.ts w/src/hooks/useScrollHandler.ts
 index a7910834920a83cfc49cb52b338a656c2aef4e07..f1f0f919985f6ffe58e843a649bb08c1966b75ee 100644
---- a/src/hooks/useScrollHandler.ts
-+++ b/src/hooks/useScrollHandler.ts
+--- i/src/hooks/useScrollHandler.ts
++++ w/src/hooks/useScrollHandler.ts
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';
@@ -406,10 +512,10 @@ index a7910834920a83cfc49cb52b338a656c2aef4e07..f1f0f919985f6ffe58e843a649bb08c1
    );
  
    return { scrollHandler, scrollableRef, scrollableContentOffsetY };
-diff --git a/src/hooks/useScrollable.ts b/src/hooks/useScrollable.ts
+diff --git i/src/hooks/useScrollable.ts w/src/hooks/useScrollable.ts
 index 9c19051d146e3f90bfb639af53d7767f66582a98..ae82f32afade67762890a7e62ec238692f3b155a 100644
---- a/src/hooks/useScrollable.ts
-+++ b/src/hooks/useScrollable.ts
+--- i/src/hooks/useScrollable.ts
++++ w/src/hooks/useScrollable.ts
 @@ -1,3 +1,5 @@
 +// Reanimated 4.7 ignores dependency arrays on native. Preserve the web fallback.
 +import { Platform as NativePlatform } from 'react-native';

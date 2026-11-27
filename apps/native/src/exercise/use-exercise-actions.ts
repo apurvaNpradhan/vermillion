@@ -1,8 +1,9 @@
-import type { CustomExerciseInput } from "@workspace/shared";
+import type { CustomExerciseInput, RuleConfig, WeightUnit } from "@workspace/shared";
 import {
   archiveExercise,
   createCustomExercise,
   restoreExercise,
+  setExercisePinned as writeExercisePin,
   setExerciseSetting,
   updateCustomExercise,
   type ExerciseDatabase,
@@ -91,6 +92,19 @@ export function useExerciseActions() {
     [write, writeScope],
   );
 
+  /** The exercise's progression rule; null is Double. */
+  const setProgressionRule = useCallback(
+    (id: string, rule: RuleConfig | null) =>
+      write((db) => setExerciseSetting(db, id, { progression_rule: rule }, writeScope)),
+    [write, writeScope],
+  );
+
+  const setUnit = useCallback(
+    (id: string, unit: WeightUnit | null) =>
+      write((db) => setExerciseSetting(db, id, { unit }, writeScope)),
+    [write, writeScope],
+  );
+
   const setAutoWarmups = useCallback(
     (id: string, on: boolean) =>
       write((db) => setExerciseSetting(db, id, { auto_warmups: on }, writeScope)),
@@ -111,5 +125,21 @@ export function useExerciseActions() {
     [write, writeScope],
   );
 
-  return { create, update, archive, restore, setProgressionPerSet, setAutoWarmups, setPinnedNote };
+  const setExercisePinned = useCallback(
+    (id: string, pinned: boolean) => write((db) => writeExercisePin(db, id, pinned, writeScope)),
+    [write, writeScope],
+  );
+
+  return {
+    create,
+    update,
+    archive,
+    restore,
+    setProgressionPerSet,
+    setProgressionRule,
+    setAutoWarmups,
+    setUnit,
+    setPinnedNote,
+    setExercisePinned,
+  };
 }

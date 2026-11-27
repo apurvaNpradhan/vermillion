@@ -2,13 +2,14 @@ import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import type { ProgramSummary } from "@workspace/sync";
 import { useRouter } from "expo-router";
-import { ListNumbers } from "phosphor-react-native";
+import { ListNumbers, Plus } from "phosphor-react-native";
 import { useCallback } from "react";
 import { View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
 import { Button } from "@/platform/ui/button";
 import { EmptyState } from "@/platform/ui/empty-state";
+import { useSubtleColor } from "@/platform/theme";
 import { Page } from "@/platform/ui/page";
 import { SwipeGroup } from "@/platform/ui/swipe-row";
 import { SyncBanner } from "@/sync";
@@ -22,10 +23,11 @@ import { TrainingListState } from "@/training/train/training-list-state";
 const NO_PROGRAMS: ProgramSummary[] = [];
 const programKey = (program: ProgramSummary) => program.id;
 
-/** Program management behind the Train tab's header button: the active Run, then every Program. */
+/** Program management behind the Train tab's "See all": the active program, then every Program. */
 export function ProgramsScreen() {
   const { t } = useTranslation();
   const router = useRouter();
+  const subtle = useSubtleColor();
   const active = useActiveProgram();
   const list = useProgramLibrary(active);
   const { open, duplicate, remove } = list;
@@ -53,11 +55,12 @@ export function ProgramsScreen() {
         back
         actions={
           <Button
-            variant={status === "empty" ? "secondary" : "primary"}
-            className="rounded-full"
+            isIconOnly
+            variant="ghost"
+            accessibilityLabel={t("training__new_program")}
             onPress={() => router.push("/train/new-program")}
           >
-            <Button.Label>{t("training__new_program")}</Button.Label>
+            <Plus size={24} weight="regular" color={subtle} />
           </Button>
         }
       >
@@ -86,10 +89,7 @@ export function ProgramsScreen() {
                   icon={ListNumbers}
                   label={t("empty__programs", { count: 0 })}
                   title={t("training__no_programs")}
-                  action={{
-                    label: t("training__new_program"),
-                    onPress: () => router.push("/train/new-program"),
-                  }}
+                  description={t("training__no_programs_hint")}
                 />
               ) : null
             }

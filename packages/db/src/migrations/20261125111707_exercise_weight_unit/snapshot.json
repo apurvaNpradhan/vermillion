@@ -1,0 +1,62 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "edbad2cf-8828-4906-aa84-8286bf53aeb4",
+  "prevIds": ["8fd4b091-486f-4f05-a1e1-ee6fcc8265ed"],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": ["column", "public", "exercise_setting", "unit"],
+      "writes": [
+        "s|col|public.exercise_setting.unit",
+        "n|col|public.exercise_setting.unit",
+        "e|col|public.exercise_setting.unit"
+      ],
+      "reads": ["n|tbl|public.exercise_setting", "n|sch|public"]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": ["table", "public", "exercise_setting"],
+      "writes": [
+        "s|ck|public.exercise_setting.exercise_setting_unit_known",
+        "n|ck|public.exercise_setting.exercise_setting_unit_known",
+        "e|ck|public.exercise_setting.exercise_setting_unit_known",
+        "n|con|public.exercise_setting.exercise_setting_unit_known"
+      ],
+      "reads": [
+        "n|tbl|public.exercise_setting",
+        "n|sch|public",
+        "n|col|public.exercise_setting.unit"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_setting",
+        "name": "unit",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "exercise_setting",
+        "name": "exercise_setting_unit_known",
+        "value": "\"unit\" IN ('kg','lb')",
+        "entityType": "checks"
+      }
+    }
+  ]
+}

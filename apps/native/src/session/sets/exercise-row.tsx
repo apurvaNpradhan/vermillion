@@ -17,10 +17,8 @@ import { ReorderBlock, ReorderTrigger, SupersetBracket } from "@/training";
  * (a solid tick instead of the count when every set is done, with the name dimmed) and the
  * menu. There is no chevron: a tap on the header opens a closed exercise and closes an open one,
  * a tap on the thumbnail opens the exercise's detail, and the menu (also "View exercise") shows
- * on every header. Open it also shows its pinned note, progression chip and its body (chips, set
- * grid). A superset member carries the bracket. An opening body fades in; the height is not
- * animated, because the list re-measures an item whose size changes and the scroll to the next
- * exercise lands on the natural layout.
+ * on editable headers. An open card shows its pinned note, suggestion and set grid. Superset
+ * members carry a bracket. Only the body fades in, so scrolling can use the measured row height.
  */
 export const ExerciseRow = memo(function ExerciseRow({
   exercise,
@@ -40,13 +38,15 @@ export const ExerciseRow = memo(function ExerciseRow({
   onMenu,
   onReorder,
   children,
-  progression,
+  suggestion,
+  onSuggestion,
+  actions,
 }: {
   exercise: SessionExerciseDetail;
   place: SupersetPlace;
   /** "2/4". */
   progress: string;
-  /** The done summary after the progress; empty while sets remain. */
+  /** Logged values for the compact header; empty when no working sets have been logged. */
   summary: string;
   /** The body is shown; a closed exercise renders no sets, chips or notes. */
   expanded: boolean;
@@ -67,7 +67,12 @@ export const ExerciseRow = memo(function ExerciseRow({
   onReorder: () => void;
   /** The open body: chips, note, set grid. Not built while closed. */
   children?: ReactNode;
-  progression?: ReactNode;
+  /** The next-session suggestion ("Add 2.5 kg"), last on the second line; open exercises only. */
+  suggestion: string | null;
+  /** Opens the reason behind the suggestion. */
+  onSuggestion: () => void;
+  /** Small icon buttons beside the menu (rest, note); open exercises only. */
+  actions?: ReactNode;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
@@ -86,9 +91,13 @@ export const ExerciseRow = memo(function ExerciseRow({
   const subtitle = summary === "" ? progress : `${progress} · ${summary}`;
   const doneText = summary === "" ? progress : summary;
   const toggle = () => onToggle(exercise.id);
+  const shownSuggestion = expanded && suggestion ? suggestion : null;
+  const spoken = shownSuggestion
+    ? t("session__exercise_summary_suggestion", { summary: progress, suggestion: shownSuggestion })
+    : subtitle;
   const exerciseLabel = t(grouped ? "session__superset_header" : "session__exercise_header", {
     title: name,
-    summary: done ? t("session__exercise_completed", { summary: subtitle }) : subtitle,
+    summary: done ? t("session__exercise_completed", { summary: spoken }) : spoken,
   });
 
   const headerLabel =
@@ -111,20 +120,29 @@ export const ExerciseRow = memo(function ExerciseRow({
         >
           {thumbnail(40)}
         </Pressable>
-        <View className="min-h-[64px] min-w-0 flex-1 justify-center">
+        <View className="min-h-[64px] min-w-0 flex-1 justify-center py-2 pl-3 pr-1">
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={headerLabel}
             accessibilityState={{ expanded }}
             accessibilityHint={readOnly ? undefined : t("training__drag_hint")}
-            accessibilityActions={
-              readOnly ? undefined : [{ name: "reorder", label: t("training__reorder") }]
-            }
+            accessibilityActions={[
+              ...(readOnly ? [] : [{ name: "reorder", label: t("training__reorder") }]),
+              ...(shownSuggestion
+                ? [{ name: "suggestion", label: t("session__suggestion_reason") }]
+                : []),
+            ]}
             onAccessibilityAction={(event) => {
               if (!readOnly && event.nativeEvent.actionName === "reorder") onReorder();
+              if (shownSuggestion && event.nativeEvent.actionName === "suggestion") onSuggestion();
             }}
             onPress={toggle}
-            className="min-h-11 justify-center gap-0.5 py-2 pl-3 pr-1 active:bg-default"
+            className="absolute inset-0 active:bg-default"
+          />
+          <View
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
           >
             {place === "first" ? (
               <Text className="font-semibold text-overline uppercase text-foreground">
@@ -137,34 +155,55 @@ export const ExerciseRow = memo(function ExerciseRow({
             >
               {name}
             </Text>
-            <View className="flex-row items-center gap-1.5">
-              {done ? (
-                <View className="h-4 w-4 items-center justify-center rounded bg-accent">
-                  <Check size={12} weight="bold" color={onAccent} />
-                </View>
-              ) : null}
-              <Text
-                numberOfLines={1}
-                className="font-normal min-w-0 flex-shrink text-caption text-muted"
-                style={{ fontVariant: ["tabular-nums"] }}
-              >
-                {done ? doneText : subtitle}
-              </Text>
-              <RecordChip record={record} animate={animate} inHeader hidden={expanded} />
-            </View>
-            {expanded ? (
-              <ExerciseNotes pinned={exercise.pinnedNote} lastTime={exercise.lastNote} />
+          </View>
+          <Pressable
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            pointerEvents={shownSuggestion ? "auto" : "none"}
+            onPress={shownSuggestion ? onSuggestion : undefined}
+            hitSlop={{ bottom: 12 }}
+            className="min-h-8 flex-row items-center gap-1.5 active:opacity-70"
+          >
+            {done ? (
+              <View className="h-4 w-4 items-center justify-center rounded bg-accent">
+                <Check size={12} weight="bold" color={onAccent} />
+              </View>
             ) : null}
+            <Text
+              numberOfLines={1}
+              className="font-normal min-w-0 shrink text-caption text-muted"
+              style={{ fontVariant: ["tabular-nums"] }}
+            >
+              {shownSuggestion ? progress : done ? doneText : subtitle}
+            </Text>
+            {shownSuggestion ? (
+              <>
+                <Text className="font-normal text-caption text-muted">·</Text>
+                <Text
+                  numberOfLines={1}
+                  className="min-w-0 shrink text-caption font-semibold text-foreground"
+                >
+                  {shownSuggestion}
+                </Text>
+              </>
+            ) : null}
+            <RecordChip record={record} animate={animate} inHeader hidden={expanded} />
           </Pressable>
-          {expanded ? progression : null}
+          {expanded ? (
+            <View pointerEvents="none">
+              <ExerciseNotes pinned={exercise.pinnedNote} lastTime={exercise.lastNote} />
+            </View>
+          ) : null}
         </View>
+        {expanded ? actions : null}
         {!readOnly ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("training__row_menu", { title: name })}
             onPress={() => onMenu(exercise)}
             hitSlop={4}
-            className="h-11 w-11 items-center justify-center"
+            className="h-11 w-11 items-center justify-center rounded-full active:bg-default"
           >
             <DotsThreeVertical size={20} color={subtle} />
           </Pressable>

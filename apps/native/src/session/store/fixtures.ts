@@ -52,6 +52,8 @@ export const session = (exercises: SessionExerciseDetail[]): SessionDetail => ({
   programId: null,
   runId: null,
   slotId: null,
+  phase: null,
+  phaseModifiers: null,
   cycle: null,
   title: "Upper",
   titleDerived: false,

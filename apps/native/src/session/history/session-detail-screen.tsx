@@ -1,11 +1,16 @@
 import { SessionPhotos } from "@/session/screen/session-photos";
 import { useWeight } from "@/body";
-import { recordCount, recordFlags, sessionTotals, withWarmupsCounted } from "@workspace/shared";
+import {
+  recordCount,
+  recordFlags,
+  sessionTotals,
+  withWarmupsCounted,
+  resolveExerciseUnit,
+} from "@workspace/shared";
 import { useRouter } from "expo-router";
 import {
   ArrowClockwise,
   DotsThreeVertical,
-  PencilSimple,
   ShareNetwork,
   Trash,
   FloppyDisk,
@@ -185,6 +190,10 @@ export function SessionDetailScreen({ id }: { id: string }) {
                   onAction={() => router.push({ pathname: "/session/[id]", params: { id } })}
                 />
                 {session.exercises.map((entry) => {
+                  const exerciseUnit = resolveExerciseUnit(unit, entry.unit);
+                  const exerciseUnitLabel = t(
+                    exerciseUnit === "kg" ? "training__unit_kg" : "training__unit_lb",
+                  );
                   const chips = chipTexts(entry.sets, {
                     working: "",
                     warmup: t("training__chip_warmup"),
@@ -202,8 +211,8 @@ export function SessionDetailScreen({ id }: { id: string }) {
                       doneSummary(
                         [{ ...set, kind: "working" }],
                         entry.type,
-                        unit,
-                        unitLabel,
+                        exerciseUnit,
+                        exerciseUnitLabel,
                         display,
                       ),
                       set.rpe === null
@@ -227,7 +236,7 @@ export function SessionDetailScreen({ id }: { id: string }) {
                         onPress={() =>
                           router.push({
                             pathname: "/exercise-view/[id]",
-                            params: { id: entry.exerciseId },
+                            params: { id: entry.exerciseId, sessionId: id },
                           })
                         }
                       />
@@ -262,12 +271,6 @@ export function SessionDetailScreen({ id }: { id: string }) {
                 title={session.title}
                 actions={[
                   {
-                    key: "edit",
-                    label: t("session__edit"),
-                    icon: PencilSimple,
-                    onPress: () => router.push({ pathname: "/session/[id]", params: { id } }),
-                  },
-                  {
                     key: "again",
                     label: t("session__perform_again"),
                     icon: ArrowClockwise,
@@ -288,12 +291,6 @@ export function SessionDetailScreen({ id }: { id: string }) {
                             );
                         });
                     },
-                  },
-                  {
-                    key: "share",
-                    label: t("share__action"),
-                    icon: ShareNetwork,
-                    onPress: openShare,
                   },
                   {
                     key: "delete",

@@ -1,3 +1,4 @@
+export { visitBodyExportPages, type BodyExportRow } from "./body-export";
 export { bodyMeasurement, progressPhoto } from "./tables";
 export { saveCheckIn } from "./check-in-store";
 export {
@@ -32,6 +33,7 @@ export {
 } from "./store";
 export {
   watchMetric,
+  readBodyweightsOnDates,
   watchLatestByMetric,
   watchWeighInDays,
   type WatchedMeasurement,

@@ -8,7 +8,7 @@ import { useTranslation } from "@/platform/i18n";
 import { muscleArtTint, tintOpacity } from "../core/ramp";
 import { BODY_ASPECT, BODY_CANVAS } from "../core/body-canvas";
 import { layerAlphas } from "../core/detail-layers";
-import { BASE_LAYERS } from "../core/group-layers";
+import { BASE_LAYERS, GROUP_LAYERS } from "../core/group-layers";
 import { groupAt } from "../core/hit-test";
 import { BODY_GROUPS, type BodyGroup, type BodyView } from "../core/groups";
 import { groupAlphas } from "../core/intensity";
@@ -20,6 +20,8 @@ export type BodyMapProps = {
   primary?: readonly MuscleGroup[];
   /** Groups drawn lighter. */
   secondary?: readonly MuscleGroup[];
+  /** Groups drawn like secondary but announced by name only: neutral targets such as a filter's. */
+  targets?: readonly MuscleGroup[];
   /**
    * Parts of the groups above to light instead of the whole group (an exercise's muscle details).
    * A group with none of its details listed is lit whole.
@@ -47,6 +49,7 @@ export function BodyMap({
   view,
   primary,
   secondary,
+  targets,
   details,
   intensity,
   artTint,
@@ -57,24 +60,32 @@ export function BodyMap({
   const { t } = useTranslation();
   const [size, setSize] = useState({ width: 0, height: 0 });
 
+  const drawnSecondary = useMemo(
+    () => (targets ? [...(secondary ?? []), ...targets] : secondary),
+    [secondary, targets],
+  );
   const alphas = useMemo(
-    () => groupAlphas({ primary, secondary, intensity, selected }),
-    [primary, secondary, intensity, selected],
+    () => groupAlphas({ primary, secondary: drawnSecondary, intensity, selected }),
+    [primary, drawnSecondary, intensity, selected],
   );
   const layers = useMemo(() => layerAlphas(view, alphas, details), [view, alphas, details]);
   const actions = useMemo(
     () =>
       BODY_GROUPS.flatMap((group) => {
-        if (!alphas.has(group)) return [];
+        if (!alphas.has(group) || (onPressGroup && GROUP_LAYERS[group][view].length === 0)) {
+          return [];
+        }
         const name = t(MUSCLE_GROUP_KEYS[group]);
-        const label = primary?.includes(group)
-          ? t("bodymap__group_primary", { name })
-          : secondary?.includes(group)
-            ? t("bodymap__group_secondary", { name })
-            : name;
-        return [{ name: group, label }];
+        const chosen = selected?.includes(group) ?? false;
+        let label = name;
+        if (chosen) label = t("bodymap__group_selected", { name });
+        else if (primary?.includes(group)) label = t("bodymap__group_primary", { name });
+        else if (secondary?.includes(group)) {
+          label = t("bodymap__group_secondary", { name });
+        }
+        return [{ name: group, label, chosen }];
       }),
-    [alphas, primary, secondary, t],
+    [alphas, onPressGroup, primary, secondary, selected, t, view],
   );
 
   const onPress = (event: GestureResponderEvent) => {
@@ -99,6 +110,9 @@ export function BodyMap({
           : `${viewLabel}. ${t("bodymap__none")}`
       }
       accessibilityHint={onPressGroup ? t("bodymap__hint") : undefined}
+      accessibilityState={
+        onPressGroup ? { selected: actions.some((action) => action.chosen) } : undefined
+      }
       accessibilityActions={onPressGroup ? actions : undefined}
       onAccessibilityAction={(event) => {
         const action = actions.find((candidate) => candidate.name === event.nativeEvent.actionName);

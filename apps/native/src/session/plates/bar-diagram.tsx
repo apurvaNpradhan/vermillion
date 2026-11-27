@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { formatWeight, type LoadPlate, type WeightUnit } from "@workspace/shared";
-import { plateLayout, plateRole, type PlateRole } from "./plate-view";
+import { type LoadPlate, type WeightUnit } from "@workspace/shared";
+import { formatEquipmentWeight, plateLayout, plateRole, type PlateRole } from "./plate-view";
 
 // Class names are written out whole: styles are generated only for the names the source spells
 // out, so a name built from a template is never defined.
@@ -30,12 +30,14 @@ const PLATE_INK: Record<PlateRole, string> = {
 export function BarDiagram({
   platesPerSide,
   unit,
+  displayUnit = unit,
   label,
   onPlatePress,
   plateLabel,
 }: {
   platesPerSide: readonly LoadPlate[];
   unit: WeightUnit;
+  displayUnit?: WeightUnit;
   /** Read by screen readers instead of the drawing. */
   label: string;
   /** Makes each plate a button, with the screen-reader name the callback's caller gives it. */
@@ -43,7 +45,7 @@ export function BarDiagram({
   plateLabel?: (weightKg: number) => string;
 }) {
   const [width, setWidth] = useState(320);
-  const layout = plateLayout(platesPerSide, (kg) => formatWeight(kg, unit), width);
+  const layout = plateLayout(platesPerSide, (kg) => formatEquipmentWeight(kg, displayUnit), width);
   const middle = layout.height / 2;
   return (
     <View
@@ -108,7 +110,7 @@ export function BarDiagram({
                   transform: [{ rotate: "-90deg" }],
                 }}
               >
-                {formatWeight(plate.weightKg, unit)}
+                {formatEquipmentWeight(plate.weightKg, displayUnit)}
               </Text>
             ) : null}
           </Pressable>

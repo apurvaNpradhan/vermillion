@@ -8,6 +8,7 @@ import { z } from "zod";
 
 export const MEDIA_KINDS = [
   "program_cover",
+  "workout_cover",
   "exercise_image",
   "avatar",
   "session_photo",

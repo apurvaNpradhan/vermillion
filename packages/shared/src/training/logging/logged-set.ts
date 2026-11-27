@@ -1,5 +1,7 @@
 import type { ExerciseType } from "../../exercise/vocabulary";
 import type { ActualValues } from "./session-inputs";
+import type { PlannedSet } from "../plans/planned-sets";
+import type { Phase } from "../phases/phases";
 import type { SetKind } from "../vocabulary/vocabulary";
 
 /** The actuals of a set; absent and null both mean empty. */
@@ -9,6 +11,23 @@ export type SetValues = { [Key in keyof ActualValues]?: number | null };
 export type LoggedSet = SetValues & {
   /** Computed on read from the weight log on this Session’s local date. */
   bodyweight_kg?: number | null;
+  /** Prescription stored when the set was created. */
+  target?: PlannedSet | null;
+  /**
+   * What was suggested for this set, from the Session's prescription snapshot: the load before any
+   * same-day adjustment, and the reps; the reps asked past the top of the range, and whether the
+   * rule reset the load, the share of a top set it was meant to be. Absent for a Session that has no snapshot.
+   */
+  suggested?: {
+    weight_kg: number | null;
+    reps: number | null;
+    extraReps?: number;
+    reset?: boolean;
+    /** The share of the top set a back-off was meant to be, before rounding. */
+    share?: number;
+  } | null;
+  /** This Session entry used the stall deload. */
+  stall_deload?: boolean;
   /**
    * Set by the user's "Count warm-up sets" setting on the sets a stat reads: a warm-up with it
    * counts like a working set. Absent (the default) leaves warm-ups out of every number.
@@ -16,6 +35,10 @@ export type LoggedSet = SetValues & {
   warmup_counted?: boolean;
   id: string;
   exercise_id: string;
+  /** Distinguishes repeated entries of the same exercise in an imported or edited Session. */
+  session_exercise_id?: string;
+  /** Identifies the Workout entry across Sessions, when the Session came from a Workout. */
+  source_workout_exercise_id?: string | null;
   exercise_type: ExerciseType;
   kind: SetKind;
   completed_at: string | null;
@@ -26,6 +49,10 @@ export type SessionHistory = {
   id: string;
   started_at: string;
   finished_at: string | null;
+  /** The gym trained at; absent or null for a Session with no gym (an older one). */
+  gymId?: string | null;
+  /** The phase the Session started in (Test and Deload are not a baseline); null for none. */
+  phase?: Phase | null;
   sets: readonly LoggedSet[];
 };
 
@@ -57,9 +84,12 @@ export function inSessionOrder<Session extends { id: string; started_at: string 
   sessions: readonly Session[],
 ): Session[] {
   // `sort` on a copy, not `toSorted`: Hermes on the device has no ES2023 array methods.
-  return [...sessions].sort((a, b) => {
-    const byStart = Date.parse(a.started_at) - Date.parse(b.started_at);
-    if (byStart !== 0) return byStart;
-    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-  });
+  return sessions
+    .map((session) => ({ session, time: Date.parse(session.started_at) }))
+    .sort((a, b) => {
+      const byStart = a.time - b.time;
+      if (byStart) return byStart;
+      return a.session.id < b.session.id ? -1 : a.session.id > b.session.id ? 1 : 0;
+    })
+    .map(({ session }) => session);
 }

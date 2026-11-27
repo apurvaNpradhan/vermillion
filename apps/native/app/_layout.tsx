@@ -28,6 +28,7 @@ import {
   useSignedOut,
 } from "@/auth";
 import { BodyReminderHost } from "@/body";
+import { sweepExportFiles } from "@/platform/export-files";
 import { useNotificationNavigation } from "@/platform/navigation/use-notification-navigation";
 import { RestNotificationHost, WorkoutLiveHost } from "@/session";
 import { STACK_OPTIONS } from "@/platform/navigation/stack-motion";
@@ -113,17 +114,6 @@ function RootStack() {
               animationDuration: 220,
             }}
           />
-          {/* Share links: the preview and code entry, and the App Link paths that open them. */}
-          <Stack.Screen
-            name="import"
-            options={{
-              presentation: "modal",
-              animation: "slide_from_bottom",
-              animationDuration: 220,
-            }}
-          />
-          <Stack.Screen name="p/[code]" />
-          <Stack.Screen name="w/[code]" />
           <Stack.Screen
             name="exercise-view"
             options={{
@@ -162,6 +152,7 @@ function ThemedStatusBar() {
 }
 
 export default function Layout() {
+  useEffect(sweepExportFiles, []);
   return (
     <AppProviders>
       <ThemedStatusBar />

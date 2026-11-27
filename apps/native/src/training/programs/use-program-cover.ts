@@ -13,7 +13,7 @@ import { useTrainingWrite } from "@/training/shared/use-training-write";
  * Adds, replaces and removes the cover photo of one Program (ADR 0040). A picked photo is
  * re-encoded on the device, its files join the attachment queue, and the media row and the
  * Program's reference are written in one local transaction, so the cover shows at once, uploads
- * when there is a connection and reaches the other devices. The replaced cover's files go at once.
+ * when there is a connection and reaches the other devices.
  * `pick` resolves to whether a photo was saved (false when cancelled); a failure shows a toast.
  */
 export function useProgramCover(programId: string) {
@@ -31,14 +31,12 @@ export function useProgramCover(programId: string) {
       const picked = await pickImage({ square: true });
       if (picked === null) return false;
       const id = newMediaId();
-      // Files first, row after. A write that fails (the toast is `write`'s) drops the new files;
-      // one that committed keeps them even if the old cover's files cannot be removed.
       const saved = await saveWithMedia(
         queue,
         { fullUri: picked.fullUri, thumbUri: picked.thumbUri },
         id,
-        () =>
-          write(
+        async () => {
+          const result = await write(
             (db) =>
               setProgramCoverToNewMedia(
                 db,
@@ -53,7 +51,9 @@ export function useProgramCover(programId: string) {
                 writeScope,
               ),
             null,
-          ),
+          );
+          return result && { replaced: null };
+        },
       );
       if (saved) haptic.confirm();
       return saved;
@@ -68,13 +68,11 @@ export function useProgramCover(programId: string) {
   const remove = useCallback(
     () =>
       write(async (db) => {
-        const replaced = await setProgramCover(db, programId, null, writeScope);
-        // The removal committed; dropping the old files is best effort.
-        if (replaced !== null) await queue?.discard(replaced).catch(() => undefined);
+        if (!(await setProgramCover(db, programId, null, writeScope))) return false;
         haptic.confirm();
         return true;
       }, false),
-    [programId, queue, write, writeScope],
+    [programId, write, writeScope],
   );
 
   return { pick, remove, busy };

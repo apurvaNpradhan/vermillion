@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheet } from "heroui-native";
@@ -5,7 +6,7 @@ import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { workoutLive } from "../../../modules/workout-live";
-import { AppState, Platform, Text, View } from "react-native";
+import { AppState, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTranslation } from "@/platform/i18n";
@@ -23,9 +24,12 @@ import { useSessionSettings } from "./use-session-settings";
 function SessionSettingsSheetBody({
   isOpen,
   onOpenChange,
+  gymId,
 }: {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The Session's gym, whose kit Equipment opens; none is the gym trained at. */
+  gymId?: string | null;
 }) {
   const animation = useSheetAnimation();
   const { t } = useTranslation();
@@ -42,15 +46,18 @@ function SessionSettingsSheetBody({
   // Read here, outside the sheet's portal: the portal has no query client.
   const training = useTrainingPreferenceRows({
     extraRows: settings.rows,
+    equipmentGymId: gymId,
     onManageEquipment: () => {
       onOpenChange(false);
-      router.push("/session/equipment");
+      router.push(
+        gymId ? { pathname: "/session/equipment", params: { gymId } } : "/session/equipment",
+      );
     },
   });
   return (
     <>
       <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
-        <BottomSheet.Portal>
+        <SheetPortal>
           <BottomSheet.Overlay />
           <FixedSheetContent
             fraction={0.88}
@@ -85,12 +92,9 @@ function SessionSettingsSheetBody({
                 </ListSection>
               )}
               {training.section}
-              <Text className="font-normal px-1 text-caption text-muted">
-                {t("session__settings_footnote")}
-              </Text>
             </BottomSheetScrollView>
           </FixedSheetContent>
-        </BottomSheet.Portal>
+        </SheetPortal>
       </BottomSheet>
       {training.sheets}
     </>

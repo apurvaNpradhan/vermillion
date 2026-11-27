@@ -14,13 +14,13 @@ const set = (values: Partial<Parameters<typeof bestSet>[1][number]>) => ({
 
 const labels: BestLabels = {
   unit: "kg",
-  unitLabel: "kg",
+  unitLabel: (unit) => unit,
   reps: (n) => `${n} reps`,
   distance: (m) => `${m} m`,
   floors: (n) => `${n} floors`,
   steps: (n) => `${n} steps`,
   repRange: (min, max) => (min === max ? `${min} reps` : `${min}–${max} reps`),
-  weightReps: (weight, reps) => `${weight} kg × ${reps}`,
+  weightReps: (weight, reps, unit) => `${weight} ${unit} × ${reps}`,
 };
 
 describe("best set", () => {

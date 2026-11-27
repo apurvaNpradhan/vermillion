@@ -13,13 +13,11 @@ import {
   type TrainingExperience,
   type TrainingPlace,
 } from "@workspace/shared";
-import { Switch } from "heroui-native";
 import {
   Clock,
   Flame,
   House,
   MapPin,
-  Rows,
   Timer as TimerIcon,
   User,
   Broadcast,
@@ -73,14 +71,8 @@ export function WorkoutSettingsScreen() {
     const subscription = AppState.addEventListener("change", refresh);
     return () => subscription.remove();
   }, []);
-  const {
-    previousSource,
-    countWarmups,
-    durationFormat,
-    distanceUnit,
-    trainingExperience,
-    trainingPlace,
-  } = preferences.ui;
+  const { previousSource, durationFormat, distanceUnit, trainingExperience, trainingPlace } =
+    preferences.ui;
   const onOpenChange = (open: boolean) => {
     if (!open) setPicker(null);
   };
@@ -101,21 +93,6 @@ export function WorkoutSettingsScreen() {
           />
           <ListRow
             icon={Flame}
-            title={t("settings__count_warmups")}
-            description={t("settings__count_warmups_hint")}
-            accessory="none"
-            checked={countWarmups}
-            onPress={() => setUi({ countWarmups: !countWarmups })}
-            trailing={
-              <Switch
-                accessibilityLabel={t("settings__count_warmups")}
-                isSelected={countWarmups}
-                onSelectedChange={(value) => setUi({ countWarmups: value })}
-              />
-            }
-          />
-          <ListRow
-            icon={Rows}
             title={t("settings__warmup_title")}
             onPress={() => router.push("/settings/warmups")}
           />
@@ -131,7 +108,6 @@ export function WorkoutSettingsScreen() {
             value={t(DISTANCE_KEYS[distanceUnit])}
             onPress={() => setPicker("distance")}
           />
-          {training.rows.equipment}
         </ListSection>
         <ListSection title={t("settings__plan")}>
           {training.rows.sessions}

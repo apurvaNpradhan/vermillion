@@ -107,6 +107,14 @@ describe("limits and versions", () => {
     expect(checkSyncLimits(big)?.reason).toBe("bytes");
   });
 
+  it("speaks version 2 and still accepts version 1 clients", () => {
+    // Version 2 added gyms, pins, slot skips and the phase columns (audit A, F2). An API from before
+    // them answers a version-2 upload with "client incompatible", which keeps the queue.
+    expect(SYNC_SCHEMA_VERSION).toBe(2);
+    expect(SYNC_MIN_SCHEMA_VERSION).toBe(1);
+    expect(isSyncSchemaVersionSupported(1)).toBe(true);
+  });
+
   it("windows the schema version", () => {
     expect(isSyncSchemaVersionSupported(SYNC_SCHEMA_VERSION)).toBe(true);
     expect(isSyncSchemaVersionSupported(SYNC_MIN_SCHEMA_VERSION - 1)).toBe(false);

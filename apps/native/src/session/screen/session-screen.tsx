@@ -7,23 +7,40 @@ import {
   MUSCLE_GROUP_KEYS,
   SESSION_LIMITS,
   derivedWorkoutTitle,
+  snapshotModifiers,
+  loadCutRange,
   type SetKind,
+  previewRules,
+  resolveExerciseUnit,
+  SET_FIELDS,
 } from "@workspace/shared";
 import type { SessionDetail, SessionExerciseDetail } from "@workspace/sync";
-import { useFocusEffect, useIsFocused, useRouter } from "expo-router";
+import {
+  useFocusEffect,
+  useIsFocused,
+  useNavigation,
+  usePreventRemove,
+  useRouter,
+} from "expo-router";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useThemeColor } from "heroui-native";
 import {
   FireSimple,
   Gauge,
+  MapPin,
   GearSix,
   Info,
   Person,
   Link,
   LinkBreak,
   NotePencil,
+  Barbell,
+  Rows,
+  SlidersHorizontal,
   Plus,
   PushPin,
+  Ruler,
+  TrendUp,
   Swap,
   Trash,
   WarningCircle,
@@ -33,15 +50,23 @@ import { BackHandler, ScrollView, Text, View } from "react-native";
 import { LayoutAnimationConfig, useAnimatedRef } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ExerciseThumbnail, usePickExercises } from "@/exercise";
+import {
+  ExerciseThumbnail,
+  ExerciseUnitSheet,
+  ProgressionRuleSheet,
+  useExerciseActions,
+  useExerciseUnitOptions,
+  usePickExercises,
+} from "@/exercise";
 import { useTranslation } from "@/platform/i18n";
+import { usePhaseText } from "@/platform/phase-text";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 import { useReduceMotion } from "@/platform/ui/use-reduce-motion";
 import { useAppToast } from "@/platform/ui/use-app-toast";
 import { Button } from "@/platform/ui/button";
 import { ConfirmSheet } from "@/platform/ui/confirm-sheet";
 import { EmptyState } from "@/platform/ui/empty-state";
-import type { SwipeAction } from "@/platform/ui/swipe-row";
+import { useDismissSwipeRows, type SwipeAction } from "@/platform/ui/swipe-row";
 import { CompactRow, ReorderView, SetTypeSheet, supportsWarmups } from "@/training";
 
 import { setRestSurfaceVisible } from "@/session/notifications/rest-notification";
@@ -49,7 +74,7 @@ import {
   askNotificationPermission,
   markNotificationPermissionAsked,
 } from "@/platform/notifications/permission-store";
-import { formatVolume } from "@/session/finish/summary";
+import { ruleInputOf, stallPrescription } from "@/session/store/derive";
 import { blockOf } from "@/session/logging/blocks";
 import { useAccordionScroll } from "@/session/logging/use-accordion-scroll";
 import { afterLayout, useRowReveal } from "@/session/logging/use-row-reveal";
@@ -67,6 +92,7 @@ import { SessionEffortSheet } from "@/session/sets/effort-sheet";
 import { OwnershipBanner } from "./ownership-banner";
 import { RestBar } from "@/session/rest/rest-bar";
 import { RestPermissionSheet } from "@/session/notifications/rest-permission-sheet";
+import { LoadLimitsSheet, SessionGymPicker, useGyms } from "@/gym";
 import { SessionHeader } from "./session-header";
 import { ClockSheet } from "@/session/clock/clock-sheet";
 import { firstTickedAt } from "@/session/clock/clock-view";
@@ -120,6 +146,14 @@ export function SessionScreen(props: SessionScreenProps) {
   );
 }
 
+const hasUnit = (exercise: SessionExerciseDetail) =>
+  SET_FIELDS[exercise.type].some((field) => field === "weight");
+const isLoaded = (exercise: SessionExerciseDetail) =>
+  exercise.type === "weight_reps" || exercise.type === "bodyweight_weighted_reps";
+/** Unit, progression, Max load and setup, and the warm-up link: what the Exercise settings sheet holds. */
+const hasExerciseSettings = (exercise: SessionExerciseDetail) =>
+  hasUnit(exercise) || isLoaded(exercise) || canAddWarmups(exercise);
+
 /** The screen's own background while the Session reads from the device (milliseconds). */
 function SessionBlank() {
   return <View className="flex-1 bg-background" />;
@@ -141,8 +175,13 @@ function SessionHost({ stored, ...props }: SessionScreenProps & { stored: Sessio
 
 type Sheet =
   | { kind: "menu"; exercise: SessionExerciseDetail }
+  | { kind: "note-menu"; exercise: SessionExerciseDetail }
+  | { kind: "exercise-settings"; exercise: SessionExerciseDetail }
   | { kind: "note"; exercise: SessionExerciseDetail }
   | { kind: "pinned"; exercise: SessionExerciseDetail }
+  | { kind: "limits"; exercise: SessionExerciseDetail }
+  | { kind: "unit"; exercise: SessionExerciseDetail }
+  | { kind: "progression"; exercise: SessionExerciseDetail }
   | { kind: "swap"; exercise: SessionExerciseDetail; next: string }
   | { kind: "set-kind"; setId: string }
   | { kind: "effort"; setId: string };
@@ -152,15 +191,13 @@ const LoadedSession = memo(function LoadedSession({
   onMinimise,
   onFinished,
 }: SessionScreenProps & { store: SessionStore }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const phaseText = usePhaseText();
   const foreground = useThemeColor("foreground");
   const router = useRouter();
-  const viewExercise = useCallback(
-    (id: string) => router.push({ pathname: "/exercise-view/[id]", params: { id } }),
-    [router],
-  );
   const {
     session,
+    sessionGymId,
     actions,
     preferences,
     unit,
@@ -177,17 +214,34 @@ const LoadedSession = memo(function LoadedSession({
     askOpen,
     setAskOpen,
   } = useSessionLoggingIn(store, true);
+  const navigation = useNavigation();
+  const focused = useIsFocused();
+  const [leaving, setLeaving] = useState<Parameters<typeof navigation.dispatch>[0] | null>(null);
+  const editingCell = focused && !readOnly && logging.entry !== null;
+  usePreventRemove(editingCell, ({ data }) => {
+    logging.reviewBeforeLeaving(() => setLeaving(data.action));
+  });
+  useEffect(() => {
+    if (editingCell || leaving === null) return;
+    setLeaving(null);
+    navigation.dispatch(leaving);
+  }, [editingCell, leaving, navigation]);
   const stats = useSessionStore((state) => state.stats);
   const exerciseKeys = useSessionStore((state) => state.exerciseIds);
   // Which exercises are open: the list sizes closed and open items apart (see `getItemType`).
   const { toast } = useAppToast();
+  const viewExercise = useCallback(
+    (id: string) =>
+      router.push({ pathname: "/exercise-view/[id]", params: { id, sessionId: session.id } }),
+    [router, session.id],
+  );
   const pickExercises = usePickExercises("session");
   const scrollRef = useRef<LegendListRef>(null);
+  const dismissSwipeRows = useDismissSwipeRows();
   const accordionScroll = useAccordionScroll(store, scrollRef);
   const isEditing = useCallback((setId: string) => store.getState().cell?.setId === setId, [store]);
   const reveal = useRowReveal(scrollRef, isEditing);
   const reducedMotion = useReduceMotion();
-  const focused = useIsFocused();
   const animate = focused && !reducedMotion && session.finishedAt === null;
   const viewport = useAnimatedRef<View>();
   const revealViewport = reveal.viewportRef;
@@ -212,7 +266,7 @@ const LoadedSession = memo(function LoadedSession({
   const [reordering, setReordering] = useState(false);
   const { bottom } = useSafeAreaInsets();
 
-  const { closeKeypad, flushWrites } = logging;
+  const { closeKeypad, flushWrites, reviewBeforeLeaving } = logging;
   const openReorder = useCallback(() => {
     if (readOnly) return;
     closeKeypad();
@@ -262,8 +316,32 @@ const LoadedSession = memo(function LoadedSession({
     refreshDerivedTitle,
   ]);
 
-  const unitName = t(unit === "kg" ? "training__unit_kg" : "training__unit_lb");
-  const volume = `${formatVolume(stats.volume, unit, i18n.language)} ${unitName}`;
+  const { setUnit, setProgressionRule } = useExerciseActions();
+  const unitLabels = useExerciseUnitOptions(unit);
+  // The banner reads the modifiers the Session started with, not the Program's plan now.
+  const views = useSessionStore((state) => state.views);
+  const phaseBanner = (() => {
+    if (session.phase === null) return null;
+    const { modifiers, testTop } = snapshotModifiers(session.phase, session.phaseModifiers);
+    const hasEffort = session.exercises.some((entry) =>
+      entry.sets.some((set) => set.target?.effort_min !== undefined),
+    );
+    const factors = [...views.values()].flatMap(
+      ({ suggestion }) =>
+        suggestion?.outcomes.flatMap((outcome) =>
+          outcome?.reason === "deload" && outcome.loadFactor !== undefined
+            ? [outcome.loadFactor]
+            : [],
+        ) ?? [],
+    );
+    return phaseText.banner(
+      session.phase,
+      modifiers,
+      testTop,
+      hasEffort,
+      loadCutRange(factors) ?? session.phaseModifiers?.load_cuts,
+    );
+  })();
 
   // ---- Sheets and dialogs ----
   const [sheet, setSheet] = useState<Sheet | null>(null);
@@ -271,6 +349,11 @@ const LoadedSession = memo(function LoadedSession({
   const [confirmRemove, setConfirmRemove] = useState<SessionExerciseDetail | null>(null);
   const [musclesOpen, setMusclesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [gymPickerOpen, setGymPickerOpen] = useState(false);
+  const { gyms, multiple, nameOf, setForSession } = useGyms();
+  const gymName = multiple ? (nameOf(sessionGymId) ?? t("gym__any")) : null;
+  const canChangeGym = gymName !== null && !readOnly && session.finishedAt === null;
+  if (gymPickerOpen && !canChangeGym) setGymPickerOpen(false);
   const [clockOpen, setClockOpen] = useState(false);
   const openClock = useCallback(() => {
     closeKeypad();
@@ -293,11 +376,16 @@ const LoadedSession = memo(function LoadedSession({
   });
 
   const addExercises = async () => {
-    const picked = await pickExercises({ exclude: exerciseIds });
+    const picked = await pickExercises({ exclude: exerciseIds, sessionId: session.id });
     if (picked && picked.length > 0) await actions.addExercises(session.id, picked);
   };
   const replace = async (entry: SessionExerciseDetail) => {
-    const picked = await pickExercises({ max: 1, exclude: exerciseIds, swapFor: entry.exerciseId });
+    const picked = await pickExercises({
+      max: 1,
+      exclude: exerciseIds,
+      swapFor: entry.exerciseId,
+      sessionId: session.id,
+    });
     const next = picked?.[0];
     if (!next) return;
     // A Session from a Workout asks how far the swap goes; one without has only itself.
@@ -388,18 +476,18 @@ const LoadedSession = memo(function LoadedSession({
           key: "note",
           label: t("session__pinned_note"),
           icon: NotePencil,
-          onPress: () => setSheet({ kind: "note", exercise: menuExercise }),
+          onPress: () => setSheet({ kind: "note-menu", exercise: menuExercise }),
         },
-        {
-          key: "pinned",
-          label: t(
-            menuExercise.pinnedNote === null
-              ? "session__pin_note_action"
-              : "session__edit_pinned_note_action",
-          ),
-          icon: PushPin,
-          onPress: () => setSheet({ kind: "pinned", exercise: menuExercise }),
-        },
+        ...(hasExerciseSettings(menuExercise)
+          ? [
+              {
+                key: "exercise-settings",
+                label: t("session__exercise_settings"),
+                icon: SlidersHorizontal,
+                onPress: () => setSheet({ kind: "exercise-settings", exercise: menuExercise }),
+              },
+            ]
+          : []),
         {
           key: "effort",
           label: t(menuExercise.logEffort ? "session__effort_off" : "session__effort_on"),
@@ -434,6 +522,72 @@ const LoadedSession = memo(function LoadedSession({
       ]
     : [];
 
+  const noteMenuExercise = sheet?.kind === "note-menu" ? sheet.exercise : null;
+  const noteMenuActions: SwipeAction[] = noteMenuExercise
+    ? [
+        {
+          key: "session-note",
+          label: t("session__note_session"),
+          icon: NotePencil,
+          onPress: () => setSheet({ kind: "note", exercise: noteMenuExercise }),
+        },
+        {
+          key: "pinned-note",
+          label: t(
+            noteMenuExercise.pinnedNote === null
+              ? "session__pin_note_action"
+              : "session__edit_pinned_note_action",
+          ),
+          icon: PushPin,
+          onPress: () => setSheet({ kind: "pinned", exercise: noteMenuExercise }),
+        },
+      ]
+    : [];
+
+  const settingsExercise = sheet?.kind === "exercise-settings" ? sheet.exercise : null;
+  const settingsActions: SwipeAction[] = settingsExercise
+    ? [
+        ...(hasUnit(settingsExercise)
+          ? [
+              {
+                key: "unit",
+                label: t("session__exercise_unit", {
+                  unit: unitLabels[settingsExercise.unit ?? "default"],
+                }),
+                icon: Ruler,
+                onPress: () => setSheet({ kind: "unit", exercise: settingsExercise }),
+              },
+            ]
+          : []),
+        ...(isLoaded(settingsExercise)
+          ? [
+              {
+                key: "progression",
+                label: t("progress__rule"),
+                icon: TrendUp,
+                onPress: () => setSheet({ kind: "progression", exercise: settingsExercise }),
+              },
+              {
+                key: "limits",
+                label: t("gym__limits_action"),
+                icon: Barbell,
+                onPress: () => setSheet({ kind: "limits", exercise: settingsExercise }),
+              },
+            ]
+          : []),
+        ...(canAddWarmups(settingsExercise)
+          ? [
+              {
+                key: "warmup-settings",
+                label: t("exercise__warmup_settings"),
+                icon: FireSimple,
+                onPress: () => router.push("/session/warmups"),
+              },
+            ]
+          : []),
+      ]
+    : [];
+
   const swap = sheet?.kind === "swap" ? sheet : null;
   const swapActions: SwipeAction[] = swap
     ? [
@@ -456,19 +610,85 @@ const LoadedSession = memo(function LoadedSession({
   const effortSet = sheet?.kind === "effort" ? logging.found.get(sheet.setId) : undefined;
   const noteExercise = sheet?.kind === "note" ? sheet.exercise : null;
   const pinnedExercise = sheet?.kind === "pinned" ? sheet.exercise : null;
+  const limitsExercise = sheet?.kind === "limits" ? sheet.exercise : null;
+  const unitExercise =
+    sheet?.kind === "unit"
+      ? session.exercises.find((entry) => entry.id === sheet.exercise.id)
+      : undefined;
 
-  const accessory = useSessionKeypadAccessory(logging, unit);
+  const ruleExercise =
+    sheet?.kind === "progression"
+      ? session.exercises.find((entry) => entry.id === sheet.exercise.id)
+      : undefined;
+  const ruleEntry = ruleExercise ? store.getState().cache.get(ruleExercise.id) : undefined;
+  const rulePreviews = useMemo(
+    () => (ruleEntry ? previewRules(ruleInputOf(ruleEntry)) : null),
+    [ruleEntry],
+  );
+
+  const kindRow = kindSet
+    ? store.getState().cache.get(kindSet.exercise.id)?.view.rows.get(kindSet.set.id)
+    : undefined;
+  // The same actions as the set's swipe, plus Max load and setup: swipe is a shortcut only.
+  const kindExtras: SwipeAction[] = [];
+  if (kindSet && !readOnly) {
+    const setId = kindSet.set.id;
+    if (
+      kindSet.exercise.type === "weight_reps" ||
+      kindSet.exercise.type === "bodyweight_weighted_reps"
+    )
+      kindExtras.push({
+        key: "limits",
+        label: t("gym__limits_action"),
+        icon: Barbell,
+        onPress: () => onLimits(setId),
+      });
+    if (kindRow?.canFillRemaining)
+      kindExtras.push({
+        key: "fill",
+        label: t("session__fill_remaining"),
+        icon: Rows,
+        onPress: () => onCopySets(setId, "remaining"),
+      });
+    if (kindRow?.canRemove)
+      kindExtras.push({
+        key: "remove",
+        label: t("training__remove"),
+        icon: Trash,
+        tone: "danger",
+        onPress: () => void removeOneSet(setId),
+      });
+  }
+
+  const accessory = useSessionKeypadAccessory(logging, sessionGymId);
 
   const onKind = useCallback((setId: string) => setSheet({ kind: "set-kind", setId }), []);
   const onEffort = useCallback((setId: string) => setSheet({ kind: "effort", setId }), []);
+  const { found: foundSets } = logging;
+  // Stable: `foundSets` changes on every tick, and a new identity here would redraw every row.
+  const onLimits = useStableHandler((setId: string) => {
+    const at = foundSets.get(setId);
+    if (
+      at &&
+      (at.exercise.type === "weight_reps" || at.exercise.type === "bodyweight_weighted_reps")
+    ) {
+      closeKeypad();
+      setSheet({ kind: "limits", exercise: at.exercise });
+    }
+  });
   const onMenu = useCallback((exercise: SessionExerciseDetail) => {
     setSheet({ kind: "menu", exercise });
   }, []);
   const { addSet, openCell, onTick, onPrevious, onTimer } = logging;
   const onAddSet = useCallback((exerciseId: string) => void addSet(exerciseId), [addSet]);
-  const { updateExercise } = actions;
+  const { updateExercise, setExerciseDeload, undoAdjustment } = actions;
+  const onUndoAdjustment = useStableHandler((id: string) => void undoAdjustment(id));
+  const onStallDeload = useStableHandler((id: string, applied: boolean) => {
+    const entry = store.getState().cache.get(id);
+    void setExerciseDeload(id, applied, entry ? stallPrescription(entry, applied) : null);
+  });
   const onNote = useCallback(
-    (exerciseId: string, note: string | null) => void updateExercise(exerciseId, { note }),
+    (exerciseId: string, note: string | null) => updateExercise(exerciseId, { note }),
     [updateExercise],
   );
   const onRest = useCallback(
@@ -521,9 +741,13 @@ const LoadedSession = memo(function LoadedSession({
       onReorder: stableReorder,
       onNote: stableNote,
       onRest: stableRest,
+      reviewBeforeLeaving,
+      onStallDeload,
+      onUndoAdjustment,
       onCell: openCell,
       onTick,
       onKind,
+      onLimits,
       onEffort,
       onPrevious,
       onCopySets,
@@ -540,9 +764,13 @@ const LoadedSession = memo(function LoadedSession({
       stableReorder,
       stableNote,
       stableRest,
+      reviewBeforeLeaving,
+      onStallDeload,
+      onUndoAdjustment,
       openCell,
       onTick,
       onKind,
+      onLimits,
       onEffort,
       onPrevious,
       onCopySets,
@@ -601,16 +829,17 @@ const LoadedSession = memo(function LoadedSession({
         animate={animate}
         finished={session.finishedAt !== null}
         onMenu={() => setSessionMenu(true)}
+        gymName={gymName}
         title={title}
         startedAt={session.startedAt}
         pausedAt={session.pausedAt}
         pausedMs={session.pausedMs}
-        volume={volume}
         sets={stats.sets}
         readOnly={readOnly}
         onMinimise={onMinimise}
-        onFinish={flow.askFinish}
+        onFinish={() => logging.reviewBeforeLeaving(() => void flow.askFinish())}
         onOpenClock={openClock}
+        banner={phaseBanner}
       />
       <ClockSheet
         isOpen={clockOpen && !readOnly && session.finishedAt === null}
@@ -639,7 +868,10 @@ const LoadedSession = memo(function LoadedSession({
           estimatedItemSize={ESTIMATED_CLOSED_HEIGHT}
           onItemSizeChanged={accordionScroll.onItemSizeChanged}
           onMetricsChange={onListMetrics}
-          onScrollBeginDrag={accordionScroll.cancel}
+          onScrollBeginDrag={() => {
+            accordionScroll.cancel();
+            dismissSwipeRows();
+          }}
           // Rows keep their own state (the note being typed, a swipe), so cells are not reused.
           recycleItems={false}
           keyboardShouldPersistTaps="handled"
@@ -737,6 +969,17 @@ const LoadedSession = memo(function LoadedSession({
             icon: GearSix,
             onPress: () => setSettingsOpen(true),
           },
+          ...(canChangeGym
+            ? [
+                {
+                  key: "gym",
+                  label: t("gym__menu_item", { gym: gymName }),
+                  description: t("gym__menu_hint"),
+                  icon: MapPin,
+                  onPress: () => reviewBeforeLeaving(() => setGymPickerOpen(true)),
+                } satisfies SwipeAction,
+              ]
+            : []),
           {
             key: "muscles",
             label: t("session__muscles"),
@@ -756,7 +999,19 @@ const LoadedSession = memo(function LoadedSession({
             : []),
         ]}
       />
-      <SessionSettingsSheet isOpen={settingsOpen} onOpenChange={setSettingsOpen} />
+      <SessionGymPicker
+        sessionId={session.id}
+        gymId={sessionGymId}
+        gyms={gyms}
+        setForSession={setForSession}
+        isOpen={gymPickerOpen && canChangeGym}
+        onOpenChange={setGymPickerOpen}
+      />
+      <SessionSettingsSheet
+        isOpen={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        gymId={sessionGymId}
+      />
       <RestPermissionSheet
         isOpen={askOpen}
         onOpenChange={setAskOpen}
@@ -775,6 +1030,22 @@ const LoadedSession = memo(function LoadedSession({
         isOpen={menuExercise !== null}
         onOpenChange={(open) => {
           if (!open && sheet?.kind === "menu") closeSheet();
+        }}
+      />
+      <ActionSheet
+        title={noteMenuExercise?.title ?? ""}
+        actions={noteMenuActions}
+        isOpen={noteMenuExercise !== null}
+        onOpenChange={(open) => {
+          if (!open && sheet?.kind === "note-menu") closeSheet();
+        }}
+      />
+      <ActionSheet
+        title={settingsExercise?.title ?? ""}
+        actions={settingsActions}
+        isOpen={settingsExercise !== null}
+        onOpenChange={(open) => {
+          if (!open && sheet?.kind === "exercise-settings") closeSheet();
         }}
       />
       <ActionSheet
@@ -810,6 +1081,47 @@ const LoadedSession = memo(function LoadedSession({
           if (pinnedExercise) void actions.setPinnedNote(pinnedExercise.exerciseId, note);
         }}
       />
+      <ExerciseUnitSheet
+        isOpen={unitExercise !== undefined}
+        onOpenChange={(open) => {
+          if (!open && sheet?.kind === "unit") closeSheet();
+        }}
+        preferred={unit}
+        unit={unitExercise?.unit ?? null}
+        onSelect={(next) => {
+          if (!readOnly && unitExercise && next !== (unitExercise.unit ?? null)) {
+            logging.closeKeypad();
+            void setUnit(unitExercise.exerciseId, next).catch(() => undefined);
+          }
+        }}
+      />
+      <ProgressionRuleSheet
+        isOpen={ruleExercise !== undefined}
+        onOpenChange={(open) => {
+          if (!open && sheet?.kind === "progression") closeSheet();
+        }}
+        title={ruleExercise?.title ?? ""}
+        rule={ruleExercise?.rule ?? null}
+        previews={rulePreviews}
+        type={ruleExercise?.type ?? "weight_reps"}
+        unit={resolveExerciseUnit(unit, ruleExercise?.unit)}
+        appliesNext={Boolean(ruleExercise?.prescription)}
+        onSelect={(next) => {
+          if (!readOnly && ruleExercise)
+            void setProgressionRule(ruleExercise.exerciseId, next).catch(() => undefined);
+        }}
+      />
+      <LoadLimitsSheet
+        isOpen={limitsExercise !== null}
+        onOpenChange={(open) => {
+          if (!open && sheet?.kind === "limits") closeSheet();
+        }}
+        exerciseId={limitsExercise?.exerciseId ?? ""}
+        title={limitsExercise?.title ?? ""}
+        equipment={limitsExercise?.exercise?.equipment ?? "other"}
+        unit={resolveExerciseUnit(unit, limitsExercise?.unit)}
+        gymId={sessionGymId}
+      />
       <SetTypeSheet
         isOpen={kindSet !== undefined}
         onOpenChange={(open) => {
@@ -817,6 +1129,7 @@ const LoadedSession = memo(function LoadedSession({
         }}
         value={kindSet?.set.kind ?? "working"}
         warmupsAllowed={kindSet ? supportsWarmups(kindSet.exercise.type) : false}
+        extras={kindExtras}
         onSelect={(kind: SetKind) => {
           if (kindSet) logging.onKindSelected(kindSet.set.id, kind);
         }}
@@ -833,6 +1146,7 @@ const LoadedSession = memo(function LoadedSession({
         }}
       />
       {flow.sheets}
+      {logging.guardDialog}
       <ConfirmSheet
         isOpen={confirmRemove !== null}
         onOpenChange={(open) => {

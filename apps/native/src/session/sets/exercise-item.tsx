@@ -1,23 +1,37 @@
-import { SESSION_LIMITS, type SupersetPlace } from "@workspace/shared";
+import {
+  SET_KIND_KEYS,
+  SESSION_LIMITS,
+  latestAdjustment,
+  suggestionLedger,
+  resolveExerciseUnit,
+  usesGymHistory,
+} from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { NotePencil } from "phosphor-react-native";
-import { Pressable, Text, View, type LayoutChangeEvent } from "react-native";
+import { Keyboard, Text, View, type LayoutChangeEvent, type TextInput } from "react-native";
 import { LayoutAnimationConfig, type AnimatedRef } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 
-import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
-import { useSubtleColor } from "@/platform/theme";
-import { InlineNote, RestPicker } from "@/training";
+import { InlineNote } from "@/training";
 import { allTicked } from "@/session/finish/summary";
 
 import { StalledNote } from "@/exercise";
+import { MaxPrompt, OverridePrompt, SetupNoteChip, StepPrompt } from "@/gym";
 import { showsRecord } from "@/session/store/session-store";
 import { useSessionStore } from "@/session/store/session-store-context";
-import { ProgressionChip } from "./progression-chip";
+import { AdjustmentNote } from "./adjustment-note";
+import { SuggestionLedgerLine } from "./suggestion-ledger-line";
+import { ProgressionSheet, useProgressionNote } from "./progression-sheet";
+import { ExerciseHeaderActions } from "./exercise-header-actions";
 import { ExerciseRow } from "./exercise-row";
 import { SetGrid, type SetHandlers } from "./set-grid";
+import { HintedSetGrid } from "./hinted-set-grid";
+
+/** A ticked set that loads the stack the way training does: anything but a warm-up. */
+function isStepEvidence(kind: SessionExerciseDetail["sets"][number]["kind"]): boolean {
+  return kind !== "warmup";
+}
 
 /** What an exercise does, apart from its sets' own handlers; all of them keep their identity. */
 export type ExerciseHandlers = SetHandlers & {
@@ -27,8 +41,12 @@ export type ExerciseHandlers = SetHandlers & {
   onMenu: (exercise: SessionExerciseDetail) => void;
   onAddSet: (exerciseId: string) => void;
   onReorder: () => void;
-  onNote: (exerciseId: string, note: string | null) => void;
+  onNote: (exerciseId: string, note: string | null) => Promise<boolean>;
   onRest: (exerciseId: string, restSeconds: number | null) => void;
+  reviewBeforeLeaving: (proceed: () => void) => void;
+  onStallDeload: (exerciseId: string, applied: boolean) => void;
+  /** Restore the targets a same-day adjustment moved, for the rest of the Session. */
+  onUndoAdjustment: (exerciseId: string) => void;
   /** The exercise was laid out again (its sets grew or shrank). */
   onLayout: (exerciseId: string) => void;
 };
@@ -52,6 +70,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   isInViewport: (exerciseId: string, offset: number, height: number) => boolean;
 }) {
   "use no memo"; // The viewport test samples the list's current scroll position.
+  const { t } = useTranslation();
   const data = useSessionStore(
     useShallow((state) => {
       const view = state.views.get(exerciseId);
@@ -69,18 +88,52 @@ export const ExerciseItem = memo(function ExerciseItem({
         exercise,
         record,
         suggestion: view?.suggestion ?? null,
+        rows: view?.rows,
         stall: view?.stall ?? null,
         progress: view?.progress ?? "",
         summary: view?.summary ?? "",
         place: state.places.get(exerciseId) ?? "none",
-        unit: state.inputs.unit,
+        unit: resolveExerciseUnit(state.inputs.unit, exercise?.unit),
+        unitLabel: state.inputs.unitNames[resolveExerciseUnit(state.inputs.unit, exercise?.unit)],
+        gymId: state.inputs.gym.gymId,
+        activeSessionId: state.session.finishedAt === null ? state.session.id : null,
+        setupNote: exercise
+          ? (state.inputs.gym.settingFor(exercise.exerciseId)?.setupNote ?? null)
+          : null,
         readOnly: state.ui.readOnly,
+        effortScale: state.ui.effortScale,
         expanded: state.expanded.has(exerciseId),
+        first: state.exerciseIds[0] === exerciseId,
         done: allTicked(exercise?.sets ?? []),
       };
     }),
   );
   const { exercise, suggestion, stall, unit, place, readOnly, expanded } = data;
+  const finishedLedger = useMemo(
+    () =>
+      exercise && data.activeSessionId === null
+        ? suggestionLedger(
+            exercise.prescription,
+            exercise.sets.map((set) => ({
+              id: set.id,
+              kind: set.kind,
+              completed: set.completedAt !== null,
+              weight_kg: set.weightKg,
+              reps: set.reps,
+            })),
+          )
+        : null,
+    [exercise, data.activeSessionId],
+  );
+  const adjustment = latestAdjustment(exercise?.prescription);
+  const adjustedSet = adjustment && exercise?.sets.find(({ id }) => id === adjustment.setId);
+  const adjustedBadge = adjustedSet && data.rows?.get(adjustedSet.id)?.badge;
+  const adjustedLabel =
+    adjustedSet && adjustedBadge
+      ? adjustedSet.kind === "working"
+        ? t("session__set_number", { number: adjustedBadge })
+        : t(SET_KIND_KEYS[adjustedSet.kind])
+      : null;
   // Once this row has been seen closed, opening it fades its body in. A row that mounts open (the
   // screen opening, or the list mounting it while scrolling) shows it at once.
   const [seenClosed, setSeenClosed] = useState(false);
@@ -100,16 +153,60 @@ export const ExerciseItem = memo(function ExerciseItem({
     },
     [exerciseId, isInViewport],
   );
-  const progression = useMemo(
-    () => (suggestion ? <ProgressionChip suggestion={suggestion} unit={unit} /> : null),
-    [suggestion, unit],
+  const { reviewBeforeLeaving } = handlers;
+  const [reasonOpen, setReasonOpen] = useState(false);
+  const openReason = useCallback(() => {
+    Keyboard.dismiss();
+    reviewBeforeLeaving(() => setReasonOpen(true));
+  }, [reviewBeforeLeaving]);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const noteInputRef = useRef<TextInput>(null);
+  const openNote = useCallback(() => {
+    reviewBeforeLeaving(() => {
+      const input = noteInputRef.current;
+      if (input) input.focus();
+      else setNoteOpen(true);
+    });
+  }, [reviewBeforeLeaving]);
+  if (noteOpen && (!expanded || readOnly || exercise?.note != null)) setNoteOpen(false);
+  const effortScale = data.effortScale;
+  const noteInput = useMemo(
+    () =>
+      expanded && suggestion && exercise
+        ? {
+            suggestion,
+            badges: exercise.sets.map(
+              (set, index) => data.rows?.get(set.id)?.badge ?? String(index + 1),
+            ),
+            unit,
+            effortScale,
+          }
+        : null,
+    [expanded, suggestion, exercise, data.rows, effortScale, unit],
   );
+  const suggestionNote = useProgressionNote(noteInput);
+  if (reasonOpen && !suggestionNote) setReasonOpen(false);
   if (!exercise) return null;
+  const equipment = exercise.exercise?.equipment ?? "other";
   return (
     <View className={expanded ? "pb-4" : "pb-1"} onLayout={() => handlers.onLayout(exerciseId)}>
       <ExerciseRow
         exercise={exercise}
-        progression={progression}
+        suggestion={suggestionNote?.label ?? null}
+        onSuggestion={openReason}
+        actions={
+          !expanded || readOnly ? null : (
+            <ExerciseHeaderActions
+              id={exercise.id}
+              restSeconds={exercise.restSeconds}
+              place={place}
+              hasNote={exercise.note !== null}
+              reviewBeforeLeaving={reviewBeforeLeaving}
+              onRest={handlers.onRest}
+              onNotePress={openNote}
+            />
+          )
+        }
         place={place}
         progress={data.progress}
         summary={data.summary}
@@ -134,19 +231,73 @@ export const ExerciseItem = memo(function ExerciseItem({
                   exerciseId={exercise.exerciseId}
                   latestSessionId={stall.latestSessionId}
                   count={stall.count}
+                  missed={stall.missed}
                   applied={stall.applied}
+                  onApply={
+                    readOnly ? undefined : (applied) => handlers.onStallDeload(exerciseId, applied)
+                  }
+                />
+              ) : null}
+              {adjustment && adjustedLabel && !data.done ? (
+                <AdjustmentNote
+                  adjustment={adjustment}
+                  setLabel={adjustedLabel}
+                  onUndo={readOnly ? undefined : () => handlers.onUndoAdjustment(exerciseId)}
+                />
+              ) : null}
+              {data.setupNote ? <SetupNoteChip note={data.setupNote} /> : null}
+              {!readOnly && data.activeSessionId && data.gymId ? (
+                <MaxPrompt
+                  exerciseId={exercise.exerciseId}
+                  sessionId={data.activeSessionId}
+                  gymId={data.gymId}
+                  equipment={equipment}
+                  unit={unit}
+                />
+              ) : null}
+              {!readOnly &&
+              data.activeSessionId &&
+              data.gymId &&
+              usesGymHistory(equipment) &&
+              exercise.sets.some((set) => isStepEvidence(set.kind) && set.completedAt !== null) ? (
+                <StepPrompt
+                  key={`${data.gymId}:${exercise.exerciseId}:${unit}`}
+                  exerciseId={exercise.exerciseId}
+                  sessionId={data.activeSessionId}
+                  gymId={data.gymId}
+                  equipment={equipment}
+                  unit={unit}
+                />
+              ) : null}
+              {!readOnly && data.activeSessionId ? (
+                <OverridePrompt
+                  exerciseId={exercise.exerciseId}
+                  sessionId={data.activeSessionId}
+                  gymId={data.gymId}
+                  equipment={equipment}
+                  unit={unit}
+                  workoutExerciseId={exercise.sourceWorkoutExerciseId}
                 />
               ) : null}
               <ExerciseBody
                 id={exercise.id}
                 note={exercise.note}
-                restSeconds={exercise.restSeconds}
-                place={place}
+                noteOpen={noteOpen}
+                inputRef={noteInputRef}
+                setNoteOpen={setNoteOpen}
                 readOnly={readOnly}
                 onNote={handlers.onNote}
-                onRest={handlers.onRest}
               />
-              <SetGrid
+              {finishedLedger ? (
+                <SuggestionLedgerLine
+                  ledger={finishedLedger}
+                  type={exercise.type}
+                  unit={unit}
+                  unitLabel={data.unitLabel}
+                />
+              ) : null}
+              <GridOrHinted
+                hinted={data.first && data.activeSessionId !== null && !readOnly}
                 exerciseId={exerciseId}
                 handlers={handlers}
                 onAddSet={handlers.onAddSet}
@@ -158,99 +309,94 @@ export const ExerciseItem = memo(function ExerciseItem({
           </LayoutAnimationConfig>
         ) : null}
       </ExerciseRow>
+      {suggestion && suggestionNote ? (
+        <ProgressionSheet
+          note={suggestionNote}
+          suggestion={suggestion}
+          unit={unit}
+          type={exercise.type}
+          isOpen={reasonOpen}
+          onOpenChange={setReasonOpen}
+        />
+      ) : null}
     </View>
   );
 });
 
 /**
- * The row of chips under an open exercise's name (Rest, Note) and the note itself. The note is
- * edited in place and saved when the field is left; it is always shown while it has text, and
- * the Note chip reveals the field (focused) while it has none. Rest opens its picker.
+ * An open exercise's note. It is edited in place and saved when the field is left; it is always
+ * shown while it has text, and the Note button in the header reveals the field (focused) while it
+ * has none.
  */
 const ExerciseBody = memo(function ExerciseBody({
   id,
   note,
-  restSeconds,
-  place,
+  noteOpen,
+  inputRef,
+  setNoteOpen,
   readOnly,
   onNote,
-  onRest,
 }: {
   id: string;
   note: string | null;
-  restSeconds: number | null;
-  place: SupersetPlace;
+  noteOpen: boolean;
+  inputRef: React.Ref<TextInput>;
+  setNoteOpen: (open: boolean) => void;
   readOnly: boolean;
-  onNote: (exerciseId: string, note: string | null) => void;
-  onRest: (exerciseId: string, restSeconds: number | null) => void;
+  onNote: (exerciseId: string, note: string | null) => Promise<boolean>;
 }) {
   const { t } = useTranslation();
-  const subtle = useSubtleColor();
-  const [noteOpen, setNoteOpen] = useState(false);
-  // What was typed since the field was last left; undefined when nothing was typed.
+  // Keep the last edit visible until the database watch returns it.
+  const [submitted, setSubmitted] = useState<{ value: string | null } | null>(null);
+  if (submitted && (readOnly || submitted.value === note)) setSubmitted(null);
+  const value = submitted ? submitted.value : note;
   const draft = useRef<string | null | undefined>(undefined);
-  const saveNote = () => {
+  const saveNote = (keepVisible: boolean) => {
     const typed = draft.current;
     draft.current = undefined;
-    if (!readOnly && typed !== undefined && typed !== note) onNote(id, typed);
+    if (readOnly || typed === undefined || typed === value) return;
+    if (!keepVisible) {
+      void onNote(id, typed);
+      return;
+    }
+    const pending = { value: typed };
+    setSubmitted(pending);
+    void onNote(id, typed).then((saved) => {
+      if (!saved) setSubmitted((current) => (current === pending ? null : current));
+    });
   };
   const saveOnUnmount = useRef(saveNote);
   saveOnUnmount.current = saveNote;
-  useEffect(() => () => saveOnUnmount.current(), []);
-  const showsRest = !readOnly && place !== "first" && place !== "middle";
-  const showsNote = note !== null || noteOpen;
-  const showsNoteChip = !readOnly && !showsNote;
-  return (
-    <View>
-      {showsRest || showsNoteChip ? (
-        <View className="flex-row flex-wrap items-center gap-1">
-          {showsRest ? (
-            <RestPicker
-              chip
-              value={restSeconds}
-              group={place === "last"}
-              onChange={(next) => onRest(id, next)}
-            />
-          ) : null}
-          {showsNoteChip ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("session__add_note")}
-              accessibilityState={{ expanded: false }}
-              onPress={() => {
-                haptic.tick();
-                setNoteOpen(true);
-              }}
-              className="min-h-11 flex-row items-center gap-1.5 self-start rounded-full px-2 active:bg-default"
-            >
-              <NotePencil size={16} color={subtle} />
-              <Text className="font-medium text-label text-muted">{t("session__note_chip")}</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      ) : null}
-      {showsNote ? (
-        readOnly ? (
-          <Text className="font-normal py-2 text-body text-muted">{note}</Text>
-        ) : (
-          <InlineNote
-            label={t("session__note_chip")}
-            value={note}
-            placeholder={t("session__note_placeholder")}
-            maxLength={SESSION_LIMITS.noteMax}
-            autoFocus={noteOpen && note === null}
-            onText={(text) => {
-              draft.current = text;
-            }}
-            onDone={() => {
-              const typed = draft.current;
-              saveNote();
-              // An empty note goes back to its chip.
-              if ((typed === undefined ? note : typed) === null) setNoteOpen(false);
-            }}
-          />
-        )
-      ) : null}
-    </View>
+  useEffect(() => () => saveOnUnmount.current(false), []);
+  const showsNote = readOnly ? note !== null : value !== null || noteOpen;
+  if (!showsNote) return null;
+  return readOnly ? (
+    <Text className="font-normal py-2 text-body text-muted">{note}</Text>
+  ) : (
+    <InlineNote
+      inputRef={inputRef}
+      label={t("session__note_session")}
+      value={value}
+      placeholder={t("session__note_placeholder")}
+      maxLength={SESSION_LIMITS.noteMax}
+      autoFocus={noteOpen && note === null}
+      onText={(text) => {
+        draft.current = text;
+      }}
+      onDone={() => {
+        const typed = draft.current;
+        saveNote(true);
+        // An empty note goes back to its button.
+        if ((typed === undefined ? value : typed) === null) setNoteOpen(false);
+      }}
+    />
   );
 });
+
+/** The first exercise of an active Session carries the set-row hint; every other grid is plain. */
+function GridOrHinted({
+  hinted,
+  ...props
+}: { hinted: boolean } & React.ComponentProps<typeof SetGrid>) {
+  return hinted ? <HintedSetGrid {...props} /> : <SetGrid {...props} />;
+}
