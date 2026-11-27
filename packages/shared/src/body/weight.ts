@@ -165,7 +165,8 @@ export const kgToLb = (kg: number) => kg / 0.45359237;
 export const lbToKg = (lb: number) => lb * 0.45359237;
 export const cmToIn = (cm: number) => cm / 2.54;
 export const inToCm = (inches: number) => inches * 2.54;
-export const displayMeasurement = (value: number) => Math.round(value * 10) / 10;
+/** To one decimal; a small negative rounds to 0, never to a negative zero ("-0.0"). */
+export const displayMeasurement = (value: number) => Math.round(value * 10) / 10 + 0;
 /** A body weight for display: kilograms or pounds to one decimal, locale-formatted. */
 export function formatBodyWeight(kg: number, unit: "kg" | "lb", locale?: string): string {
   const shown = unit === "lb" ? kgToLb(kg) : kg;
