@@ -318,6 +318,24 @@ it("stamps a new session with the next slot after a skip, and never skips rest o
   }
 });
 
+it("honors an accepted skip Undo after a counted session seals its cycle", async () => {
+  const { s, days, runId, backfill, tick, progress } = await rotation(2);
+  try {
+    await tick(await backfill(0, 0.9));
+    const day = { runId, slotId: days[1]?.slotId ?? "", cycle: 1 };
+    expect(await skipSlot(s.training, day)).not.toBeNull();
+    expect(progress()).toMatchObject({ cycle: 2, latestCountedCycle: 1 });
+
+    await tick(await backfill(0, 0.3));
+    expect(progress().latestCountedCycle).toBe(2);
+    expect(await unskipSlot(s.training, day)).toBe(true);
+    expect(s.all("program_slot_skip")).toHaveLength(0);
+    expect(progress().cycle).toBe(2);
+  } finally {
+    s.sqlite.close();
+  }
+});
+
 it("keeps the skip on Resume and consumes it when the repeated day is actually started", async () => {
   const { s, days, runId } = await rotation(2);
   try {

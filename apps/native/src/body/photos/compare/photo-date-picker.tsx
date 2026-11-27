@@ -1,5 +1,5 @@
 import { weekDays } from "@workspace/shared";
-import { ModalPresence } from "@/platform/ui/modal-state";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -44,14 +44,13 @@ export function PhotoDatePicker({
         if (!open) onClose();
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
           animationConfigs={SHEET_SPRING}
           backgroundClassName="bg-overlay"
           contentContainerClassName="gap-3 p-4"
         >
-          <ModalPresence />
           {sheet.probe}
           <BottomSheet.Title>{title}</BottomSheet.Title>
           <View className="flex-row items-center justify-between gap-2">
@@ -134,7 +133,7 @@ export function PhotoDatePicker({
             <Button.Label>{t("common__cancel")}</Button.Label>
           </Button>
         </BottomSheet.Content>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

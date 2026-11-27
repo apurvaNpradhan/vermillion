@@ -1,5 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
-import { ModalPresence } from "@/platform/ui/modal-state";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -147,14 +147,13 @@ function CheckInForm({
           if (!open && !busy) onClose();
         }}
       >
-        <BottomSheet.Portal>
+        <SheetPortal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
             animationConfigs={SHEET_SPRING}
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-3 px-4 pb-4"
           >
-            <ModalPresence />
             {sheet.probe}
             <BottomSheet.Title>
               {t(entry ? "body__edit_measurement" : "body__check_in")}
@@ -301,7 +300,7 @@ function CheckInForm({
               }}
             />
           </BottomSheet.Content>
-        </BottomSheet.Portal>
+        </SheetPortal>
       </BottomSheet>
       {entry || onlyMetric || !sheet.isOpen ? null : (
         <PhotoSlotSheet
@@ -334,21 +333,20 @@ export function CheckInSheet(props: {
           if (!open) props.onClose();
         }}
       >
-        <BottomSheet.Portal>
+        <SheetPortal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
             animationConfigs={SHEET_SPRING}
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-4 p-4"
           >
-            <ModalPresence />
             {sheet.probe}
             <BottomSheet.Title>{t("body__check_in")}</BottomSheet.Title>
             <Button onPress={state.retry}>
               <Button.Label>{t("training__retry")}</Button.Label>
             </Button>
           </BottomSheet.Content>
-        </BottomSheet.Portal>
+        </SheetPortal>
       </BottomSheet>
     );
   return <CheckInForm {...props} state={state} />;

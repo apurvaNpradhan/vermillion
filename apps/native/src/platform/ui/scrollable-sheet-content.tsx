@@ -4,7 +4,6 @@ import { useState, type ComponentProps, type ReactNode } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ModalPresence } from "./modal-state";
 import { SHEET_SPRING } from "./sheet-motion";
 
 /** Room for the drag handle above the content. */
@@ -62,7 +61,6 @@ export function ScrollableSheetContent({
         maxDynamicContentSize={cap}
         enableOverDrag={false}
       >
-        <ModalPresence />
         <View
           style={BODY_PADDING}
           onLayout={(event) => setBodyHeight(event.nativeEvent.layout.height)}
@@ -90,7 +88,6 @@ export function ScrollableSheetContent({
         style: [CONTAINER_GUTTER, { height: Math.max(0, sheetHeight - HANDLE) }],
       }}
     >
-      <ModalPresence />
       <BottomSheetScrollView
         style={{ flex: 1 }}
         contentContainerStyle={BODY_PADDING}
@@ -127,7 +124,6 @@ export function FixedSheetContent({
         style: [CONTAINER_GUTTER, { height: Math.max(0, sheetHeight - HANDLE) }],
       }}
     >
-      <ModalPresence />
       {children}
     </BottomSheet.Content>
   );

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { savePreferences } from "../../preferences";
 import { write } from "../store-common";
 import { watchEquipment } from "../watch";
-import { startSession } from "../sessions/session-store";
+import { logPastSession, startSession } from "../sessions/session-store";
 import { seedEquipment, upsertEquipment } from "../sessions/equipment-store";
 import {
   CURL,
@@ -479,6 +479,14 @@ describe("Sessions and gyms", () => {
     expect(await setSessionGym(s.training, first, null, s.installId)).toBe(true);
     expect(s.one("training_session", first)).toMatchObject({ gym_id: null });
     expect(await setSessionGym(s.training, "missing", garage, s.installId)).toBe(false);
+
+    const past = await logPastSession(
+      s.training,
+      { workoutId: plan.workoutId, derivedTitle: "Past" },
+      { startedAt: new Date(Date.now() - 86_400_000).toISOString() },
+    );
+    expect(await setSessionGym(s.training, past, garage, s.installId)).toBe(false);
+    expect(s.one("training_session", past)).toMatchObject({ gym_id: HOME });
   });
 
   it("a Session before the first sync has no gym", async () => {

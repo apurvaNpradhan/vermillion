@@ -49,6 +49,7 @@ describe("toastDuration", () => {
 
   it("leaves an explicit duration and a plain toast to the toaster", () => {
     expect(toastDuration({ actionLabel: "Undo", duration: 8000 })).toBe(8000);
+    expect(toastDuration({ actionLabel: "Undo", duration: 2500 })).toBe(ACTION_TOAST_MS);
     expect(toastDuration({ actionLabel: "Undo", duration: "persistent" })).toBe("persistent");
     expect(toastDuration({})).toBeUndefined();
   });

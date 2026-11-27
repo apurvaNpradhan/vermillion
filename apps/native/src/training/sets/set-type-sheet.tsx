@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
@@ -63,7 +64,7 @@ function SetTypeSheetBody({
   const subtle = useSubtleColor();
   return (
     <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <FixedSheetContent
           fraction={0.8}
@@ -138,7 +139,7 @@ function SetTypeSheetBody({
             ) : null}
           </BottomSheetScrollView>
         </FixedSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

@@ -1,5 +1,5 @@
 import { TRAINING_LIMITS } from "@workspace/shared";
-import { ModalPresence } from "@/platform/ui/modal-state";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { useEffect, useState } from "react";
 import { Keyboard, TextInput, View } from "react-native";
@@ -50,7 +50,7 @@ function RenameWorkoutSheetBody({
         onOpenChange(open);
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
           bottomInset={keyboardHeight}
@@ -63,7 +63,6 @@ function RenameWorkoutSheetBody({
           contentContainerClassName="gap-4 px-4 pt-2"
           contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
         >
-          <ModalPresence />
           <BottomSheet.Title className="font-semibold text-title-lg">
             {t("training__rename_workout")}
           </BottomSheet.Title>
@@ -85,7 +84,7 @@ function RenameWorkoutSheetBody({
             <Button.Label>{t("common__save")}</Button.Label>
           </Button>
         </BottomSheet.Content>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

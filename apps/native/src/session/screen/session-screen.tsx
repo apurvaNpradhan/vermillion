@@ -217,16 +217,15 @@ const LoadedSession = memo(function LoadedSession({
   const navigation = useNavigation();
   const focused = useIsFocused();
   const [leaving, setLeaving] = useState<Parameters<typeof navigation.dispatch>[0] | null>(null);
-  const editingFinishedCell =
-    focused && !readOnly && session.finishedAt !== null && logging.entry !== null;
-  usePreventRemove(editingFinishedCell, ({ data }) => {
+  const editingCell = focused && !readOnly && logging.entry !== null;
+  usePreventRemove(editingCell, ({ data }) => {
     logging.reviewBeforeLeaving(() => setLeaving(data.action));
   });
   useEffect(() => {
-    if (editingFinishedCell || leaving === null) return;
+    if (editingCell || leaving === null) return;
     setLeaving(null);
     navigation.dispatch(leaving);
-  }, [editingFinishedCell, leaving, navigation]);
+  }, [editingCell, leaving, navigation]);
   const stats = useSessionStore((state) => state.stats);
   const exerciseKeys = useSessionStore((state) => state.exerciseIds);
   // Which exercises are open: the list sizes closed and open items apart (see `getItemType`).
@@ -835,7 +834,7 @@ const LoadedSession = memo(function LoadedSession({
         sets={stats.sets}
         readOnly={readOnly}
         onMinimise={onMinimise}
-        onFinish={flow.askFinish}
+        onFinish={() => logging.reviewBeforeLeaving(() => void flow.askFinish())}
         onOpenClock={openClock}
         banner={phaseBanner}
       />

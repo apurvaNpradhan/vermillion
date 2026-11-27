@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { EQUIPMENT, EQUIPMENT_KEYS, type MuscleGroup } from "@workspace/shared";
@@ -49,7 +50,7 @@ export function FilterSheet({
 
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <FixedSheetContent
           fraction={0.88}
@@ -127,7 +128,7 @@ export function FilterSheet({
             </Button>
           </View>
         </FixedSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

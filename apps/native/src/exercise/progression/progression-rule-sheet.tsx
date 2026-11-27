@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import type {
   ExerciseType,
   RuleConfig,
@@ -59,7 +60,7 @@ export function ProgressionRuleSheet({
   const preview = previews?.[chosen] ?? [];
   return (
     <BottomSheet animation={animation} isOpen={sheet.open} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent>
           <View className="gap-1 px-4">
@@ -151,7 +152,7 @@ export function ProgressionRuleSheet({
             ) : null}
           </View>
         </ScrollableSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

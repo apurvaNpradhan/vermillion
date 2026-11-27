@@ -37,7 +37,7 @@ import { ANCHORED } from "@/platform/navigation/anchored";
 export function TrainingHome() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
-  const { start, startSlot, sheet } = useStartSession();
+  const { start, startSlot, sheet } = useStartSession({ resumeSameWorkout: true });
   const [weeksAgo, setWeeksAgo] = useState(0);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [direction, setDirection] = useState<-1 | 0 | 1>(0);

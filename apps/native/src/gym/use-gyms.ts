@@ -89,11 +89,13 @@ export function useGyms() {
       },
       [run, writeScope, activeGymId, setUi],
     ),
-    /** Changes the gym of a Session (null for any gym). */
+    /** Changes the live Session's gym. Any gym leaves the active gym as it was. */
     setForSession: useCallback(
-      (sessionId: string, gymId: string | null) =>
-        run((db) => setSessionGym(db, sessionId, gymId, writeScope)),
-      [run, writeScope],
+      async (sessionId: string, gymId: string | null) => {
+        const changed = await run((db) => setSessionGym(db, sessionId, gymId, writeScope));
+        if (changed && gymId !== null) setUi({ activeGymId: gymId });
+      },
+      [run, setUi, writeScope],
     ),
     run,
     writeScope,

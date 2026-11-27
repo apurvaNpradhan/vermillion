@@ -1,5 +1,5 @@
 import { BottomSheet, useThemeColor } from "heroui-native";
-import { ModalPresence } from "@/platform/ui/modal-state";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { CloudSlash } from "phosphor-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -42,7 +42,7 @@ export function OfflinePill() {
         <Text className="font-semibold text-label text-muted">{t("offline__pill")}</Text>
       </Pressable>
       <BottomSheet isOpen={open} onOpenChange={setOpen}>
-        <BottomSheet.Portal>
+        <SheetPortal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
             animationConfigs={SHEET_SPRING}
@@ -50,7 +50,6 @@ export function OfflinePill() {
             contentContainerClassName="gap-2 px-5 pt-2"
             contentContainerProps={{ style: { paddingBottom: bottom + 24 } }}
           >
-            <ModalPresence />
             <View className="gap-2">
               <BottomSheet.Title className="font-semibold text-title-lg">
                 {t("offline__title")}
@@ -58,7 +57,7 @@ export function OfflinePill() {
               <Text className="font-normal text-body text-muted">{t("offline__body")}</Text>
             </View>
           </BottomSheet.Content>
-        </BottomSheet.Portal>
+        </SheetPortal>
       </BottomSheet>
     </Animated.View>
   );

@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import type { TranslationKey } from "@workspace/i18n";
 import { nativeColors } from "@workspace/ui/tokens/brand";
 import { accentIds, variantName, type AccentId } from "@workspace/ui/tokens/theme-variants";
@@ -45,7 +46,7 @@ export function AppearanceSheet({
   const mode = useThemeMode();
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent>
           <BottomSheet.Title className="px-1 font-semibold text-title-lg">
@@ -100,7 +101,7 @@ export function AppearanceSheet({
             })}
           </View>
         </ScrollableSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

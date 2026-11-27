@@ -136,7 +136,10 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
   // What the row shows: the working number, or the kind's name for a warm-up and the like.
-  const number = set.kind === "working" ? badge : t(SET_KIND_KEYS[set.kind]);
+  const setLabel =
+    set.kind === "working"
+      ? t("session__set_number", { number: badge })
+      : t(SET_KIND_KEYS[set.kind]);
   const accent = useActionColor();
   const onAccent = useOnActionColor();
   const danger = useThemeColor("danger");
@@ -213,7 +216,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
           ink={ink}
           faint={faint}
           disabled={readOnly}
-          label={t("training__cell_label", { number, field: header(field, editing) })}
+          label={t("session__cell_label", { set: setLabel, field: header(field, editing) })}
           onPress={() => props.onCell(set.id, field)}
         >
           {running && set.timerStartedAt !== null ? (
@@ -233,7 +236,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
                 : target === null
                   ? "session__timer_stop"
                   : "session__timer_cancel",
-              { number },
+              { set: setLabel },
             )}
             onPress={() => {
               haptic.tick();
@@ -278,7 +281,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
         accessibilityRole="button"
         accessibilityLabel={
           set.kind === "working"
-            ? t("training__set_kind_change", { number, kind: t(SET_KIND_KEYS[set.kind]) })
+            ? t("training__set_kind_change", { number: badge, kind: t(SET_KIND_KEYS[set.kind]) })
             : t("training__set_kind_change_named", { kind: t(SET_KIND_KEYS[set.kind]) })
         }
         disabled={readOnly}
@@ -308,13 +311,14 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
         </Text>
       </Pressable>
       <Pressable
+        accessible={props.previousReady}
         accessibilityRole="button"
         accessibilityLabel={
           previousText === null
             ? t("session__previous_none")
             : t("session__previous_copy", { value: previousText })
         }
-        disabled={readOnly || previous === null || previousText === null}
+        disabled={readOnly || !props.previousReady || previous === null || previousText === null}
         onPress={() => {
           haptic.tick();
           props.onPrevious(set.id);
@@ -338,8 +342,8 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       {hasEffortColumn && set.kind !== "warmup" ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("training__effort_cell_label", {
-            number,
+          accessibilityLabel={t("session__effort_cell_label", {
+            set: setLabel,
             value: effortValue ?? t("training__effort_none"),
           })}
           disabled={readOnly}
@@ -362,10 +366,11 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
             busy: waitingForPrevious && !readOnly,
             disabled: readOnly || waitingForPrevious,
           }}
-          accessibilityLabel={t(
-            readOnly ? "session__set_number" : ticked ? "session__untick_set" : "session__tick_set",
-            { number },
-          )}
+          accessibilityLabel={
+            readOnly
+              ? setLabel
+              : t(ticked ? "session__untick_set" : "session__tick_set", { set: setLabel })
+          }
           accessibilityHint={
             waitingForPrevious && !readOnly ? t("session__set_waiting_for_previous") : undefined
           }

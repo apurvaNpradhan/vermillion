@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { useSheetAnimation } from "./sheet-motion";
 import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheet } from "heroui-native";
@@ -42,7 +43,7 @@ function ConfirmSheetBody({
   const animation = useSheetAnimation();
   return (
     <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent
           footer={
@@ -87,7 +88,7 @@ function ConfirmSheetBody({
           </View>
           {children}
         </ScrollableSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

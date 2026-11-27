@@ -4,7 +4,7 @@ import {
   type Progression,
   type WeightUnit,
 } from "@workspace/shared";
-import { ModalPresence } from "@/platform/ui/modal-state";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 
@@ -65,14 +65,13 @@ export function ProgressionChip({
       </Pressable>
       {sheet.mounted ? (
         <BottomSheet animation={animation} isOpen={sheet.open} onOpenChange={setOpen}>
-          <BottomSheet.Portal>
+          <SheetPortal>
             <BottomSheet.Overlay />
             <BottomSheet.Content
               animationConfigs={SHEET_SPRING}
               backgroundClassName="rounded-t-[20px] bg-overlay"
               contentContainerClassName="px-5 pb-10 gap-3"
             >
-              <ModalPresence />
               <BottomSheet.Title>{t("progress__next")}</BottomSheet.Title>
               <BottomSheet.Description>
                 {mixed
@@ -83,7 +82,7 @@ export function ProgressionChip({
               </BottomSheet.Description>
               <EvidenceLines evidence={suggestion.evidence} type={type} unit={unit} />
             </BottomSheet.Content>
-          </BottomSheet.Portal>
+          </SheetPortal>
         </BottomSheet>
       ) : null}
     </>

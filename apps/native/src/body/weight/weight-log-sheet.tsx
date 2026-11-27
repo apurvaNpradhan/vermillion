@@ -1,5 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
-import { ModalPresence } from "@/platform/ui/modal-state";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
@@ -101,14 +101,13 @@ export function WeightLogSheet({
           if (!open && !action.busy) onClose();
         }}
       >
-        <BottomSheet.Portal>
+        <SheetPortal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
             animationConfigs={SHEET_SPRING}
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-4 px-4 pb-4"
           >
-            <ModalPresence />
             {sheet.probe}
             <BottomSheet.Title>{t(goal ? "body__goal" : "body__log")}</BottomSheet.Title>
             <View className="flex-row items-baseline gap-2">
@@ -185,7 +184,7 @@ export function WeightLogSheet({
               onDone={() => void save()}
             />
           </BottomSheet.Content>
-        </BottomSheet.Portal>
+        </SheetPortal>
       </BottomSheet>
       {weighIn.dialog}
     </>

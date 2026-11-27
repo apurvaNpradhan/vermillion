@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { useRouter, type Href } from "expo-router";
 import { BottomSheet } from "heroui-native";
@@ -135,7 +136,7 @@ function PlateCalculatorSheetBody({
         if (!open) onClose();
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         {/* A fixed height and the sheet's own scroll view: a plain ScrollView loses its drags to
             the sheet's pan gesture, so the body could not be scrolled. */}
@@ -158,7 +159,7 @@ function PlateCalculatorSheetBody({
             />
           ) : null}
         </FixedSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

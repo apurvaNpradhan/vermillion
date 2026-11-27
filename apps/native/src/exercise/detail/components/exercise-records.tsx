@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import {
   recordsMovedByEffort,
   type ExerciseType,
@@ -172,7 +173,7 @@ export function ExerciseRecords({
         <Text className="font-normal text-body text-muted">{t("exercise__records_empty")}</Text>
       )}
       <BottomSheet isOpen={help} onOpenChange={setHelp}>
-        <BottomSheet.Portal>
+        <SheetPortal>
           <BottomSheet.Overlay />
           <ScrollableSheetContent size="tall">
             <BottomSheet.Title>{t("exercise__records_help_title")}</BottomSheet.Title>
@@ -188,7 +189,7 @@ export function ExerciseRecords({
               ))}
             </View>
           </ScrollableSheetContent>
-        </BottomSheet.Portal>
+        </SheetPortal>
       </BottomSheet>
     </View>
   );

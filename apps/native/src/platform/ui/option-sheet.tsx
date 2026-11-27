@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { useMountOnOpen } from "./mount-on-open";
 import { useSheetAnimation } from "./sheet-motion";
 import { BottomSheet } from "heroui-native";
@@ -37,7 +38,7 @@ export function OptionSheet<T extends string>({
   if (!sheet.mounted) return null;
   return (
     <BottomSheet animation={animation} isOpen={sheet.open} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent>
           <View className="gap-1 px-4">
@@ -65,7 +66,7 @@ export function OptionSheet<T extends string>({
             ))}
           </ListSection>
         </ScrollableSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

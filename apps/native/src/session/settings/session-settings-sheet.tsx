@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { mountOnOpen } from "@/platform/ui/mount-on-open";
 import { BottomSheet } from "heroui-native";
@@ -56,7 +57,7 @@ function SessionSettingsSheetBody({
   return (
     <>
       <BottomSheet animation={animation} isOpen={isOpen} onOpenChange={onOpenChange}>
-        <BottomSheet.Portal>
+        <SheetPortal>
           <BottomSheet.Overlay />
           <FixedSheetContent
             fraction={0.88}
@@ -93,7 +94,7 @@ function SessionSettingsSheetBody({
               {training.section}
             </BottomSheetScrollView>
           </FixedSheetContent>
-        </BottomSheet.Portal>
+        </SheetPortal>
       </BottomSheet>
       {training.sheets}
     </>

@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { FixedSheetContent } from "@/platform/ui/scrollable-sheet-content";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { BottomSheet } from "heroui-native";
@@ -84,7 +85,7 @@ export function AddToWorkoutSheet({
 
   return (
     <BottomSheet isOpen={isOpen} onOpenChange={onOpenChange}>
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <FixedSheetContent
           fraction={0.6}
@@ -166,7 +167,7 @@ export function AddToWorkoutSheet({
             ) : null}
           </BottomSheetScrollView>
         </FixedSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }
