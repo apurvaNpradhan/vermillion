@@ -13,7 +13,7 @@ export const site = {
   tagline: appConfig.tagline,
   title: `${appConfig.displayName} — the strength log that progresses for you`,
   description:
-    "Run your own program on Android. Keep your place in the rotation, see what you lifted last time, and bring your history from Strong or Hevy.",
+    "A strength log for lifters who follow a program. Sigil sets the next target, shows its reason, and keeps your log on your phone. Android. Bring your history from Strong or Hevy.",
   url: appConfig.urls.site,
   version: appConfig.version,
   supportEmail: appConfig.supportEmail,
@@ -41,17 +41,18 @@ export const en = {
   heroLead:
     "Sigil runs your program. It lines up the next workout, sets a target for every exercise, and adds weight when you hit it. If you stall, it eases off.",
   download: "Download for Android",
-  heroFacts: ["Works offline"],
+  heroFacts: ["Works offline", "Encrypted on your phone", "No ads, no feed"],
   heroScreenAlt:
     "A workout in progress: two completed sets of bench press and a running rest timer.",
   progressionLabel: "PROGRESSION",
   progressionTitle: "You lift. Sigil does the math.",
-  // Checked against packages/shared/src/training/progress: a rep range fills first, then the
-  // load rises by ~2.5% (never below 2.5 kg on a barbell); three sessions with under 1% gain is a stall.
+  // Checked against packages/shared/src/training/progress: a rep range fills first, then the load
+  // rises by one step sized to the equipment (and the gym's loads); three sessions without a gain is
+  // a stall; three stalled lifts in a week offer a lighter week at 90% (LIGHTER_WEEK_*).
   progression:
-    "Each exercise has a target. Hit the top of your rep range and next time asks for more weight: about 2.5% of the load, never less than 2.5 kg on a barbell. Go three sessions without progress and Sigil flags the stall and suggests 90% of your last weight. No spreadsheet. No guessing.",
+    "Each exercise has a target. Hit the top of your rep range and next time asks for a little more weight, in a step your equipment can make. Every suggestion comes with its reason. Go three sessions without progress and Sigil flags the stall. If several lifts stall in a week, it offers a lighter week at 90% of your load. No spreadsheet. No guessing.",
   featuresTitle: "Everything else stays out of the way.",
-  featuresLead: "Four things, done properly. No feed. No coach.",
+  featuresLead: "The plan, the session, the progress and the record. No feed. No coach.",
   installTitle: "On Android, through GitHub.",
   installLead: "Not on iPhone yet.",
   installSteps: [
@@ -68,7 +69,7 @@ export const en = {
   shareRestDay: "Rest",
   shareCode: "Code",
   shareOpenHint:
-    "Already have Sigil? Open this page on your phone and the app opens. Or choose Settings, then Enter code, and type the code.",
+    "Sigil no longer creates share links, so the app cannot add this plan for you. This page stays up for links that were already shared.",
   shareWeeks: (count: number) => `${count} ${count === 1 ? "week" : "weeks"}`,
   shareDays: (count: number) => `${count} ${count === 1 ? "day" : "days"} a week`,
   shareExercises: (count: number) => `${count} ${count === 1 ? "exercise" : "exercises"}`,
@@ -91,42 +92,104 @@ export const en = {
 
 export const features = [
   {
-    label: "Programs",
+    label: "Plan",
     title: "Your next workout is always ready.",
-    body: "Build a rotation once. Sigil queues each day in order and remembers where you left off.",
-    screenshot: "program",
-    alt: "A Push Pull Legs program with its workout order",
+    body: "Build a rotation of workouts and rest days once. Sigil queues each day in order and keeps your place.",
+    points: [
+      "Skip a day this time, and undo it.",
+      "Pause a program. Paused days do not count.",
+      "Home shows what is next, last time's top set and this week's numbers.",
+    ],
+    screenshot: "home",
+    alt: "Home with the next workout, its exercises and a Start button",
   },
   {
-    label: "Live log",
-    title: "Last time's numbers, already filled in.",
-    body: "Tick a set and the rest timer starts. Plate math and warm-ups are built in.",
+    label: "Weeks",
+    title: "Plan your weeks, deloads included.",
+    body: "Give a program a repeating pattern of Build, Push, Test and Deload weeks. Change one week without touching the rest.",
+    points: [
+      "Each phase says what it does: sets, effort and load.",
+      "Deload this week is one tap, and Undo works until you start that session.",
+      "A Test week works up to one heavy single.",
+    ],
+    screenshot: "plan-your-weeks",
+    alt: "Plan your weeks, with a repeating pattern of Build, Push and Deload weeks",
+  },
+  {
+    label: "Session",
+    title: "Last time's numbers, and a reason for today's.",
+    body: "Grey suggestions fill each set, and each one says why. Tick a set and the rest timer starts.",
+    points: [
+      "A plate calculator that knows your bars and plates, and a warm-up ramp.",
+      "Gyms with a max load and load step per machine, so suggestions are loads you can make.",
+      "A quiet check when a number looks wrong, like 1000 kg on a 100 kg lift. You can keep it.",
+    ],
     screenshot: "live-session",
     alt: "A bench press workout with completed sets and a running rest timer",
   },
   {
-    label: "Records",
-    title: "Records flagged the moment you set them.",
-    body: "Every exercise gets a chart, so you can watch the numbers climb.",
+    label: "Progress",
+    title: "Records and charts, flagged when you set them.",
+    body: "Every exercise has a chart and a record grid. Muscle volume shows your weekly sets against a target.",
+    points: [
+      "A monthly report and a year in review, shared as images if you want.",
+      "More than 900 exercises, filtered on a body map.",
+    ],
     screenshot: "exercise-detail",
     alt: "A bench press chart of estimated one-rep max with a grid of personal records",
   },
   {
-    label: "Offline",
-    title: "Works in a basement.",
-    body: "Everything saves on your phone first and syncs once you have signal. Bring your history from Strong or Hevy.",
+    label: "Your record",
+    title: "Saved on your phone first. Yours to take.",
+    body: "Your log is encrypted on your phone and syncs when you have signal. Export it whenever you like.",
+    points: [
+      "Your record as JSON, weigh-ins and measurements as CSV, workouts in Strong's format.",
+      "Import a Strong or Hevy history, with a preview before anything is written.",
+      "Delete your account from Settings.",
+    ],
     screenshot: "history",
     alt: "Training history grouped by week with imported workouts",
   },
 ];
 
+export const promises = {
+  label: "PRIVACY",
+  title: "What Sigil leaves out.",
+  items: [
+    "No ads and no social feed.",
+    "No badges, no confetti, no streak guilt. A reminder says what is next.",
+    "Crash reports are anonymous and you can turn them off.",
+    "Your log syncs to our server over HTTPS so it works on more than one device. The server can read it.",
+  ],
+};
+
 export const screenshots = [
-  { src: "/screenshots/live-session.webp", alt: "A workout in progress with a rest timer" },
-  { src: "/screenshots/program.webp", alt: "A Push Pull Legs program with four workouts" },
-  { src: "/screenshots/exercises.webp", alt: "The exercise library with search and filters" },
+  { src: "/screenshots/home.webp", alt: "Home with the next workout", caption: "Home" },
+  { src: "/screenshots/train.webp", alt: "Train, with the active program", caption: "Train" },
+  {
+    src: "/screenshots/plan-your-weeks.webp",
+    alt: "Plan your weeks, with a repeating pattern of phases",
+    caption: "Plan your weeks",
+  },
+  {
+    src: "/screenshots/program.webp",
+    alt: "A Push Pull Legs program with four workouts",
+    caption: "A program",
+  },
+  {
+    src: "/screenshots/live-session.webp",
+    alt: "A workout in progress with a rest timer",
+    caption: "A live session",
+  },
+  {
+    src: "/screenshots/exercises.webp",
+    alt: "The exercise library with search and filters",
+    caption: "The exercise library",
+  },
   {
     src: "/screenshots/exercise-detail.webp",
     alt: "An exercise's progress chart and personal records",
+    caption: "An exercise",
   },
-  { src: "/screenshots/history.webp", alt: "Training history grouped by week" },
+  { src: "/screenshots/history.webp", alt: "Training history grouped by week", caption: "History" },
 ];

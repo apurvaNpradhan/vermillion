@@ -17,6 +17,7 @@ function ScreensPage() {
         {screenshots.map((shot) => (
           <li key={shot.src}>
             <img src={shot.src} alt={shot.alt} width={540} height={1157} loading="lazy" />
+            <p className="meta">{shot.caption}</p>
           </li>
         ))}
       </ul>

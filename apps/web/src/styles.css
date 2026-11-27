@@ -343,8 +343,18 @@ p {
   max-width: 38ch;
 }
 
-.feature-copy p:last-child {
+.feature-copy p:not(.label) {
   color: var(--secondary);
+}
+
+.feature-points {
+  margin: 0;
+  padding-left: 1.125rem;
+  color: var(--secondary);
+}
+
+.feature-points li + li {
+  margin-top: 0.5rem;
 }
 
 .feature-copy h3 {
@@ -358,6 +368,29 @@ p {
   height: auto;
   border-radius: 1.125rem;
   box-shadow: 0 0 0 1px var(--hairline-strong);
+}
+
+/* Privacy promises */
+.promises {
+  padding: 7rem 0 4rem;
+  border-top: 1px solid var(--hairline);
+}
+
+.promises h2 {
+  margin-top: 1rem;
+  font-size: clamp(2.25rem, 5vw, 4rem);
+}
+
+.promise-list {
+  margin: 1.5rem 0 0;
+  padding-left: 1.25rem;
+  max-width: 40rem;
+  color: var(--secondary);
+  font-size: 1.125rem;
+}
+
+.promise-list li + li {
+  margin-top: 0.625rem;
 }
 
 /* Install */
@@ -478,6 +511,10 @@ p {
   margin: 3rem 0 0;
   padding: 0;
   list-style: none;
+}
+
+.shots .meta {
+  margin: 0.75rem 0 0;
 }
 
 .shots img {
