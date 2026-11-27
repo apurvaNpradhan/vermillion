@@ -63,6 +63,8 @@ export function RunHero({
     onStart,
     onSkip: state.skip,
     onUnskip: state.unskip,
+    openSessionFor: (workoutId) => openSessionOf(openSessions, workoutId),
+    onResume,
   });
   if (!program || !run) return null;
   const next = program.slots.find((slot) => slot.id === progress.next?.id);

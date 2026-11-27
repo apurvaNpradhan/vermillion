@@ -23,10 +23,15 @@ export function useSlotDay({
   onStart,
   onSkip,
   onUnskip,
+  openSessionFor,
+  onResume,
 }: {
   runId: string | null;
   progress: Progress & { cycle: number; latestCountedCycle: number };
   onStart: (workoutId: string, day: RunSlot) => void;
+  /** The open Session of a Workout, if one is in progress: its day offers Resume, not Start. */
+  openSessionFor: (workoutId: string) => { id: string } | undefined;
+  onResume: (sessionId: string) => void;
   onSkip: (day: RunSlot, title: string) => void;
   onUnskip: (day: RunSlot) => Promise<boolean> | boolean;
 }) {
@@ -64,12 +69,20 @@ export function useSlotDay({
     const current = day.cycle === progress.cycle;
     const state = current ? stripState(slot, progress) : selected.state;
     if (!current && state !== "skipped") return [];
-    const start: SwipeAction = {
-      key: "start",
-      label: t("training__start_workout_named", { title }),
-      icon: Play,
-      onPress: () => onStart(workoutId, day),
-    };
+    const open = openSessionFor(workoutId);
+    const start: SwipeAction = open
+      ? {
+          key: "resume",
+          label: t("session__resume_named", { title }),
+          icon: Play,
+          onPress: () => onResume(open.id),
+        }
+      : {
+          key: "start",
+          label: t("training__start_workout_named", { title }),
+          icon: Play,
+          onPress: () => onStart(workoutId, day),
+        };
     if (state === "done") return [start];
     return [
       start,
@@ -87,7 +100,7 @@ export function useSlotDay({
             onPress: () => onSkip(day, title),
           },
     ];
-  }, [selected, progress, runId, title, t, onStart, onSkip, onUnskip]);
+  }, [selected, progress, runId, title, t, onStart, onSkip, onUnskip, openSessionFor, onResume]);
 
   // Progress can change while the sheet is open (another device finishes or skips the day). Close it
   // for good then, so it never reappears later with a stale selection.
