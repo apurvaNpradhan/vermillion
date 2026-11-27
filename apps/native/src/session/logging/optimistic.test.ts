@@ -1,6 +1,7 @@
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
 import { describe, expect, it } from "vitest";
 
+import { createSessionStore } from "../store/session-store";
 import {
   NO_PENDING,
   nudged,
@@ -180,6 +181,26 @@ describe("pending writes", () => {
     });
     expect(withPending(stored, [savedTick, untick]).rest).toBeNull();
     expect(withPending(stored, [savedTick]).rest).toEqual(rest);
+  });
+  it("hides a deleted set and updates the editor totals before the watch returns", () => {
+    const remaining = set({ id: "set-2", position: "a1", completedAt: NOW });
+    const finished = { ...session([ticked, remaining]), finishedAt: later };
+    const store = createSessionStore(finished);
+    const removal: PendingWrite = { id: Symbol(), removedSetId: ticked.id, saved: true };
+    store.getState().updatePending(() => [removal]);
+    expect(store.getState().stats.ticked).toBe(1);
+    expect([...store.getState().setsById.keys()]).toEqual([remaining.id]);
+
+    // Undo can commit before the watch ever delivered the deletion.
+    store.getState().updatePending(() => NO_PENDING);
+    expect(store.getState().stats.ticked).toBe(2);
+
+    store.getState().updatePending(() => [removal]);
+    store.getState().setStored({ ...session([remaining]), finishedAt: later });
+    expect(store.getState().pending).toEqual([]);
+    expect(store.getState().stats.ticked).toBe(1);
+    store.getState().setStored(finished);
+    expect(store.getState().stats.ticked).toBe(2);
   });
 });
 

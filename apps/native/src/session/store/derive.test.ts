@@ -263,6 +263,19 @@ describe("deriveExercises", () => {
     expect(view({ historyFailed: true })?.previousReady).toBe(true);
   });
 
+  it("shows Previous while equipment and bodyweight are still loading", () => {
+    const previous = new Map([["lib-b", []]]);
+    const view = (input: Partial<DeriveInputs>) =>
+      deriveExercises([b], inputs(input), context, new Map()).get("b")?.view;
+
+    expect(view({ previous, prescriptionReady: false })).toMatchObject({
+      previousReady: true,
+      historyReady: false,
+      prescriptionDraft: null,
+    });
+    expect(view({ previous, previousPreferencesReady: false })?.previousReady).toBe(false);
+  });
+
   it("rebuilds only the exercise whose sets changed", () => {
     const shared = inputs();
     const first = deriveExercises([a, b], shared, context, new Map());

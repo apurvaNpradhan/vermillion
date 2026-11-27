@@ -86,7 +86,7 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
               ? pending.filter((write) => write.id !== id)
               : pending,
           );
-      if (!change?.set && !change?.rest && !change?.clock) {
+      if (!change?.set && !change?.removedSetId && !change?.rest && !change?.clock) {
         drop();
         return;
       }
@@ -196,6 +196,22 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
     [actions.untick, addPreview, enqueueWrite, nudges, settle, store],
   );
 
+  const removeOneSet = useCallback(
+    (setId: string) => {
+      const state = store.getState();
+      if (!state.setsById.has(setId)) return Promise.resolve(false);
+      const id = Symbol();
+      state.updatePending((pending) => [...pending, { id, removedSetId: setId }]);
+      return enqueueWrite(async () => {
+        await nudges.release();
+        const removed = await actions.removeOneSet(setId, () => settle(id));
+        settle(id, removed ? { removedSetId: setId } : undefined);
+        return removed;
+      });
+    },
+    [actions.removeOneSet, enqueueWrite, nudges, settle, store],
+  );
+
   const skipRest = useCallback(
     (sessionId: string) => {
       const rest = { before: store.getState().session.rest, value: { value: null } };
@@ -246,12 +262,23 @@ export function useOptimisticSession(store: SessionStore, actions: Actions) {
       ...actions,
       tick,
       untick,
+      removeOneSet,
       skipRest,
       nudgeRest,
       updateValues,
       awaitWrites,
       togglePause,
     }),
-    [actions, tick, untick, skipRest, nudgeRest, updateValues, awaitWrites, togglePause],
+    [
+      actions,
+      tick,
+      untick,
+      removeOneSet,
+      skipRest,
+      nudgeRest,
+      updateValues,
+      awaitWrites,
+      togglePause,
+    ],
   );
 }

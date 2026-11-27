@@ -5,18 +5,21 @@ import {
   newSessionId,
   parseActiveSessions,
   parseFinishedOfWorkout,
+  readWorkoutDetail,
   restoreSession,
   type ActiveSession,
   type BeginSource,
 } from "@workspace/sync";
 import { finishedToday, type RunSlot } from "@workspace/shared";
 import { useRouter } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { haptic } from "@/platform/haptics";
 import { useTranslation } from "@/platform/i18n";
 import { useDeviceTimeZone } from "@/platform/i18n/device-time-zone";
 import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
+import { warmPreviousSets } from "@/session/logging/use-previous-sets";
+import { useLocalData } from "@/sync";
 import { useTrainingWrite } from "@/training";
 
 import { StartConflictSheet } from "./start-conflict-sheet";
@@ -41,6 +44,30 @@ export function useStartSession({ resumeSameWorkout = false } = {}) {
   const { write, writeScope, undoToast } = useTrainingWrite();
   const timeZone = useDeviceTimeZone();
   const [pending, setPending] = useState<Pending | null>(null);
+  const local = useLocalData();
+  const database = local?.status === "ready" ? local.database : null;
+  const pendingWorkoutId =
+    pending && "workoutId" in pending.source ? pending.source.workoutId : null;
+  useEffect(() => {
+    if (!database || !pendingWorkoutId || !writeScope) return;
+    let cancelled = false;
+    let stop: (() => void) | undefined;
+    void readWorkoutDetail(database, pendingWorkoutId).then(
+      (workout) => {
+        if (!cancelled && workout)
+          stop = warmPreviousSets(
+            database,
+            writeScope,
+            workout.exercises.map((entry) => entry.exerciseId),
+          );
+      },
+      () => undefined,
+    );
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [database, pendingWorkoutId, writeScope]);
   // Mounted closed and opened by a change, as dialogs are; `repeat` stays for the closing animation.
   const [repeat, setRepeat] = useState<Repeat | null>(null);
   const [repeatOpen, setRepeatOpen] = useState(false);

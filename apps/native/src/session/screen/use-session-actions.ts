@@ -154,11 +154,11 @@ export function useSessionActions() {
   );
 
   const removeOneSet = useCallback(
-    async (setId: string) => {
+    async (setId: string, onRestored: () => void) => {
       const removed = await write((db) => removeSet(db, setId, writeScope), null);
       if (!removed) return false;
-      undoToast(t("session__set_removed_toast"), () => {
-        void write((db) => restoreSet(db, removed, writeScope), false);
+      undoToast(t("session__set_removed_toast"), async () => {
+        if (await write((db) => restoreSet(db, removed, writeScope), false)) onRestored();
       });
       return true;
     },

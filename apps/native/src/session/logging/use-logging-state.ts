@@ -85,6 +85,7 @@ export function useLoggingState({
   recordBests,
   historyReady,
   historyFailed,
+  previousPreferencesReady,
   prescriptionReady,
   unit,
   display,
@@ -110,6 +111,7 @@ export function useLoggingState({
   historyReady: boolean;
   /** The Previous lookup failed: sets with their own values can still be ticked. */
   historyFailed: boolean;
+  previousPreferencesReady: boolean;
   prescriptionReady: boolean;
   unit: WeightUnit;
   display: DisplayUnits;
@@ -170,6 +172,7 @@ export function useLoggingState({
     () => ({
       previous,
       historyFailed,
+      previousPreferencesReady,
       prescriptionReady,
       previousSource,
       unit,
@@ -192,6 +195,7 @@ export function useLoggingState({
     [
       previous,
       historyFailed,
+      previousPreferencesReady,
       prescriptionReady,
       previousSource,
       unit,

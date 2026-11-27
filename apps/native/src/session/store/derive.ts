@@ -39,6 +39,8 @@ export type DeriveInputs = {
   /** The finished Sessions of each exercise, newest first. */
   previous: ReadonlyMap<string, readonly FinishedSession[]>;
   historyFailed: boolean;
+  /** The account preference that chooses which finished workout to look back at. */
+  previousPreferencesReady?: boolean;
   prescriptionReady?: boolean;
   previousSource: PreviousSource;
   unit: WeightUnit;
@@ -123,7 +125,8 @@ function buildView(
   before: ExerciseView | undefined,
 ): ExerciseView {
   const equipment = exercise.exercise?.equipment ?? "other";
-  const loaded = rawHistory !== undefined && inputs.prescriptionReady !== false;
+  const previousLoaded = rawHistory !== undefined && inputs.previousPreferencesReady !== false;
+  const loaded = previousLoaded && inputs.prescriptionReady !== false;
   const historyReady = loaded || inputs.historyFailed || Boolean(exercise.prescription);
 
   // One call for every surface: the baseline, the stalled-lift verdict and its applied deload.
@@ -153,7 +156,9 @@ function buildView(
 
   const rows = new Map<string, RowView>();
   exercise.sets.forEach((set, index) => {
-    const previous = previousForSuggestion(history, settings, exercise.sets, index, set.target);
+    const previous = previousLoaded
+      ? previousForSuggestion(history, settings, exercise.sets, index, set.target)
+      : null;
     const hinted = previousForSuggestion(history, settings, exercise.sets, index, set.target, true);
     const ghosts = loaded
       ? ghostsOf(
@@ -210,7 +215,7 @@ function buildView(
       inputs.display,
     ),
     historyReady,
-    previousReady: loaded || inputs.historyFailed,
+    previousReady: previousLoaded || inputs.historyFailed,
     setIds: sameIds(setIds, before?.setIds) ? (before?.setIds ?? setIds) : setIds,
     rows,
   };

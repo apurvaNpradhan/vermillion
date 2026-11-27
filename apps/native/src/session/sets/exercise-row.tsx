@@ -46,7 +46,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   place: SupersetPlace;
   /** "2/4". */
   progress: string;
-  /** The done summary after the progress; empty while sets remain. */
+  /** Logged values for the compact header; empty when no working sets have been logged. */
   summary: string;
   /** The body is shown; a closed exercise renders no sets, chips or notes. */
   expanded: boolean;
@@ -93,7 +93,7 @@ export const ExerciseRow = memo(function ExerciseRow({
   const toggle = () => onToggle(exercise.id);
   const shownSuggestion = expanded && suggestion ? suggestion : null;
   const spoken = shownSuggestion
-    ? t("session__exercise_summary_suggestion", { summary: subtitle, suggestion: shownSuggestion })
+    ? t("session__exercise_summary_suggestion", { summary: progress, suggestion: shownSuggestion })
     : subtitle;
   const exerciseLabel = t(grouped ? "session__superset_header" : "session__exercise_header", {
     title: name,
@@ -172,10 +172,10 @@ export const ExerciseRow = memo(function ExerciseRow({
             ) : null}
             <Text
               numberOfLines={1}
-              className={`font-normal min-w-0 shrink text-caption text-muted ${shownSuggestion ? "max-w-[55%]" : ""}`}
+              className="font-normal min-w-0 shrink text-caption text-muted"
               style={{ fontVariant: ["tabular-nums"] }}
             >
-              {done ? doneText : subtitle}
+              {shownSuggestion ? progress : done ? doneText : subtitle}
             </Text>
             {shownSuggestion ? (
               <>

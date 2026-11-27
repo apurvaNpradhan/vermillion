@@ -38,6 +38,7 @@ export type PendingWrite = {
   id: symbol;
   saved?: boolean;
   set?: Change<SetChange, SessionSetDetail> & { id: string };
+  removedSetId?: string;
   rest?: Change<RestChange, Rest>;
   clock?: SessionClock;
 };
@@ -54,6 +55,7 @@ function applyRest(rest: Rest, change: RestChange): Rest {
 export function withPending(session: SessionDetail, pending: Pending): SessionDetail {
   if (pending.length === 0) return session;
   const patches = new Map<string, SetChange>();
+  const removed = new Set<string>();
   let rest = session.rest;
   for (const write of pending) {
     if (write.set) {
@@ -61,13 +63,17 @@ export function withPending(session: SessionDetail, pending: Pending): SessionDe
       patches.set(id, { ...patches.get(id), ...value });
     }
     if (write.rest) rest = applyRest(rest, write.rest.value);
+    if (write.removedSetId) removed.add(write.removedSetId);
   }
-  if (patches.size === 0) return rest === session.rest ? session : { ...session, rest };
+  if (rest && removed.has(rest.setId)) rest = null;
+  if (patches.size === 0 && removed.size === 0)
+    return rest === session.rest ? session : { ...session, rest };
   const exercises = session.exercises.map((exercise) => {
-    if (!exercise.sets.some((set) => patches.has(set.id))) return exercise;
-    const sets = exercise.sets.map((set) => {
+    if (!exercise.sets.some((set) => patches.has(set.id) || removed.has(set.id))) return exercise;
+    const sets = exercise.sets.flatMap((set) => {
+      if (removed.has(set.id)) return [];
       const patch = patches.get(set.id);
-      return patch ? { ...set, ...patch } : set;
+      return [patch ? { ...set, ...patch } : set];
     });
     return { ...exercise, sets };
   });
@@ -135,6 +141,10 @@ export function settled(pending: Pending, session: SessionDetail): Pending {
 
   let changed = false;
   const next = pending.flatMap((write, index) => {
+    if (write.saved && write.removedSetId && !stored.has(write.removedSetId)) {
+      changed = true;
+      return [];
+    }
     const set =
       write.set && index > (confirmedSets.get(write.set.id) ?? -1) ? write.set : undefined;
     const rest = index > confirmedRest ? write.rest : undefined;
@@ -147,7 +157,9 @@ export function settled(pending: Pending, session: SessionDetail): Pending {
         : write.clock;
     if (set === write.set && rest === write.rest && clock === write.clock) return [write];
     changed = true;
-    return set || rest || clock || !write.saved ? [{ ...write, set, rest, clock }] : [];
+    return set || rest || clock || write.removedSetId || !write.saved
+      ? [{ ...write, set, rest, clock }]
+      : [];
   });
   return changed ? next : pending;
 }

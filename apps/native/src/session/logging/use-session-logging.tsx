@@ -95,6 +95,7 @@ export function useSessionLoggingIn(store: SessionStore, editor = false) {
     recordBests,
     historyReady,
     historyFailed,
+    previousPreferencesReady: !preferencesLoading,
     prescriptionReady: !preferencesLoading && !weight.loading && gym.ready === true,
     unit,
     display,
