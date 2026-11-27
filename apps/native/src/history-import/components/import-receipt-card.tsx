@@ -44,13 +44,13 @@ export function ImportReceiptCard({
           {
             label: t("import__stat_workouts"),
             value: String(imported?.sessions ?? receipt.sessions),
-            detail: range,
           },
           { label: t("import__stat_sets"), value: String(receipt.sets) },
           { label: t("import__stat_created"), value: String(receipt.createdExercises) },
           { label: t("import__stat_skipped"), value: String(receipt.skippedDuplicates) },
         ]}
       />
+      {range ? <Text className="font-normal text-caption text-muted">{range}</Text> : null}
       {receipt.skippedOther > 0 ? (
         <Text className="font-normal text-caption text-muted">
           {t("import__receipt_other_skipped", { count: receipt.skippedOther })}

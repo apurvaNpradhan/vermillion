@@ -37,3 +37,19 @@ export const SLOT_STATE_KEYS = {
   todo: "run__untrained",
   rest: "run__rest_day_state",
 } as const;
+
+/**
+ * The screen-reader label of a Slot: "Day 3, Upper A, Up next". A rest day names itself once
+ * ("Day 3, Rest day"), not as both title and state.
+ */
+export function slotLabel(
+  t: (
+    key: "run__slot_state" | "run__slot_rest",
+    values: { [name: string]: string | number },
+  ) => string,
+  { day, state, title }: { day: number; state: StripState; title: string },
+  stateText: string,
+): string {
+  if (state === "rest") return t("run__slot_rest", { day });
+  return t("run__slot_state", { day, title, state: stateText });
+}

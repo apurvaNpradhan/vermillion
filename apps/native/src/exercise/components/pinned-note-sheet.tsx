@@ -1,4 +1,5 @@
 import { SESSION_LIMITS } from "@workspace/shared";
+import { ModalPresence } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { useEffect, useState } from "react";
 import { Keyboard, TextInput, View } from "react-native";
@@ -51,6 +52,7 @@ export function PinnedNoteSheet({
           contentContainerClassName="gap-4 px-4 pt-2"
           contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
         >
+          <ModalPresence />
           <View className="gap-1">
             <BottomSheet.Title className="font-semibold text-title-lg">{title}</BottomSheet.Title>
             <BottomSheet.Description className="text-body text-muted">

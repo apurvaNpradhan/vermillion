@@ -1,4 +1,5 @@
 import { BottomSheet, useThemeColor } from "heroui-native";
+import { ModalPresence } from "@/platform/ui/modal-state";
 import { CloudSlash } from "phosphor-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -49,6 +50,7 @@ export function OfflinePill() {
             contentContainerClassName="gap-2 px-5 pt-2"
             contentContainerProps={{ style: { paddingBottom: bottom + 24 } }}
           >
+            <ModalPresence />
             <View className="gap-2">
               <BottomSheet.Title className="font-semibold text-title-lg">
                 {t("offline__title")}

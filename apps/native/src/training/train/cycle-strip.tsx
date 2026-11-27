@@ -6,7 +6,7 @@ import { DayMark } from "@/platform/ui/day-mark";
 
 import type { ProgramSlotDetail } from "@workspace/sync";
 import { slotTitle } from "@/training/rotation/rotation-row";
-import { SLOT_STATE_KEYS, stripState } from "./strip-state";
+import { SLOT_STATE_KEYS, slotLabel, stripState } from "./strip-state";
 
 /**
  * One dot per Slot of the Rotation for the current Cycle: done (a filled ink mark), skipped (a
@@ -32,11 +32,7 @@ export const CycleStrip = memo(function CycleStrip({
       {slots.map((slot, index) => {
         const state = stripState(slot, progress);
         const title = state === "rest" ? t("training__rest_day") : slotTitle(slot, t);
-        const label = t("run__slot_state", {
-          day: index + 1,
-          title,
-          state: t(SLOT_STATE_KEYS[state]),
-        });
+        const label = slotLabel(t, { day: index + 1, state, title }, t(SLOT_STATE_KEYS[state]));
         if (state === "rest") {
           return (
             <View

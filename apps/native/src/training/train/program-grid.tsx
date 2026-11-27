@@ -28,6 +28,7 @@ const ProgramCoverCard = memo(function ProgramCoverCard({
   program,
   width,
   active,
+  paused,
   onActivate,
   onStop,
   onOpen,
@@ -37,6 +38,8 @@ const ProgramCoverCard = memo(function ProgramCoverCard({
   program: ProgramSummary;
   width: number;
   active: boolean;
+  /** The active Program's Run is paused. */
+  paused: boolean;
   onActivate: (id: string) => void;
   onStop: () => void;
   onOpen: (id: string) => void;
@@ -47,7 +50,9 @@ const ProgramCoverCard = memo(function ProgramCoverCard({
   const [menu, setMenu] = useState(false);
   const subtle = useSubtleColor();
   const meta = useProgramMeta(rotationSummary(program.slots), program.plannedWeeks);
-  const line = active ? t("training__program_card_active", { meta }) : meta;
+  const line = active
+    ? t(paused ? "training__program_card_paused" : "training__program_card_active", { meta })
+    : meta;
   const actions = useMemo<SwipeAction[]>(
     () => [
       {
@@ -113,6 +118,7 @@ const ProgramCoverCard = memo(function ProgramCoverCard({
 export const ProgramGridRow = memo(function ProgramGridRow({
   programs,
   activeId,
+  paused,
   onActivate,
   onStop,
   onOpen,
@@ -121,6 +127,7 @@ export const ProgramGridRow = memo(function ProgramGridRow({
 }: {
   programs: readonly ProgramSummary[];
   activeId: string | null;
+  paused: boolean;
   onActivate: (id: string) => void;
   onStop: () => void;
   onOpen: (id: string) => void;
@@ -137,6 +144,7 @@ export const ProgramGridRow = memo(function ProgramGridRow({
           program={program}
           width={width}
           active={program.id === activeId}
+          paused={paused}
           onActivate={onActivate}
           onStop={onStop}
           onOpen={onOpen}

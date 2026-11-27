@@ -1,4 +1,5 @@
 import { useForm } from "@tanstack/react-form";
+import { ModalPresence } from "@/platform/ui/modal-state";
 import { formatWeight, loadBasisOf, parseWeight, SESSION_LIMITS } from "@workspace/shared";
 import type { Equipment, WeightUnit } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
@@ -138,6 +139,7 @@ function LoadLimitsSheetBody({
           contentContainerClassName="gap-4 px-4 pt-2"
           contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
         >
+          <ModalPresence />
           <View className="gap-1">
             <BottomSheet.Title numberOfLines={1} className="font-semibold text-title-lg">
               {title}

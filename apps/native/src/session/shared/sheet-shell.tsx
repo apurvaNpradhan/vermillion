@@ -1,4 +1,5 @@
 import { mountOnOpen } from "@/platform/ui/mount-on-open";
+import { ModalPresence } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import type { ReactNode } from "react";
 import { View } from "react-native";
@@ -32,6 +33,7 @@ function SheetShellBody({
           contentContainerClassName="gap-4 px-4 pt-2"
           contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
         >
+          <ModalPresence />
           <View className="gap-1 px-1">
             <BottomSheet.Title className="font-semibold text-title-lg">{title}</BottomSheet.Title>
             {description ? (

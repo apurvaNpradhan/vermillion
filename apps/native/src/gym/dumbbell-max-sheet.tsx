@@ -1,4 +1,5 @@
 import { useForm } from "@tanstack/react-form";
+import { ModalPresence } from "@/platform/ui/modal-state";
 import { formatWeight, parseWeight, type WeightUnit } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
 import { useEffect, useRef, useState } from "react";
@@ -84,6 +85,7 @@ function DumbbellMaxSheetBody({
           contentContainerClassName="gap-4 px-4 pt-2"
           contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
         >
+          <ModalPresence />
           <View className="gap-1">
             <BottomSheet.Title className="font-semibold text-title-lg">
               {t("gym__dumbbell_max_title")}

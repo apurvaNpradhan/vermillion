@@ -1,4 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
+import { ModalPresence } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -153,6 +154,7 @@ function CheckInForm({
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-3 px-4 pb-4"
           >
+            <ModalPresence />
             {sheet.probe}
             <BottomSheet.Title>
               {t(entry ? "body__edit_measurement" : "body__check_in")}
@@ -339,6 +341,7 @@ export function CheckInSheet(props: {
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-4 p-4"
           >
+            <ModalPresence />
             {sheet.probe}
             <BottomSheet.Title>{t("body__check_in")}</BottomSheet.Title>
             <Button onPress={state.retry}>

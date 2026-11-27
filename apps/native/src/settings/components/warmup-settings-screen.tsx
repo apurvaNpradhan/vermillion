@@ -85,7 +85,9 @@ export function WarmupSettingsScreen() {
               </Text>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={t("settings__warmup_remove", { number: index + 1 })}
+                accessibilityLabel={t("settings__warmup_remove", {
+                  number: index + 1,
+                })}
                 disabled={steps.length <= 1}
                 hitSlop={8}
                 onPress={() => setUi({ warmupSteps: steps.filter((_, i) => i !== index) })}
@@ -94,36 +96,44 @@ export function WarmupSettingsScreen() {
                 <Trash size={20} color={subtle} />
               </Pressable>
             </View>
-            <View className="flex-row items-center justify-between gap-3">
-              <Stepper
-                label={t("settings__warmup_percent")}
-                valueText={`${step.percent}%`}
-                canDecrement={step.percent > PERCENT_MIN}
-                canIncrement={step.percent < PERCENT_MAX}
-                decrementLabel={t("settings__warmup_percent_less")}
-                incrementLabel={t("settings__warmup_percent_more")}
-                onStep={(direction) =>
-                  change(index, {
-                    percent: Math.min(
-                      PERCENT_MAX,
-                      Math.max(PERCENT_MIN, step.percent + direction * PERCENT_STEP),
-                    ),
-                  })
-                }
-              />
-              <Stepper
-                label={t("settings__warmup_reps")}
-                valueText={t("settings__warmup_reps_value", { count: step.reps })}
-                canDecrement={step.reps > REPS_MIN}
-                canIncrement={step.reps < REPS_MAX}
-                decrementLabel={t("settings__warmup_reps_less")}
-                incrementLabel={t("settings__warmup_reps_more")}
-                onStep={(direction) =>
-                  change(index, {
-                    reps: Math.min(REPS_MAX, Math.max(REPS_MIN, step.reps + direction)),
-                  })
-                }
-              />
+            {/* Each stepper takes half the row and wraps under the other when it cannot fit
+                (narrow phones, large text), so no button leaves the card. */}
+            <View className="flex-row flex-wrap items-center gap-3">
+              <View className="min-w-36 flex-1">
+                <Stepper
+                  label={t("settings__warmup_percent")}
+                  valueText={`${step.percent}%`}
+                  canDecrement={step.percent > PERCENT_MIN}
+                  canIncrement={step.percent < PERCENT_MAX}
+                  decrementLabel={t("settings__warmup_percent_less")}
+                  incrementLabel={t("settings__warmup_percent_more")}
+                  onStep={(direction) =>
+                    change(index, {
+                      percent: Math.min(
+                        PERCENT_MAX,
+                        Math.max(PERCENT_MIN, step.percent + direction * PERCENT_STEP),
+                      ),
+                    })
+                  }
+                />
+              </View>
+              <View className="min-w-36 flex-1">
+                <Stepper
+                  label={t("settings__warmup_reps")}
+                  valueText={t("settings__warmup_reps_value", {
+                    count: step.reps,
+                  })}
+                  canDecrement={step.reps > REPS_MIN}
+                  canIncrement={step.reps < REPS_MAX}
+                  decrementLabel={t("settings__warmup_reps_less")}
+                  incrementLabel={t("settings__warmup_reps_more")}
+                  onStep={(direction) =>
+                    change(index, {
+                      reps: Math.min(REPS_MAX, Math.max(REPS_MIN, step.reps + direction)),
+                    })
+                  }
+                />
+              </View>
             </View>
           </View>
         ))}
@@ -149,7 +159,10 @@ export function WarmupSettingsScreen() {
           accessory="none"
           disabled={isDefault}
           onPress={() =>
-            setUi({ warmupSteps: [...DEFAULT_WARMUP_STEPS], warmupRounding: "equipment" })
+            setUi({
+              warmupSteps: [...DEFAULT_WARMUP_STEPS],
+              warmupRounding: "equipment",
+            })
           }
         />
       </ListSection>
@@ -158,7 +171,10 @@ export function WarmupSettingsScreen() {
         onOpenChange={setPicker}
         title={t("settings__warmup_rounding")}
         description={t("settings__warmup_rounding_hint")}
-        options={WARMUP_ROUNDINGS.map((value) => ({ value, label: t(ROUNDING_KEYS[value]) }))}
+        options={WARMUP_ROUNDINGS.map((value) => ({
+          value,
+          label: t(ROUNDING_KEYS[value]),
+        }))}
         value={rounding}
         onSelect={(value) => setUi({ warmupRounding: value })}
       />

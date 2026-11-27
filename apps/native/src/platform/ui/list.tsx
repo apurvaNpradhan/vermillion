@@ -129,11 +129,15 @@ export function ListRow({
         </Text>
       ) : null}
       {trailing ? (
-        <ListGroup.ItemSuffix
-          accessibilityElementsHidden={isSwitch}
-          importantForAccessibility={isSwitch ? "no-hide-descendants" : "auto"}
-        >
-          {trailing}
+        <ListGroup.ItemSuffix>
+          {/* The row is the one switch; the props on `ItemSuffix` did not reach a native view, so
+              the inner switch was read a second time ("Hide photos, on"). */}
+          <View
+            accessibilityElementsHidden={isSwitch}
+            importantForAccessibility={isSwitch ? "no-hide-descendants" : "auto"}
+          >
+            {trailing}
+          </View>
         </ListGroup.ItemSuffix>
       ) : accessory === "none" ? null : (
         <ListGroup.ItemSuffix>

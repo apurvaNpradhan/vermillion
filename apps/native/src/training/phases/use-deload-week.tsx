@@ -39,6 +39,7 @@ export function useDeloadWeek({
   week,
   sessions,
   sessionStarts,
+  hasPlan = false,
 }: {
   /** The active Run (null when there is none). */
   run: DeloadRun | null;
@@ -46,6 +47,8 @@ export function useDeloadWeek({
   week?: number;
   sessions?: readonly RunSessionPhase[];
   sessionStarts?: readonly string[];
+  /** The Program has planned weeks (a phase plan); picks the dialog's second sentence. */
+  hasPlan?: boolean;
 }) {
   const { t } = useTranslation();
   const { write, writeScope } = useTrainingWrite();
@@ -105,7 +108,13 @@ export function useDeloadWeek({
         isOpen={open}
         onOpenChange={setOpen}
         title={t("deload__title")}
-        description={t(run ? "deload__body_run" : "deload__body_none")}
+        description={t(
+          run
+            ? hasPlan
+              ? "deload__body_run_planned"
+              : "deload__body_run_unplanned"
+            : "deload__body_none",
+        )}
         cancelLabel={t("common__cancel")}
         confirmLabel={t("deload__confirm")}
         onConfirm={() => {

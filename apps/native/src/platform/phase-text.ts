@@ -28,6 +28,9 @@ const HINT_KEYS = {
 
 const MINUS = "−";
 
+/** Between the effects of a phase: "sets halved · −2 RPE · −10% load". */
+const EFFECT_SEPARATOR = " · ";
+
 /** A signed effort shift as shown: "+1", "−2", "+0.5". */
 export function signedEffort(value: number, locale: string): string {
   const text = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(Math.abs(value));
@@ -66,7 +69,7 @@ export function usePhaseText() {
       if (found.loadPct !== null)
         parts.push(t("phase__effect_load", { value: 100 - found.loadPct }));
       if (parts.length === 0) return t("phase__as_planned");
-      return new Intl.ListFormat(locale, { style: "narrow", type: "unit" }).format(parts);
+      return parts.join(EFFECT_SEPARATOR);
     },
     [t, locale],
   );
@@ -94,9 +97,7 @@ export function usePhaseText() {
             })
         : null;
       const text = cut
-        ? new Intl.ListFormat(locale, { style: "narrow", type: "unit" }).format(
-            parts === t("phase__as_planned") ? [cut] : [parts, cut],
-          )
+        ? (parts === t("phase__as_planned") ? [cut] : [parts, cut]).join(EFFECT_SEPARATOR)
         : parts;
       const plain = phase === "build" && text === t("phase__as_planned");
       return plain ? null : t("phase__banner", { phase: name(phase), effects: text });

@@ -184,6 +184,7 @@ export function TrainScreen() {
           <ProgramGridRow
             programs={item.programs}
             activeId={activeId}
+            paused={active.paused}
             onActivate={activate}
             onStop={stop}
             onOpen={openProgram}
@@ -255,6 +256,7 @@ export function TrainScreen() {
     },
     [
       activeId,
+      active.paused,
       activate,
       stop,
       openProgram,

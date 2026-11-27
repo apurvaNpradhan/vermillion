@@ -1,4 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
+import { ModalPresence } from "@/platform/ui/modal-state";
 import type { UiPreferences } from "@workspace/shared";
 import { BottomSheet, useThemeColor } from "heroui-native";
 import { Bell, Minus, Plus } from "phosphor-react-native";
@@ -80,6 +81,7 @@ function ReminderEditor({
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-4 px-4 pb-8"
           >
+            <ModalPresence />
             {sheet.probe}
             <BottomSheet.Title>
               {t(
