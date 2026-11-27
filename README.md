@@ -11,7 +11,7 @@ Sigil runs on Android today. The app is built with Expo, and an iOS build is not
 
 <p align="center">
   <img src="docs/screenshots/01-home.png" width="24%" alt="Home with the next workout, this week's numbers and a Start button" />
-  <img src="docs/screenshots/07-live-session-rest-timer.png" width="24%" alt="A live session with two completed sets and the rest timer running" />
+  <img src="docs/screenshots/07-live-session-rest-timer.png" width="24%" alt="Lower B in progress with two completed working sets and the rest timer running" />
   <img src="docs/screenshots/05-plan-your-weeks.png" width="24%" alt="Plan your weeks: a repeating pattern of Build, Push and Deload weeks" />
   <img src="docs/screenshots/10-exercise-detail.png" width="24%" alt="Exercise detail with an estimated one-rep max chart and personal records" />
 </p>
