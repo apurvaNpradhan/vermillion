@@ -92,7 +92,7 @@ import { SessionEffortSheet } from "@/session/sets/effort-sheet";
 import { OwnershipBanner } from "./ownership-banner";
 import { RestBar } from "@/session/rest/rest-bar";
 import { RestPermissionSheet } from "@/session/notifications/rest-permission-sheet";
-import { LoadLimitsSheet, SessionGymPicker, useSessionGymLabel } from "@/gym";
+import { LoadLimitsSheet, SessionGymPicker, useGyms } from "@/gym";
 import { SessionHeader } from "./session-header";
 import { ClockSheet } from "@/session/clock/clock-sheet";
 import { firstTickedAt } from "@/session/clock/clock-view";
@@ -266,7 +266,7 @@ const LoadedSession = memo(function LoadedSession({
   const [reordering, setReordering] = useState(false);
   const { bottom } = useSafeAreaInsets();
 
-  const { closeKeypad, flushWrites } = logging;
+  const { closeKeypad, flushWrites, reviewBeforeLeaving } = logging;
   const openReorder = useCallback(() => {
     if (readOnly) return;
     closeKeypad();
@@ -350,7 +350,10 @@ const LoadedSession = memo(function LoadedSession({
   const [musclesOpen, setMusclesOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [gymPickerOpen, setGymPickerOpen] = useState(false);
-  const { multiple: hasGyms, name: gymName } = useSessionGymLabel(sessionGymId);
+  const { gyms, multiple, nameOf, setForSession } = useGyms();
+  const gymName = multiple ? (nameOf(sessionGymId) ?? t("gym__any")) : null;
+  const canChangeGym = gymName !== null && !readOnly && session.finishedAt === null;
+  if (gymPickerOpen && !canChangeGym) setGymPickerOpen(false);
   const [clockOpen, setClockOpen] = useState(false);
   const openClock = useCallback(() => {
     closeKeypad();
@@ -685,7 +688,7 @@ const LoadedSession = memo(function LoadedSession({
     void setExerciseDeload(id, applied, entry ? stallPrescription(entry, applied) : null);
   });
   const onNote = useCallback(
-    (exerciseId: string, note: string | null) => void updateExercise(exerciseId, { note }),
+    (exerciseId: string, note: string | null) => updateExercise(exerciseId, { note }),
     [updateExercise],
   );
   const onRest = useCallback(
@@ -738,6 +741,7 @@ const LoadedSession = memo(function LoadedSession({
       onReorder: stableReorder,
       onNote: stableNote,
       onRest: stableRest,
+      reviewBeforeLeaving,
       onStallDeload,
       onUndoAdjustment,
       onCell: openCell,
@@ -760,6 +764,7 @@ const LoadedSession = memo(function LoadedSession({
       stableReorder,
       stableNote,
       stableRest,
+      reviewBeforeLeaving,
       onStallDeload,
       onUndoAdjustment,
       openCell,
@@ -964,14 +969,14 @@ const LoadedSession = memo(function LoadedSession({
             icon: GearSix,
             onPress: () => setSettingsOpen(true),
           },
-          ...(hasGyms && !readOnly && session.finishedAt === null
+          ...(canChangeGym
             ? [
                 {
                   key: "gym",
-                  label: t("gym__menu_item", { gym: gymName ?? t("gym__any") }),
+                  label: t("gym__menu_item", { gym: gymName }),
                   description: t("gym__menu_hint"),
                   icon: MapPin,
-                  onPress: () => setGymPickerOpen(true),
+                  onPress: () => reviewBeforeLeaving(() => setGymPickerOpen(true)),
                 } satisfies SwipeAction,
               ]
             : []),
@@ -997,7 +1002,9 @@ const LoadedSession = memo(function LoadedSession({
       <SessionGymPicker
         sessionId={session.id}
         gymId={sessionGymId}
-        isOpen={gymPickerOpen}
+        gyms={gyms}
+        setForSession={setForSession}
+        isOpen={gymPickerOpen && canChangeGym}
         onOpenChange={setGymPickerOpen}
       />
       <SessionSettingsSheet

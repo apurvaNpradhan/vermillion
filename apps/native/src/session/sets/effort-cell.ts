@@ -1,25 +1,25 @@
 /**
- * What a set row's effort cell shows. A logged effort always shows. The target (ghost) shows only on
- * the next set to log, with a dash when there is none; every other unlogged row stays empty, so the
- * column does not repeat the same number down the grid. The cell is tappable in all cases.
+ * Show the recorded effort on completed sets, and the entered effort or target on the next set.
+ * The other cells stay empty but can still be edited.
  */
-export type EffortCell =
+type EffortCell =
   | { kind: "logged"; value: number }
-  | { kind: "ghost"; value: number }
+  | { kind: "target"; value: number }
   | { kind: "dash" }
   | { kind: "empty" };
 
 export function effortCellOf({
   logged,
-  ghost,
+  target,
+  ticked,
   current,
 }: {
   logged: number | null;
-  ghost: number | null;
-  /** This is the next set to log. */
+  target: number | null;
+  ticked: boolean;
   current: boolean;
 }): EffortCell {
-  if (logged !== null) return { kind: "logged", value: logged };
-  if (!current) return { kind: "empty" };
-  return ghost === null ? { kind: "dash" } : { kind: "ghost", value: ghost };
+  if ((ticked || current) && logged !== null) return { kind: "logged", value: logged };
+  if (ticked || !current) return { kind: "empty" };
+  return target === null ? { kind: "dash" } : { kind: "target", value: target };
 }

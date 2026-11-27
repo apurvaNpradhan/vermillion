@@ -8,7 +8,7 @@ import {
 } from "@workspace/shared";
 import type { SessionExerciseDetail } from "@workspace/sync";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Text, View, type LayoutChangeEvent } from "react-native";
+import { Keyboard, Text, View, type LayoutChangeEvent, type TextInput } from "react-native";
 import { LayoutAnimationConfig, type AnimatedRef } from "react-native-reanimated";
 import { useShallow } from "zustand/react/shallow";
 
@@ -22,7 +22,7 @@ import { showsRecord } from "@/session/store/session-store";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { AdjustmentNote } from "./adjustment-note";
 import { SuggestionLedgerLine } from "./suggestion-ledger-line";
-import { ProgressionSheet, useProgressionNote } from "./progression-chip";
+import { ProgressionSheet, useProgressionNote } from "./progression-sheet";
 import { ExerciseHeaderActions } from "./exercise-header-actions";
 import { ExerciseRow } from "./exercise-row";
 import { SetGrid, type SetHandlers } from "./set-grid";
@@ -41,8 +41,9 @@ export type ExerciseHandlers = SetHandlers & {
   onMenu: (exercise: SessionExerciseDetail) => void;
   onAddSet: (exerciseId: string) => void;
   onReorder: () => void;
-  onNote: (exerciseId: string, note: string | null) => void;
+  onNote: (exerciseId: string, note: string | null) => Promise<boolean>;
   onRest: (exerciseId: string, restSeconds: number | null) => void;
+  reviewBeforeLeaving: (proceed: () => void) => void;
   onStallDeload: (exerciseId: string, applied: boolean) => void;
   /** Restore the targets a same-day adjustment moved, for the rest of the Session. */
   onUndoAdjustment: (exerciseId: string) => void;
@@ -152,15 +153,26 @@ export const ExerciseItem = memo(function ExerciseItem({
     },
     [exerciseId, isInViewport],
   );
+  const { reviewBeforeLeaving } = handlers;
   const [reasonOpen, setReasonOpen] = useState(false);
-  const openReason = useCallback(() => setReasonOpen(true), []);
+  const openReason = useCallback(() => {
+    Keyboard.dismiss();
+    reviewBeforeLeaving(() => setReasonOpen(true));
+  }, [reviewBeforeLeaving]);
   const [noteOpen, setNoteOpen] = useState(false);
-  const openNote = useCallback(() => setNoteOpen(true), []);
-  if (!expanded && noteOpen) setNoteOpen(false);
+  const noteInputRef = useRef<TextInput>(null);
+  const openNote = useCallback(() => {
+    reviewBeforeLeaving(() => {
+      const input = noteInputRef.current;
+      if (input) input.focus();
+      else setNoteOpen(true);
+    });
+  }, [reviewBeforeLeaving]);
+  if (noteOpen && (!expanded || readOnly || exercise?.note != null)) setNoteOpen(false);
   const effortScale = data.effortScale;
   const noteInput = useMemo(
     () =>
-      suggestion && exercise
+      expanded && suggestion && exercise
         ? {
             suggestion,
             badges: exercise.sets.map(
@@ -170,10 +182,10 @@ export const ExerciseItem = memo(function ExerciseItem({
             effortScale,
           }
         : null,
-    [suggestion, exercise, data.rows, effortScale, unit],
+    [expanded, suggestion, exercise, data.rows, effortScale, unit],
   );
   const suggestionNote = useProgressionNote(noteInput);
-  const hasNote = exercise?.note != null;
+  if (reasonOpen && !suggestionNote) setReasonOpen(false);
   if (!exercise) return null;
   const equipment = exercise.exercise?.equipment ?? "other";
   return (
@@ -183,14 +195,15 @@ export const ExerciseItem = memo(function ExerciseItem({
         suggestion={suggestionNote?.label ?? null}
         onSuggestion={openReason}
         actions={
-          readOnly ? null : (
+          !expanded || readOnly ? null : (
             <ExerciseHeaderActions
               id={exercise.id}
               restSeconds={exercise.restSeconds}
               place={place}
-              hasNote={hasNote || noteOpen}
+              hasNote={exercise.note !== null}
+              reviewBeforeLeaving={reviewBeforeLeaving}
               onRest={handlers.onRest}
-              onAddNote={openNote}
+              onNotePress={openNote}
             />
           )
         }
@@ -270,6 +283,7 @@ export const ExerciseItem = memo(function ExerciseItem({
                 id={exercise.id}
                 note={exercise.note}
                 noteOpen={noteOpen}
+                inputRef={noteInputRef}
                 setNoteOpen={setNoteOpen}
                 readOnly={readOnly}
                 onNote={handlers.onNote}
@@ -318,6 +332,7 @@ const ExerciseBody = memo(function ExerciseBody({
   id,
   note,
   noteOpen,
+  inputRef,
   setNoteOpen,
   readOnly,
   onNote,
@@ -325,29 +340,43 @@ const ExerciseBody = memo(function ExerciseBody({
   id: string;
   note: string | null;
   noteOpen: boolean;
+  inputRef: React.Ref<TextInput>;
   setNoteOpen: (open: boolean) => void;
   readOnly: boolean;
-  onNote: (exerciseId: string, note: string | null) => void;
+  onNote: (exerciseId: string, note: string | null) => Promise<boolean>;
 }) {
   const { t } = useTranslation();
-  // What was typed since the field was last left; undefined when nothing was typed.
+  // Keep the last edit visible until the database watch returns it.
+  const [submitted, setSubmitted] = useState<{ value: string | null } | null>(null);
+  if (submitted && (readOnly || submitted.value === note)) setSubmitted(null);
+  const value = submitted ? submitted.value : note;
   const draft = useRef<string | null | undefined>(undefined);
-  const saveNote = () => {
+  const saveNote = (keepVisible: boolean) => {
     const typed = draft.current;
     draft.current = undefined;
-    if (!readOnly && typed !== undefined && typed !== note) onNote(id, typed);
+    if (readOnly || typed === undefined || typed === value) return;
+    if (!keepVisible) {
+      void onNote(id, typed);
+      return;
+    }
+    const pending = { value: typed };
+    setSubmitted(pending);
+    void onNote(id, typed).then((saved) => {
+      if (!saved) setSubmitted((current) => (current === pending ? null : current));
+    });
   };
   const saveOnUnmount = useRef(saveNote);
   saveOnUnmount.current = saveNote;
-  useEffect(() => () => saveOnUnmount.current(), []);
-  const showsNote = note !== null || noteOpen;
+  useEffect(() => () => saveOnUnmount.current(false), []);
+  const showsNote = readOnly ? note !== null : value !== null || noteOpen;
   if (!showsNote) return null;
   return readOnly ? (
     <Text className="font-normal py-2 text-body text-muted">{note}</Text>
   ) : (
     <InlineNote
-      label={t("session__note_chip")}
-      value={note}
+      inputRef={inputRef}
+      label={t("session__note_session")}
+      value={value}
       placeholder={t("session__note_placeholder")}
       maxLength={SESSION_LIMITS.noteMax}
       autoFocus={noteOpen && note === null}
@@ -356,9 +385,9 @@ const ExerciseBody = memo(function ExerciseBody({
       }}
       onDone={() => {
         const typed = draft.current;
-        saveNote();
+        saveNote(true);
         // An empty note goes back to its button.
-        if ((typed === undefined ? note : typed) === null) setNoteOpen(false);
+        if ((typed === undefined ? value : typed) === null) setNoteOpen(false);
       }}
     />
   );

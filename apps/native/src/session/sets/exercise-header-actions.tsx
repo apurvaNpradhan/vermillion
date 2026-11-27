@@ -9,24 +9,25 @@ import { useSubtleColor } from "@/platform/theme";
 import { RestPicker } from "@/training";
 
 /**
- * The rest timer and note buttons of an open exercise, small icons beside its menu. Rest shows the
- * time; it is the superset's to set, so a first or middle member has none. Note adds a note; once
- * the exercise has one, the note is shown in its body and the button goes.
+ * The timer and note buttons of an open exercise. Superset rest is set on its last member.
+ * The Note button opens or focuses the inline field.
  */
 export const ExerciseHeaderActions = memo(function ExerciseHeaderActions({
   id,
   restSeconds,
   place,
   hasNote,
+  reviewBeforeLeaving,
   onRest,
-  onAddNote,
+  onNotePress,
 }: {
   id: string;
   restSeconds: number | null;
   place: SupersetPlace;
   hasNote: boolean;
+  reviewBeforeLeaving: (proceed: () => void) => void;
   onRest: (exerciseId: string, restSeconds: number | null) => void;
-  onAddNote: () => void;
+  onNotePress: () => void;
 }) {
   const { t } = useTranslation();
   const subtle = useSubtleColor();
@@ -36,25 +37,23 @@ export const ExerciseHeaderActions = memo(function ExerciseHeaderActions({
       {showsRest ? (
         <RestPicker
           compact
+          beforeOpen={reviewBeforeLeaving}
           value={restSeconds}
           group={place === "last"}
           onChange={(next) => onRest(id, next)}
         />
       ) : null}
-      {hasNote ? null : (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("session__add_note")}
-          onPress={() => {
-            haptic.tick();
-            onAddNote();
-          }}
-          hitSlop={4}
-          className="h-11 w-11 items-center justify-center rounded-full active:bg-default"
-        >
-          <NotePencil size={20} color={subtle} />
-        </Pressable>
-      )}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t(hasNote ? "session__change_note" : "session__add_note")}
+        onPress={() => {
+          haptic.tick();
+          onNotePress();
+        }}
+        className="h-11 w-11 items-center justify-center rounded-full active:bg-default"
+      >
+        <NotePencil size={20} color={subtle} />
+      </Pressable>
     </>
   );
 });

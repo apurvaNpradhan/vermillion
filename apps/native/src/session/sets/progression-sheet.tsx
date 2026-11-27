@@ -6,6 +6,7 @@ import {
 } from "@workspace/shared";
 import { SheetPortal } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
+import { useMemo } from "react";
 
 import { EvidenceLines } from "@/platform/ui/evidence-lines";
 import { useMountOnOpen } from "@/platform/ui/mount-on-open";
@@ -15,7 +16,8 @@ import {
   progressionLabelKey,
   progressionReasonKey,
 } from "@/platform/ui/progression-reason";
-import { SHEET_SPRING, useSheetAnimation } from "@/platform/ui/sheet-motion";
+import { ScrollableSheetContent } from "@/platform/ui/scrollable-sheet-content";
+import { useSheetAnimation } from "@/platform/ui/sheet-motion";
 
 /** The suggestion as the exercise's second line shows it, and the reason the sheet explains. */
 export type ProgressionNote = {
@@ -35,32 +37,34 @@ export function useProgressionNote(
   } | null,
 ): ProgressionNote | null {
   const { t } = useTranslation();
-  if (!input) return null;
-  const { suggestion, badges, unit, effortScale } = input;
-  const explanations = badges.flatMap((badge, index) => {
-    const outcome = suggestion.outcomes[index];
-    if (!outcome) return [];
-    const params = progressionParams(suggestion, outcome, unit);
-    return [
-      {
-        badge,
-        label: t(progressionLabelKey(outcome), params),
-        reason: t(progressionReasonKey(outcome, effortScale), params),
-        show: outcome.reason !== "same_as_last",
-      },
-    ];
-  });
-  const first = explanations[0];
-  if (!first || !explanations.some((entry) => entry.show)) return null;
-  const mixed = explanations.some((entry) => entry.reason !== first.reason);
-  return {
-    label: mixed ? t("progress__label_mixed") : first.label,
-    description: mixed
-      ? explanations
-          .map(({ badge, reason }) => t("progress__set_reason", { badge, reason }))
-          .join("\n")
-      : first.reason,
-  };
+  return useMemo(() => {
+    if (!input) return null;
+    const { suggestion, badges, unit, effortScale } = input;
+    const explanations = badges.flatMap((badge, index) => {
+      const outcome = suggestion.outcomes[index];
+      if (!outcome) return [];
+      const params = progressionParams(suggestion, outcome, unit);
+      return [
+        {
+          badge,
+          label: t(progressionLabelKey(outcome), params),
+          reason: t(progressionReasonKey(outcome, effortScale), params),
+          show: outcome.reason !== "same_as_last",
+        },
+      ];
+    });
+    const first = explanations[0];
+    if (!first || !explanations.some((entry) => entry.show)) return null;
+    const mixed = explanations.some((entry) => entry.reason !== first.reason);
+    return {
+      label: mixed ? t("progress__label_mixed") : first.label,
+      description: mixed
+        ? explanations
+            .map(({ badge, reason }) => t("progress__set_reason", { badge, reason }))
+            .join("\n")
+        : first.reason,
+    };
+  }, [input, t]);
 }
 
 /** Why the suggestion is what it is. Opened by a tap on the suggestion in the exercise's header. */
@@ -87,15 +91,11 @@ export function ProgressionSheet({
     <BottomSheet animation={animation} isOpen={sheet.open} onOpenChange={onOpenChange}>
       <SheetPortal>
         <BottomSheet.Overlay />
-        <BottomSheet.Content
-          animationConfigs={SHEET_SPRING}
-          backgroundClassName="rounded-t-[20px] bg-overlay"
-          contentContainerClassName="px-5 pb-10 gap-3"
-        >
+        <ScrollableSheetContent>
           <BottomSheet.Title>{t("progress__next")}</BottomSheet.Title>
           <BottomSheet.Description>{note.description}</BottomSheet.Description>
           <EvidenceLines evidence={suggestion.evidence} type={type} unit={unit} />
-        </BottomSheet.Content>
+        </ScrollableSheetContent>
       </SheetPortal>
     </BottomSheet>
   );

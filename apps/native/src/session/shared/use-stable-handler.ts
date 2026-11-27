@@ -1,7 +1,7 @@
 import { useCallback, useLayoutEffect, useRef } from "react";
 
-/** What a handler is called with: plain values, as events hand them over. */
-type Arg = string | number | boolean | null | undefined;
+/** What a handler is called with: plain values or a continuation from an event. */
+type Arg = string | number | boolean | null | undefined | (() => void);
 
 /**
  * A handler whose identity never changes and that always runs the latest `handler`. Rows are

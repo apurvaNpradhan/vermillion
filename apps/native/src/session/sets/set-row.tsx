@@ -256,16 +256,15 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
     );
   };
 
-  const rpeText = (rpe: number) => formatEffortRange(rpe, rpe, effortScale);
-  const effortValue = set.rpe === null ? null : rpeText(set.rpe);
   const effortCell = effortCellOf({
     logged: set.rpe,
-    ghost: ghosts.rpe ?? null,
-    current: props.current && !ticked,
+    target: ghosts.rpe === undefined ? (set.target?.effort_min ?? null) : ghosts.rpe,
+    ticked,
+    current: props.current,
   });
   const effortText =
-    effortCell.kind === "logged" || effortCell.kind === "ghost"
-      ? rpeText(effortCell.value)
+    effortCell.kind === "logged" || effortCell.kind === "target"
+      ? formatEffortRange(effortCell.value, effortCell.value, effortScale)
       : effortCell.kind === "dash"
         ? "–"
         : "";
@@ -353,10 +352,16 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       {hasEffortColumn && set.kind !== "warmup" ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("session__effort_cell_label", {
-            set: setLabel,
-            value: effortValue ?? t("training__effort_none"),
-          })}
+          accessibilityLabel={t(
+            effortCell.kind === "target"
+              ? "session__effort_target_label"
+              : "session__effort_cell_label",
+            {
+              set: setLabel,
+              value:
+                effortText === "" || effortText === "–" ? t("training__effort_none") : effortText,
+            },
+          )}
           disabled={readOnly}
           onPress={() => props.onEffort(set.id)}
           className="h-10 w-11 items-center justify-center rounded-lg active:bg-default"

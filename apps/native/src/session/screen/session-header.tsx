@@ -37,12 +37,13 @@ function Clock({
   const preview = useSessionStore((state) => state.pending.find((write) => write.clock)?.clock);
   const clock = preview ?? { startedAt, pausedAt, pausedMs };
   const seconds = useActiveSeconds(clock, !frozen);
+  const time = formatElapsed(seconds);
+  const paused = clock.pausedAt !== null;
+  const label = t(paused ? "session__clock_elapsed_paused" : "session__clock_elapsed", { time });
   const text = (
-    <View className="flex-row items-center gap-1.5">
-      <Text className="font-medium text-label text-muted" style={{ fontVariant: ["tabular-nums"] }}>
-        {formatElapsed(seconds)}
-      </Text>
-      {clock.pausedAt === null ? null : (
+    <>
+      <Text className="font-medium text-label text-muted tabular-nums">{time}</Text>
+      {paused ? (
         <Animated.Text
           entering={animate ? MARKER_ENTERING : undefined}
           exiting={animate ? MARKER_EXITING : undefined}
@@ -50,16 +51,23 @@ function Clock({
         >
           {t("session__paused_label")}
         </Animated.Text>
-      )}
-    </View>
+      ) : null}
+    </>
   );
-  if (!onPress) return text;
+  if (!onPress) {
+    return (
+      <View accessible accessibilityLabel={label} className="flex-row items-center gap-1.5">
+        {text}
+      </View>
+    );
+  }
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={t("session__clock_open")}
+      accessibilityLabel={label}
+      accessibilityHint={t("session__clock_open")}
       onPress={onPress}
-      hitSlop={8}
+      className="min-h-11 min-w-11 flex-row items-center gap-1.5 rounded-lg active:bg-default"
     >
       {text}
     </Pressable>
@@ -90,7 +98,7 @@ export function SessionHeader({
 }: {
   finished: boolean;
   onMenu: () => void;
-  /** The Session's gym; null with one gym or "Any gym", where the header names none. */
+  /** The Session's gym; null while there is no choice of gym. */
   gymName: string | null;
   title: string;
   startedAt: string;
@@ -113,28 +121,35 @@ export function SessionHeader({
   const foreground = useThemeColor("foreground");
   const setsText = t("session__header_sets", { count: sets });
   return (
-    <View
-      className="flex-row items-center gap-2 bg-background px-3 pb-2"
-      style={{ paddingTop: top + 8 }}
-    >
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("session__minimise")}
-        onPress={onMinimise}
-        className="h-11 w-11 items-center justify-center rounded-full active:bg-default"
-      >
-        <CaretDown size={24} color={foreground} />
-      </Pressable>
-      <View className="min-w-0 flex-1 gap-0.5">
+    <View className="bg-background px-3 pb-2" style={{ paddingTop: top + 8 }}>
+      <View className="flex-row items-center gap-2">
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("session__minimise")}
+          onPress={onMinimise}
+          className="h-11 w-11 items-center justify-center rounded-full active:bg-default"
+        >
+          <CaretDown size={24} color={foreground} />
+        </Pressable>
         <Text
           accessibilityRole="header"
           numberOfLines={1}
-          className="font-semibold text-title-md text-foreground"
+          className="font-semibold min-w-0 flex-1 text-title-md text-foreground"
         >
           {title}
         </Text>
-        <View className="flex-row items-center gap-2">
-          {finished ? null : (
+        <Button variant="ghost" onPress={onMenu} accessibilityLabel={t("session__menu")}>
+          <DotsThreeVertical size={24} color={foreground} />
+        </Button>
+        {readOnly ? null : (
+          <Button variant="primary" className="rounded-full" onPress={onFinish}>
+            <Button.Label>{t(finished ? "session__done" : "session__finish")}</Button.Label>
+          </Button>
+        )}
+      </View>
+      <View className="min-h-7 flex-row items-center gap-2 pl-[52px]">
+        {finished ? null : (
+          <>
             <Clock
               startedAt={startedAt}
               pausedAt={pausedAt}
@@ -143,34 +158,43 @@ export function SessionHeader({
               frozen={readOnly}
               {...(readOnly || !onOpenClock ? {} : { onPress: onOpenClock })}
             />
-          )}
-          {finished ? null : <Text className="font-medium text-label text-muted">·</Text>}
+            <Text
+              accessible={false}
+              importantForAccessibility="no"
+              className="text-label text-muted"
+            >
+              ·
+            </Text>
+          </>
+        )}
+        <View
+          accessible
+          accessibilityLabel={
+            gymName === null
+              ? setsText
+              : t("session__header_sets_gym", { sets: setsText, gym: gymName })
+          }
+          className="min-w-0 flex-1 flex-row items-center"
+        >
           <Text
             numberOfLines={1}
-            accessibilityLabel={
-              gymName === null ? setsText : `${setsText}, ${t("gym__at", { gym: gymName })}`
-            }
-            className="font-medium min-w-0 flex-shrink text-label text-muted"
-            style={{ fontVariant: ["tabular-nums"] }}
+            className="font-medium max-w-full shrink-0 text-label text-muted tabular-nums"
           >
-            {gymName === null ? setsText : `${setsText} · ${gymName}`}
+            {setsText}
           </Text>
-          <OfflinePill />
+          {gymName === null ? null : (
+            <Text numberOfLines={1} className="font-medium min-w-0 shrink text-label text-muted">
+              {t("session__header_gym_suffix", { gym: gymName })}
+            </Text>
+          )}
         </View>
-        {banner ? (
-          <Text numberOfLines={1} className="font-normal text-caption text-muted">
-            {banner}
-          </Text>
-        ) : null}
+        <OfflinePill />
       </View>
-      <Button variant="ghost" onPress={onMenu} accessibilityLabel={t("session__menu")}>
-        <DotsThreeVertical size={24} color={foreground} />
-      </Button>
-      {readOnly ? null : (
-        <Button variant="primary" className="rounded-full" onPress={onFinish}>
-          <Button.Label>{t(finished ? "session__done" : "session__finish")}</Button.Label>
-        </Button>
-      )}
+      {banner ? (
+        <Text numberOfLines={1} className="font-normal pl-[52px] text-caption text-muted">
+          {banner}
+        </Text>
+      ) : null}
     </View>
   );
 }

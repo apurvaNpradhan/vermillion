@@ -3,17 +3,7 @@ import { Check, MapPin } from "phosphor-react-native";
 import { useTranslation } from "@/platform/i18n";
 import { ActionSheet } from "@/platform/ui/action-sheet";
 
-import { useGyms } from "./use-gyms";
-
-/**
- * The Session's gym as the header and the Session menu need it. With one gym nothing about gyms
- * shows: `multiple` is false and `name` is null. `name` is also null for "Any gym" in the header.
- */
-export function useSessionGymLabel(gymId: string | null) {
-  const { gyms, multiple } = useGyms();
-  const current = gyms.find((gym) => gym.id === gymId);
-  return { multiple, name: multiple ? (current?.name ?? null) : null };
-}
+import type { useGyms } from "./use-gyms";
 
 /**
  * The gym picker of the live Session, opened from its menu item "Gym: <name>". Choosing a gym also
@@ -24,14 +14,17 @@ export function SessionGymPicker({
   gymId,
   isOpen,
   onOpenChange,
+  gyms,
+  setForSession,
 }: {
   sessionId: string;
   gymId: string | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  gyms: ReturnType<typeof useGyms>["gyms"];
+  setForSession: ReturnType<typeof useGyms>["setForSession"];
 }) {
   const { t } = useTranslation();
-  const { gyms, setForSession } = useGyms();
   return (
     <ActionSheet
       title={t("gym__pick_title")}
