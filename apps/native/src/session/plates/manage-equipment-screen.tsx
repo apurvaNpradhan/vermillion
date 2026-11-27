@@ -111,11 +111,10 @@ export function ManageEquipmentScreen({ gymId }: { gymId?: string }) {
                       ]}
                     >
                       {(a11y) => (
-                        <View
-                          {...a11y}
-                          className="flex-row items-center gap-3 bg-surface px-4 py-3"
-                        >
+                        <View className="flex-row items-center gap-3 bg-surface px-4 py-3">
+                          {/* The swipe's actions go on the focusable node: TalkBack ignores them on a plain wrapper. */}
                           <Pressable
+                            {...a11y}
                             className="flex-1 rounded-lg active:bg-default"
                             accessibilityRole="button"
                             accessibilityLabel={t("plates__edit_item", { name: label(item) })}
@@ -177,14 +176,16 @@ function CustomEquipmentSheet({
 }) {
   const { bottom } = useSafeAreaInsets();
   const keyboardHeight = useKeyboardState((keyboard) => keyboard.height);
+  // Closing from a button changes `isOpen` without a sheet event, so dismiss the keyboard here too.
+  const close = () => {
+    Keyboard.dismiss();
+    onClose();
+  };
   return (
     <BottomSheet
       isOpen={isOpen}
       onOpenChange={(open) => {
-        if (!open) {
-          Keyboard.dismiss();
-          onClose();
-        }
+        if (!open) close();
       }}
     >
       <SheetPortal>
@@ -209,7 +210,7 @@ function CustomEquipmentSheet({
               edit={edit}
               save={save}
               remove={remove}
-              close={onClose}
+              close={close}
             />
           ) : null}
         </BottomSheet.Content>

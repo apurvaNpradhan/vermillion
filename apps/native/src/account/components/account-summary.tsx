@@ -41,7 +41,9 @@ export function AccountSummary({ onOpen }: { onOpen: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={t("settings__open_profile", { name: user?.name ?? "" })}
+      accessibilityLabel={
+        user?.name ? t("settings__open_profile", { name: user.name }) : t("settings__profile_title")
+      }
       onPress={() => {
         onOpen();
         if (pathname === "/settings/profile") return;

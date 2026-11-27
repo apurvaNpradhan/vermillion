@@ -1,6 +1,14 @@
 import { ListGroup, cn, useThemeColor } from "heroui-native";
 import { CaretRight, Check, type IconProps } from "phosphor-react-native";
-import { Children, createContext, useContext, type ComponentType, type ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  createContext,
+  isValidElement,
+  useContext,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import { Text, View } from "react-native";
 
 import { useSubtleColor } from "@/platform/theme";
@@ -136,7 +144,11 @@ export function ListRow({
             accessibilityElementsHidden={isSwitch}
             importantForAccessibility={isSwitch ? "no-hide-descendants" : "auto"}
           >
-            {trailing}
+            {isSwitch && isValidElement<{ accessibilityLabel?: string }>(trailing)
+              ? cloneElement(trailing, {
+                  accessibilityLabel: trailing.props.accessibilityLabel ?? title,
+                })
+              : trailing}
           </View>
         </ListGroup.ItemSuffix>
       ) : accessory === "none" ? null : (

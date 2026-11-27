@@ -896,6 +896,8 @@
   "session__key_backspace": "Delete",
   "session__key_decrease": "Decrease by {{step}}",
   "session__key_increase": "Increase by {{step}}",
+  "session__key_decrease_off": "Decrease, at the lowest value",
+  "session__key_increase_off": "Increase, at the highest value",
   "session__key_next": "Next cell",
   "session__key_done": "Done",
   "session__conflict_title": "A workout is in progress",

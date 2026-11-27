@@ -94,7 +94,11 @@ export function AvatarPicker({ showIdentity = true }: { showIdentity?: boolean }
       {showIdentity ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("settings__open_profile", { name: user?.name ?? "" })}
+          accessibilityLabel={
+            user?.name
+              ? t("settings__open_profile", { name: user.name })
+              : t("settings__profile_title")
+          }
           onPress={() => router.navigate("/settings/profile")}
           className="items-center gap-0.5 active:opacity-80"
         >
