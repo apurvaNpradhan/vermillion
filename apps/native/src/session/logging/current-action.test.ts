@@ -225,6 +225,7 @@ describe("currentAction: next", () => {
     expect(currentAction({ session: s, ghostsFor: noGhosts, now: T0 }).next).toEqual({
       kind: "set",
       number: 2,
+      setKind: "working",
     });
   });
 
@@ -241,7 +242,33 @@ describe("currentAction: next", () => {
     expect(currentAction({ session: s, ghostsFor: noGhosts, now: T0 + 5000 }).next).toEqual({
       kind: "set",
       number: 3,
+      setKind: "working",
     });
+  });
+
+  it("numbers working sets as the rows show them, warm-ups having none", () => {
+    const s = session([
+      exercise("a", [
+        set("w1", { kind: "warmup" }),
+        set("w2", { kind: "warmup" }),
+        set("a1"),
+        set("a2"),
+      ]),
+    ]);
+    const first = currentAction({ session: s, ghostsFor: noGhosts, now: T0 });
+    expect(first.current).toMatchObject({ index: 0, position: null });
+    expect(first.next).toEqual({ kind: "set", number: null, setKind: "warmup" });
+    const later = session([
+      exercise("a", [
+        set("w1", { kind: "warmup", completedAt: at(1) }),
+        set("w2", { kind: "warmup", completedAt: at(2) }),
+        set("a1"),
+        set("a2"),
+      ]),
+    ]);
+    const action = currentAction({ session: later, ghostsFor: noGhosts, now: T0 + 5000 });
+    expect(action.current).toMatchObject({ index: 2, position: { number: 1, total: 2 } });
+    expect(action.next).toEqual({ kind: "set", number: 2, setKind: "working" });
   });
 });
 

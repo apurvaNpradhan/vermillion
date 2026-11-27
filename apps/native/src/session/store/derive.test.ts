@@ -37,17 +37,16 @@ describe("deriveExercises", () => {
     expect(finished?.view.summary).toBe("60 kg × 8");
   });
 
-  it("labels rows with their number and offers copy and fill only where they apply", () => {
+  it("labels rows with their badge and offers copy and fill only where they apply", () => {
     const view = deriveExercises([a], inputs(), context, new Map()).get("a")?.view;
     expect(view?.setIds).toEqual(["a1", "a2"]);
     expect(view?.rows.get("a1")).toMatchObject({
       badge: "1",
-      number: 1,
       canRemove: true,
       canFillRemaining: true,
       canCopyPrevious: false,
     });
-    expect(view?.rows.get("a2")).toMatchObject({ number: 2, canFillRemaining: false });
+    expect(view?.rows.get("a2")).toMatchObject({ badge: "2", canFillRemaining: false });
   });
 
   it("uses the Session gym's history and applies the active gym's cap to its ghost weight", () => {

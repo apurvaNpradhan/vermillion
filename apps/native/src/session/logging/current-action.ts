@@ -9,6 +9,7 @@ import {
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
 
 import { blocksOf, roundsOf } from "./blocks";
+import { workingPosition } from "./set-position";
 import { timerTarget } from "../timer/duration-timer";
 import { restView, type RestView } from "../rest/rest-rules";
 import { formatCell, valueOfSet } from "./set-values";
@@ -35,6 +36,8 @@ export type CurrentSet = {
   index: number;
   /** All sets of the exercise. */
   total: number;
+  /** The number the row shows and the working-set count; null for a warm-up or other kind. */
+  position: { number: number; total: number } | null;
   /** Typed values, else Ghost values, in the order the exercise records them. */
   values: DisplayValue[];
   /** No value, typed or ghost, in any cell: Complete set has nothing to log. */
@@ -46,7 +49,12 @@ export type CurrentSet = {
 /** What comes after the current set: another exercise's title, or the next set of the same one. */
 export type NextItem =
   | { kind: "exercise"; title: string }
-  | { kind: "set"; /** 1-based. */ number: number };
+  | {
+      kind: "set";
+      /** The number the row shows (working sets only, 1-based); null for a warm-up or other kind. */
+      number: number | null;
+      setKind: SetKind;
+    };
 
 export type CurrentAction = {
   /** "rest" while a Rest is running, else "work". */
@@ -122,6 +130,10 @@ export function currentAction(input: {
         kinds: first.exercise.sets.map((item) => item.kind),
         index: first.index,
         total: first.exercise.sets.length,
+        position: workingPosition(
+          first.exercise.sets.map((item) => item.kind),
+          first.index,
+        ),
         values: displayValues(first.exercise, first.set, ghostsFor(first.set.id)),
         empty: false,
         timer:
@@ -136,7 +148,15 @@ export function currentAction(input: {
   if (first && after) {
     next =
       after.exercise.id === first.exercise.id
-        ? { kind: "set", number: after.index + 1 }
+        ? {
+            kind: "set",
+            number:
+              workingPosition(
+                after.exercise.sets.map((item) => item.kind),
+                after.index,
+              )?.number ?? null,
+            setKind: after.set.kind,
+          }
         : { kind: "exercise", title: after.exercise.title };
   }
 

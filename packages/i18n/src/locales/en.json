@@ -570,6 +570,7 @@
   "training__show_less": "Show less",
   "training__set_kind_title": "Set type",
   "training__set_kind_change": "Set {{number}}, {{kind}}. Change type",
+  "training__set_kind_change_named": "{{kind}}. Change type",
   "training__chip_warmup": "W",
   "training__chip_drop": "D",
   "training__chip_failure": "F",

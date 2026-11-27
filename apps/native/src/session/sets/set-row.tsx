@@ -122,7 +122,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   const {
     set,
     type,
-    row: { badge, number, previous, ghosts, canRemove },
+    row: { badge, previous, ghosts, canRemove },
     logEffort,
     unit,
     display,
@@ -133,6 +133,8 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
   } = props;
   const { t } = useTranslation();
   const subtle = useSubtleColor();
+  // What the row shows: the working number, or the kind's name for a warm-up and the like.
+  const number = set.kind === "working" ? badge : t(SET_KIND_KEYS[set.kind]);
   const accent = useActionColor();
   const onAccent = useOnActionColor();
   const danger = useThemeColor("danger");
@@ -272,10 +274,11 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       <Pressable
         {...a11y}
         accessibilityRole="button"
-        accessibilityLabel={t("training__set_kind_change", {
-          number,
-          kind: t(SET_KIND_KEYS[set.kind]),
-        })}
+        accessibilityLabel={
+          set.kind === "working"
+            ? t("training__set_kind_change", { number, kind: t(SET_KIND_KEYS[set.kind]) })
+            : t("training__set_kind_change_named", { kind: t(SET_KIND_KEYS[set.kind]) })
+        }
         disabled={readOnly}
         onPress={() => {
           haptic.tick();

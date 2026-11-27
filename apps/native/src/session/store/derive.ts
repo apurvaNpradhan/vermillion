@@ -71,7 +71,6 @@ export type RowView = {
   previous: LoggedSet | null;
   ghosts: Ghosts;
   badge: string;
-  number: number;
   canRemove: boolean;
   canCopyPrevious: boolean;
   canFillRemaining: boolean;
@@ -167,7 +166,6 @@ function buildView(
       previous,
       ghosts: saved && locked ? saved.ghosts : capGhostWeight(saved?.ghosts ?? ghosts, capKg),
       badge: badges[index] ?? String(index + 1),
-      number: index + 1,
       canRemove: exercise.sets.length > 1,
       canCopyPrevious: copySetUpdates(exercise, set.id, "previous", previous).length > 0,
       canFillRemaining:

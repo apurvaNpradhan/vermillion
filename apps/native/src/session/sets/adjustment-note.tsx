@@ -15,7 +15,7 @@ export function AdjustmentNote({
   onUndo,
 }: {
   adjustment: Adjustment;
-  setNumber: number;
+  setNumber: string;
   onUndo?: () => void;
 }) {
   const { t } = useTranslation();
