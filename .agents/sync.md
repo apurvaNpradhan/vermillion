@@ -23,6 +23,7 @@ Local-first sync: PowerSync (self-hosted) replicates Postgres rows to SQLite on 
 - Handlers are registered in `registry.ts`; an unregistered table is rejected. Limits are validated before work.
 - The parity test must pass: Postgres, publication, stream columns, handlers and SQLite indexes agree.
 - Local index on every sort or filter key, always `LIMIT` and page.
+- Never `LEFT JOIN` a session, set or other large table's view on an indexed column. PowerSync tables are views over JSON, and SQLite will not use an expression index for the right side of a LEFT JOIN: every row scans the whole table, so the read grows with the square of the history. Use an inner join, a correlated subquery, or read the child rows by index into a `MATERIALIZED` CTE first (`SESSION_DETAIL_SQL`, `PICKED_ROWS`). `session-open-latency.test.ts` runs the Session screen's reads on real PowerSync and fails on a scan; measure a new read there (`SESSION_OPEN_REPORT=40,200,1000`).
 - Never log row payloads, rejected-write payloads or tokens.
 - Never wipe a device to fix sync; only server-confirmed account deletion wipes ([0021](../docs/adr/0021-device-owner-and-account-lifecycle.md)).
 - No package imports both `@workspace/db` and `@workspace/sync` (lint boundary; test-only exceptions are listed there). Client Drizzle is pinned `0.45`, the server is on the catalog RC.
