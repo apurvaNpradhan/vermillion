@@ -757,8 +757,8 @@ export function readHistoryOverviewPages(read: Reader, range?: HistoryRange) {
 const BEFORE_SESSION = "AND (s.started_at < ? OR (s.started_at = ? AND s.id < ?))";
 
 /**
- * Compare the ordered values used by the finished-session view: one row per Session with a
- * signature of everything the finished view shows. Each Session's exercises and sets are
+ * Compare the ordered values used by finished history and Records: one signature per Session.
+ * Each Session's exercises and sets are
  * read by correlated subqueries (an index lookup each), not by joins onto the views, so the read
  * grows with the history, not with its square. With `exerciseCount` it keeps the Sessions
  * before a cutoff that hold those exercises. Parameters: the exercise ids, then the range
@@ -768,7 +768,8 @@ export function finishedFingerprintSql(bounded = false, exerciseCount = 0): stri
   const filtered = exerciseCount > 0;
   const ids = Array.from({ length: exerciseCount }, () => "?").join(", ");
   const entries = `(SELECT json_group_array(json(entry)) FROM (
-        SELECT json_array(se.exercise_id, se.exercise_type, se.exercise_title, se.stall_deload,
+        SELECT json_array(se.id, se.source_workout_exercise_id, se.exercise_id, se.exercise_type,
+          se.exercise_title, se.stall_deload,
           (SELECT json_group_array(json(ticked)) FROM (
             SELECT json_array(ss.id, ss.kind,
               CASE WHEN ss.weight_kg IS NOT NULL THEN printf('%!.26g', ss.weight_kg) END,
@@ -784,10 +785,11 @@ export function finishedFingerprintSql(bounded = false, exerciseCount = 0): stri
         WHERE se.session_id = s.id${filtered ? ` AND se.exercise_id IN (${ids})` : ""}
         ORDER BY se.position, se.id))`;
   return `SELECT id, json_array(title, started_at, finished_at, duration_s, paused_ms, workout_id,
-        json(entries)) AS signature
+        gym_id, phase, json(entries)) AS signature
     FROM (
       SELECT s.id AS id, s.title AS title, s.started_at AS started_at, s.finished_at AS finished_at,
         s.duration_s AS duration_s, s.paused_ms AS paused_ms, s.workout_id AS workout_id,
+        s.gym_id AS gym_id, s.phase AS phase,
         ${entries} AS entries
       FROM training_session s
       WHERE s.finished_at IS NOT NULL${bounded ? " AND s.started_at >= ? AND s.started_at < ?" : ""}

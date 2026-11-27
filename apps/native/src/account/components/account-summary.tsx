@@ -55,11 +55,13 @@ export function AccountSummary({ onOpen }: { onOpen: () => void }) {
       <AccountAvatar />
       <View className="flex-1 gap-0.5">
         <Text numberOfLines={1} className="font-semibold text-title-md text-foreground">
-          {user?.name ?? " "}
+          {user?.name || t("settings__profile_title")}
         </Text>
-        <Text numberOfLines={1} className="font-normal text-caption text-muted">
-          {user?.email ?? " "}
-        </Text>
+        {user?.email ? (
+          <Text numberOfLines={1} className="font-normal text-caption text-muted">
+            {user.email}
+          </Text>
+        ) : null}
       </View>
       <CaretRight size={20} color={muted} />
     </Pressable>

@@ -586,6 +586,24 @@ describe("the History reader", () => {
     const reader = createFinishedHistoryReader({ from: daysAgo(20), to: daysAgo(0) });
     expect((await reader.refresh(read))?.map((row) => row.id)).toEqual([recent]);
   });
+
+  it("refreshes cached history after a Session's gym or phase changes", async () => {
+    const s = await setupSessions();
+    try {
+      const id = await finishedSquat(s, daysAgo(3), [100]);
+      const { read } = readerOf(s);
+      const reader = createFinishedHistoryReader();
+      await reader.refresh(read);
+
+      s.sqlite.prepare("UPDATE training_session SET gym_id = 'gym' WHERE id = ?").run(id);
+      expect((await reader.refresh(read))?.[0]?.gymId).toBe("gym");
+
+      s.sqlite.prepare("UPDATE training_session SET phase = 'deload' WHERE id = ?").run(id);
+      expect((await reader.refresh(read))?.[0]?.phase).toBe("deload");
+    } finally {
+      s.sqlite.close();
+    }
+  });
 });
 
 describe("per-Session set counts", () => {
@@ -735,7 +753,7 @@ describe("Session detail queries", () => {
       ORDER BY s2.started_at DESC, s2.id DESC LIMIT 1) AS last_note`;
   const COLUMNS = ["progression_per_set", "bar_id", "auto_warmups", "pinned_note", "unit"] as const;
 
-  it("updates a running Session when its earlier finished exercise note is edited", async () => {
+  it("shows edited last notes and keeps the Session usable when a note is unreadable", async () => {
     const s = await setupSessions();
     const earlier = await finishedSquat(s, daysAgo(3), [100]);
     const active = await startSession(s.training, { workoutId: null, derivedTitle });
@@ -757,8 +775,15 @@ describe("Session detail queries", () => {
         [null, null],
         ["Belt on", "Belt on"],
       ]);
+
+      s.sqlite
+        .prepare("UPDATE session_exercise SET note = X'00' WHERE session_id = ?")
+        .run(earlier);
+      s.notifyTable("session_exercise");
+      expect(notes.at(-1)).toEqual([null, null]);
     } finally {
       stop();
+      s.sqlite.close();
     }
   });
 

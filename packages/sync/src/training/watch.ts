@@ -762,6 +762,8 @@ export function watchSession(
 ): () => void {
   let rows: QueryResult["array"] | null = null;
   let notes: QueryResult["array"] | null = null;
+  const emptyNotesKey = lastNotesKey([]);
+  let notesKey = emptyNotesKey;
   let stopped = false;
   const emit = () => {
     // The "last time" notes are an extra: the Session draws as soon as its own rows are in, and
@@ -796,21 +798,28 @@ export function watchSession(
     [id],
     ["training_session", "session_exercise"],
     (next) => {
-      // Notes that add nothing to what was already passed (the usual case) pass nothing again.
-      let unchanged = false;
+      let nextKey: string;
       try {
-        unchanged = rows !== null && lastNotesKey(next) === lastNotesKey(notes ?? []);
+        nextKey = lastNotesKey(next);
       } catch {
-        // Unreadable rows: `emit` reports them.
+        clearNotes();
+        return;
       }
+      // Ignore changes that leave the visible notes the same, including an initial empty read.
+      const changed = nextKey !== notesKey;
       notes = next;
-      if (!unchanged) emit();
+      notesKey = nextKey;
+      if (changed) emit();
     },
-    (error) => {
-      notes = null;
-      handlers.onError(error);
-    },
+    clearNotes,
   );
+  // Notes are optional. Even when their read fails, keep the Session on screen.
+  function clearNotes() {
+    const hadNotes = notesKey !== emptyNotesKey;
+    notes = null;
+    notesKey = emptyNotesKey;
+    if (hadNotes) emit();
+  }
   return () => {
     stopped = true;
     stopRows();
