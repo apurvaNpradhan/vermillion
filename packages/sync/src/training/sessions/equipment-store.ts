@@ -166,10 +166,15 @@ export async function restoreEquipment(
   scope: string,
 ) {
   return write(database, scope, async (tx) => {
-    await tx
-      .insert(gymEquipment)
-      .values(marked({ ...row, seed: null }))
-      .onConflictDoNothing();
+    // A plain insert after a check: PowerSync's tables are SQLite views, and a view rejects
+    // INSERT … ON CONFLICT (an upsert).
+    const [existing] = await tx
+      .select({ id: gymEquipment.id })
+      .from(gymEquipment)
+      .where(eq(gymEquipment.id, row.id))
+      .limit(1);
+    if (existing) return;
+    await tx.insert(gymEquipment).values(marked({ ...row, seed: null }));
   });
 }
 
