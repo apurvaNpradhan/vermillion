@@ -72,7 +72,12 @@ jobs:
           docker compose up -d --wait postgres minio
           docker compose run --rm --no-deps minio-init
       - name: Unit and API tests
+        env:
+          SESSION_OPEN_SKIP_TIMING: "1"
         run: pnpm test
+      - name: Session-open performance test
+        # Keep the wall-clock budget free of contention from the parallel test suite.
+        run: pnpm --filter @workspace/sync exec vitest run src/training/sessions/session-open-latency.test.ts
       - name: Sync infrastructure tests
         run: pnpm test:sync-infra
       - name: Postgres log

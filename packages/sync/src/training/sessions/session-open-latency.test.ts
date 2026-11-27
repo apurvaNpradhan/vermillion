@@ -152,14 +152,16 @@ describe("opening a live Session over 200 finished Sessions", () => {
     }
   });
 
-  it("answers each query well inside a budget a quadratic read would break", async () => {
-    // Before the fix, the record fingerprint alone took 800 ms here and 23 s over 1000 Sessions.
-    // These run in 1-15 ms; the budget leaves a slow CI machine ten times that.
-    for (const query of scene.queries) {
-      const took = await median(() => scene.fixture.database.getAll(query.sql, query.params));
-      expect(took, `${query.name} took ${took.toFixed(1)} ms`).toBeLessThan(150);
-    }
-  });
+  it.skipIf(process.env["SESSION_OPEN_SKIP_TIMING"] === "1")(
+    "answers each query well inside a budget a quadratic read would break",
+    async () => {
+      // Before the fix, the record fingerprint alone took 800 ms here and 23 s over 1000 Sessions.
+      for (const query of scene.queries) {
+        const took = await median(() => scene.fixture.database.getAll(query.sql, query.params));
+        expect(took, `${query.name} took ${took.toFixed(1)} ms`).toBeLessThan(150);
+      }
+    },
+  );
 
   it("gives the Session its exercises and sets on the first answer", async () => {
     const session = await firstSession(scene.fixture.database, scene.sessionId);
