@@ -20,8 +20,8 @@ export type NextWorkoutExercise = {
 /**
  * Home's hero, the Next workout: where the program stands ("Week 3 · Workout 2"), the workout's
  * name, each exercise with last time's top set, how long the last workout took, one big Start and
- * "Start empty workout" as a quiet text link under it. While a workout is open Start turns quiet
- * (Resume is the bar above the tabs) and the link goes.
+ * "Start empty workout" as a quiet text link under it. While another workout is open Start turns
+ * quiet and the link goes; when this card's workout is the open one, the button is Resume.
  */
 export function NextWorkoutCard({
   eyebrow,
@@ -30,6 +30,7 @@ export function NextWorkoutCard({
   exercises,
   lastDuration,
   workoutOpen,
+  resuming,
   resumesRun,
   onStart,
   onStartEmpty,
@@ -44,6 +45,8 @@ export function NextWorkoutCard({
   lastDuration: string | null;
   /** A workout is open: Start is quiet and there is no empty start. */
   workoutOpen: boolean;
+  /** The open workout is this card's: the button resumes it instead of starting it again. */
+  resuming: boolean;
   resumesRun: boolean;
   onStart: () => void;
   onStartEmpty: () => void;
@@ -97,12 +100,12 @@ export function NextWorkoutCard({
       {title !== null ? (
         <Button
           size="lg"
-          variant={workoutOpen ? "secondary" : "primary"}
+          variant={workoutOpen && !resuming ? "secondary" : "primary"}
           className="h-14 w-full"
           onPress={onStart}
         >
-          <Play size={20} color={workoutOpen ? subtle : onAction} />
-          <Button.Label>{t("session__start")}</Button.Label>
+          <Play size={20} color={workoutOpen && !resuming ? subtle : onAction} />
+          <Button.Label>{t(resuming ? "session__resume" : "session__start")}</Button.Label>
         </Button>
       ) : null}
       {!workoutOpen ? (
