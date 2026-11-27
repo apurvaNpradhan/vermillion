@@ -1,6 +1,5 @@
 import { BottomSheet, useBottomSheet } from "heroui-native";
 import { useEffect, useSyncExternalStore, type ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
 
 /**
  * How many dialogs and sheets are presented. iOS hides the screen behind a modal view by itself
@@ -46,21 +45,17 @@ export function ModalPresence() {
   return null;
 }
 
-/** HeroUI keeps closed sheets mounted for layout. Count only open sheets and hide closed ones. */
+/**
+ * HeroUI keeps closed sheets mounted for layout, so only open sheets are counted. Children go
+ * straight into the portal: an extra full-screen wrapper here left Android ignoring every tap
+ * after a sheet closed (phone QA H1, 2026-11-27).
+ */
 export function SheetPortal({ children }: { children: ReactNode }) {
   const { isOpen } = useBottomSheet();
   useModalPresence(isOpen);
   return (
     <BottomSheet.Portal unstable_accessibilityContainerViewIsModal={isOpen}>
-      <View
-        style={StyleSheet.absoluteFill}
-        pointerEvents="box-none"
-        accessibilityViewIsModal={isOpen}
-        accessibilityElementsHidden={!isOpen}
-        importantForAccessibility={isOpen ? "auto" : "no-hide-descendants"}
-      >
-        {children}
-      </View>
+      {children}
     </BottomSheet.Portal>
   );
 }
