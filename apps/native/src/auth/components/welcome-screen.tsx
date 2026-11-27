@@ -2,7 +2,7 @@ import { useThemeColor } from "heroui-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as WebBrowser from "expo-web-browser";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -19,6 +19,8 @@ import { EmailSheet } from "./email-sheet";
 import { GoogleButton } from "./google-button";
 import { LiveLogVignette } from "./live-log-vignette";
 
+/** How long a pushed screen takes to slide in before a sheet can open on it. */
+const PUSH_SETTLE_MS = 400;
 const LEGAL_PATHS = { terms: "/terms", privacy: "/privacy" } as const;
 
 /**
@@ -41,12 +43,23 @@ export function WelcomeScreen() {
   const googleAvailable = status?.providers.google === true;
   const [emailOpen, setEmailOpen] = useState(false);
 
+  // Open from closed, one frame later: a sheet that is already "open" (stuck after it failed to
+  // present) ignores another open, and one opened on the first render never slides up.
+  const openEmail = useCallback(() => {
+    setEmailOpen(false);
+    requestAnimationFrame(() => setEmailOpen(true));
+  }, []);
+
+  // The sign-in banner arrives with `sheet=email`. Wait for the screen's push to finish: a sheet
+  // opened while the screen is still sliding in stays at height 0.
   useEffect(() => {
-    if (sheet === "email") {
-      setEmailOpen(true);
+    if (sheet !== "email") return;
+    const timer = setTimeout(() => {
       router.setParams({ sheet: undefined });
-    }
-  }, [router, sheet]);
+      openEmail();
+    }, PUSH_SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [openEmail, router, sheet]);
 
   const legal = splitLegal(t("auth__legal", { terms: "{terms}", privacy: "{privacy}" }));
   const legalLabels = { terms: t("nav__terms"), privacy: t("nav__privacy") } as const;
@@ -101,7 +114,7 @@ export function WelcomeScreen() {
                 variant={googleAvailable ? "secondary" : "primary"}
                 size="lg"
                 className="h-auto min-h-13 rounded-full py-3"
-                onPress={() => setEmailOpen(true)}
+                onPress={openEmail}
               >
                 <Button.Label className="shrink text-body-lg font-semibold">
                   {t("auth__continue_with_email")}

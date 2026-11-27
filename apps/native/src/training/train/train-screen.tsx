@@ -328,6 +328,8 @@ export function TrainScreen() {
                         })
                       }
                       onStart={startDay}
+                      onResume={(id) => router.push({ pathname: "/session/[id]", params: { id } })}
+                      openSessions={sessions}
                       startSecondary={resume !== undefined}
                     />
                   ) : null}

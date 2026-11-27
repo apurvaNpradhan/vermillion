@@ -101,12 +101,12 @@ export function WarmupSettingsScreen() {
             <View className="flex-row flex-wrap items-center gap-3">
               <View className="min-w-36 flex-1">
                 <Stepper
-                  label={t("settings__warmup_percent")}
+                  label={`${t("settings__warmup_step", { number: index + 1 })}, ${t("settings__warmup_percent")}`}
                   valueText={`${step.percent}%`}
                   canDecrement={step.percent > PERCENT_MIN}
                   canIncrement={step.percent < PERCENT_MAX}
-                  decrementLabel={t("settings__warmup_percent_less")}
-                  incrementLabel={t("settings__warmup_percent_more")}
+                  decrementLabel={t("settings__warmup_percent_less", { number: index + 1 })}
+                  incrementLabel={t("settings__warmup_percent_more", { number: index + 1 })}
                   onStep={(direction) =>
                     change(index, {
                       percent: Math.min(
@@ -119,14 +119,14 @@ export function WarmupSettingsScreen() {
               </View>
               <View className="min-w-36 flex-1">
                 <Stepper
-                  label={t("settings__warmup_reps")}
+                  label={`${t("settings__warmup_step", { number: index + 1 })}, ${t("settings__warmup_reps")}`}
                   valueText={t("settings__warmup_reps_value", {
                     count: step.reps,
                   })}
                   canDecrement={step.reps > REPS_MIN}
                   canIncrement={step.reps < REPS_MAX}
-                  decrementLabel={t("settings__warmup_reps_less")}
-                  incrementLabel={t("settings__warmup_reps_more")}
+                  decrementLabel={t("settings__warmup_reps_less", { number: index + 1 })}
+                  incrementLabel={t("settings__warmup_reps_more", { number: index + 1 })}
                   onStep={(direction) =>
                     change(index, {
                       reps: Math.min(REPS_MAX, Math.max(REPS_MIN, step.reps + direction)),

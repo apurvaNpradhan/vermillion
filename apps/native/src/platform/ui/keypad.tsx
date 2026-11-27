@@ -6,6 +6,7 @@ import { useThemeColor } from "heroui-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import Animated from "react-native-reanimated";
 
+import { useTranslation } from "@/platform/i18n";
 import { decimalSeparator, useKeypadMotion } from "./keypad-motion";
 import { stepDoesNothing } from "./keypad-entry";
 
@@ -86,6 +87,7 @@ export function Keypad({
   systemKeyboard?: boolean;
   motion?: boolean;
 }) {
+  const { t } = useTranslation();
   const { bottom } = useSafeAreaInsets();
   const motion = useKeypadMotion();
   const foreground = useThemeColor("foreground");
@@ -136,7 +138,13 @@ export function Keypad({
     const idle = stepDoesNothing(text);
     return (
       <Cap
-        label={direction === 1 ? labels.increase : labels.decrease}
+        label={
+          idle
+            ? t(direction === 1 ? "session__key_increase_off" : "session__key_decrease_off")
+            : direction === 1
+              ? labels.increase
+              : labels.decrease
+        }
         onPress={() => onStep(direction)}
         disabled={idle}
       >

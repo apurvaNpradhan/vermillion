@@ -5,6 +5,7 @@ import { useThemeColor } from "heroui-native";
 import { Pressable, Text, View } from "react-native";
 
 import { useTranslation } from "@/platform/i18n";
+import { openSessionOf } from "@/session";
 import { useSubtleColor } from "@/platform/theme";
 import { Button } from "@/platform/ui/button";
 import { Hint } from "@/platform/ui/hint";
@@ -33,6 +34,8 @@ export function RunHero({
   onOpen,
   onPlan,
   onStart,
+  onResume,
+  openSessions,
   startSecondary,
 }: {
   state: ReturnType<typeof useActiveProgram>;
@@ -40,6 +43,10 @@ export function RunHero({
   /** Open Plan your weeks for the Program. */
   onPlan: (programId: string) => void;
   onStart: (workoutId: string, day: RunSlot) => void;
+  /** Open the Session in progress, when it is the next workout's. */
+  onResume: (sessionId: string) => void;
+  /** The Sessions in progress, newest first. */
+  openSessions: Parameters<typeof openSessionOf>[0];
   /** A Session is in progress: Start is quiet so Resume stays the one primary action. */
   startSecondary: boolean;
 }) {
@@ -60,6 +67,8 @@ export function RunHero({
   if (!program || !run) return null;
   const next = program.slots.find((slot) => slot.id === progress.next?.id);
   const nextTitle = next?.workoutId ? slotTitle(next, t) : null;
+  // The next workout is already open: offer Resume, not a second Start.
+  const open = openSessionOf(openSessions, next?.workoutId ?? null);
   return (
     <View className="gap-4 rounded-xl bg-surface p-3.5">
       <View className="flex-row items-center gap-3">
@@ -123,15 +132,20 @@ export function RunHero({
           </View>
           <Button
             size="lg"
-            variant={startSecondary ? "secondary" : "primary"}
+            variant={startSecondary && !open ? "secondary" : "primary"}
             className="h-14 w-full"
             onPress={() => {
-              if (next.workoutId)
+              if (open) onResume(open.id);
+              else if (next.workoutId)
                 onStart(next.workoutId, { runId: run.id, slotId: next.id, cycle: progress.cycle });
             }}
           >
-            <Play size={20} color={startSecondary ? subtle : onAction} />
-            <Button.Label>{t("training__start_workout_named", { title: nextTitle })}</Button.Label>
+            <Play size={20} color={startSecondary && !open ? subtle : onAction} />
+            <Button.Label>
+              {open
+                ? t("session__resume_named", { title: nextTitle })
+                : t("training__start_workout_named", { title: nextTitle })}
+            </Button.Label>
           </Button>
         </View>
       ) : null}

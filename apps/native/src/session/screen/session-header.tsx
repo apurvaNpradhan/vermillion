@@ -146,7 +146,7 @@ export function SessionHeader({
               {...(readOnly || !onOpenClock ? {} : { onPress: onOpenClock })}
             />
           )}
-          <Text className="font-medium text-label text-muted">·</Text>
+          {finished ? null : <Text className="font-medium text-label text-muted">·</Text>}
           <Text
             numberOfLines={1}
             className="font-medium min-w-0 flex-shrink text-label text-muted"

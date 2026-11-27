@@ -217,6 +217,9 @@ describe("review fixes", () => {
     expect(formatBodyWeight(80.1, "kg", "en")).toBe("80.1");
     expect(formatBodyWeight(80, "lb", "en")).toBe("176.4");
     expect(formatBodyWeight(-0.11, "kg", "en")).toBe("-0.1");
+    // A change that rounds to nothing has no sign.
+    expect(formatBodyWeight(-0.03, "kg", "en")).toBe("0.0");
+    expect(formatBodyWeight(-0.02, "lb", "en")).toBe("0.0");
   });
 
   it("shows a stored kilogram value as the field does, so unchanged values compare equal", () => {
