@@ -304,3 +304,8 @@ export function stepLabel(
     field === "weight" ? Number(formatWeight(value, context.unit)) : value;
   return String(Number(Math.abs(shown(next) - shown(start)).toFixed(2)));
 }
+
+/** The step key's text says the press changes nothing (the value is at its limit): disable it. */
+export function stepDoesNothing(label: string): boolean {
+  return label !== "" && Number(label) === 0;
+}

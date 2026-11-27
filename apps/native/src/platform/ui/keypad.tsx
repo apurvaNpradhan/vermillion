@@ -7,6 +7,7 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import Animated from "react-native-reanimated";
 
 import { decimalSeparator, useKeypadMotion } from "./keypad-motion";
+import { stepDoesNothing } from "./keypad-entry";
 
 import { KEYPAD_DIGITS, keypadKeysOfText, keypadPressOf, type KeypadKey } from "./keypad-keys";
 
@@ -130,26 +131,31 @@ export function Keypad({
     />
   );
 
-  const step = (direction: 1 | -1) => (
-    <Cap
-      label={direction === 1 ? labels.increase : labels.decrease}
-      onPress={() => onStep(direction)}
-    >
-      <View className="flex-row items-center gap-0.5">
-        {direction === 1 ? (
-          <Plus size={20} color={foreground} />
-        ) : (
-          <Minus size={20} color={foreground} />
-        )}
-        <Text
-          className="font-medium text-label text-foreground"
-          style={{ fontVariant: ["tabular-nums"] }}
-        >
-          {direction === 1 ? stepText : decreaseStepText}
-        </Text>
-      </View>
-    </Cap>
-  );
+  const step = (direction: 1 | -1) => {
+    const text = direction === 1 ? stepText : decreaseStepText;
+    const idle = stepDoesNothing(text);
+    return (
+      <Cap
+        label={direction === 1 ? labels.increase : labels.decrease}
+        onPress={() => onStep(direction)}
+        disabled={idle}
+      >
+        <View className="flex-row items-center gap-0.5">
+          {direction === 1 ? (
+            <Plus size={20} color={foreground} />
+          ) : (
+            <Minus size={20} color={foreground} />
+          )}
+          <Text
+            className="font-medium text-label text-foreground"
+            style={{ fontVariant: ["tabular-nums"] }}
+          >
+            {idle ? "" : text}
+          </Text>
+        </View>
+      </Cap>
+    );
+  };
 
   if (systemKeyboard) {
     return (
