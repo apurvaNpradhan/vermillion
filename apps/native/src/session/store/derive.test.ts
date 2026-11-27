@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { prescriptionSchema } from "@workspace/shared";
 import type { FinishedSession } from "@workspace/sync";
 
 import { buildGymLoads } from "../../gym/gym-loads";
@@ -37,17 +38,16 @@ describe("deriveExercises", () => {
     expect(finished?.view.summary).toBe("60 kg × 8");
   });
 
-  it("labels rows with their number and offers copy and fill only where they apply", () => {
+  it("labels rows with their badge and offers copy and fill only where they apply", () => {
     const view = deriveExercises([a], inputs(), context, new Map()).get("a")?.view;
     expect(view?.setIds).toEqual(["a1", "a2"]);
     expect(view?.rows.get("a1")).toMatchObject({
       badge: "1",
-      number: 1,
       canRemove: true,
       canFillRemaining: true,
       canCopyPrevious: false,
     });
-    expect(view?.rows.get("a2")).toMatchObject({ number: 2, canFillRemaining: false });
+    expect(view?.rows.get("a2")).toMatchObject({ badge: "2", canFillRemaining: false });
   });
 
   it("uses the Session gym's history and applies the active gym's cap to its ghost weight", () => {
@@ -235,6 +235,32 @@ describe("deriveExercises", () => {
       deriveExercises([b], inputs({ historyFailed: true }), context, new Map()).get("b")?.view
         .historyReady,
     ).toBe(true);
+  });
+
+  it("shows Previous as loading until the history is read, even with a stored prescription", () => {
+    const stored = prescriptionSchema.parse({
+      exerciseId: "0192f0a0-0000-7000-8000-0000000000e1",
+      revision: "0192f0a0-0000-7000-8000-0000000000a1",
+      previousRevision: null,
+      reason: "hold_missed",
+      incrementKg: 2.5,
+      breakDays: null,
+      capKg: null,
+      sets: [
+        {
+          id: "0192f0a0-0000-7000-8000-000000000001",
+          ghosts: { weight: 50, reps: 8 },
+          outcome: { reason: "hold_missed" },
+        },
+      ],
+    });
+    const resumed = { ...b, prescription: stored };
+    const view = (input: Partial<DeriveInputs>) =>
+      deriveExercises([resumed], inputs(input), context, new Map()).get("b")?.view;
+    // A resumed Session has its snapshot at once, so it may be ticked, but Previous is still unread.
+    expect(view({})).toMatchObject({ historyReady: true, previousReady: false });
+    expect(view({ previous: new Map([["lib-b", []]]) })?.previousReady).toBe(true);
+    expect(view({ historyFailed: true })?.previousReady).toBe(true);
   });
 
   it("rebuilds only the exercise whose sets changed", () => {

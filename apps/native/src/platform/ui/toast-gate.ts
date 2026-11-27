@@ -28,3 +28,14 @@ export function createToastGate() {
     },
   };
 }
+
+/** How long a toast with an action (Undo) stays up: long enough to read it and reach the button. */
+export const ACTION_TOAST_MS = 5000;
+
+/** The duration a toast gets: its own, else {@link ACTION_TOAST_MS} when it has an action. */
+export function toastDuration(config: {
+  actionLabel?: string;
+  duration?: number | "persistent";
+}): number | "persistent" | undefined {
+  return config.duration ?? (config.actionLabel === undefined ? undefined : ACTION_TOAST_MS);
+}

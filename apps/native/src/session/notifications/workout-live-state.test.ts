@@ -147,6 +147,20 @@ describe("workout live notification", () => {
     });
     expect(state(s, T0 + 61_000)).toEqual(state(s));
   });
+  it("numbers working sets as the rows show them and names a warm-up", () => {
+    const warm = [set("w1", { kind: "warmup" }), set("w2", { kind: "warmup" })];
+    const s = session([exercise("a", [...warm, set("1"), set("2")])]);
+    expect(state(s)).toMatchObject({
+      text: "Title a · Warm-up · 80 kg × 8",
+      next: "Next: Warm-up",
+    });
+    const done = warm.map((item, i) => ({ ...item, completedAt: at(i + 1) }));
+    const later = session([exercise("a", [...done, set("1"), set("2")])]);
+    expect(state(later, T0 + 10_000)).toMatchObject({
+      text: "Title a · Set 1 of 2 · 80 kg × 8",
+      next: "Next: Set 2",
+    });
+  });
   it("shows the unit of the next exercise when it differs from the account", () => {
     const first = set("1", { weightKg: 45 * KG_PER_LB, reps: 5, completedAt: at(30) });
     const next = set("2", { weightKg: 25 * KG_PER_LB, reps: 8 });

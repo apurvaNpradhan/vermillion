@@ -14,6 +14,7 @@ export { parseReportKey } from "./report/report-period";
 export { SessionDetailScreen } from "./history/session-detail-screen";
 export { LogPastScreen } from "./history/log-past-screen";
 export { useActiveSessions } from "./lifecycle/use-active-sessions";
+export { openSessionOf } from "./lifecycle/open-session-of";
 export { formatElapsed } from "./timer/clock";
 export { doneSummary } from "./finish/summary";
 

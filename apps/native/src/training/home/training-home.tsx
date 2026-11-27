@@ -5,7 +5,7 @@ import { useTranslation } from "@/platform/i18n";
 import { useToday } from "@/platform/use-today";
 import { Button } from "@/platform/ui/button";
 import { FadeIn } from "@/platform/ui/fade-in";
-import { useActiveSessions, usePreviousSets, useStartSession } from "@/session";
+import { openSessionOf, useActiveSessions, usePreviousSets, useStartSession } from "@/session";
 import { usePreferences } from "@/preferences";
 import {
   calendarDay,
@@ -86,6 +86,7 @@ export function TrainingHome() {
   if (loading) return null;
 
   const resume = active.sessions[0];
+  const openOfCard = openSessionOf(active.sessions, workoutId);
 
   // ---- Next workout ----
   const slots = programState.program?.slots ?? [];
@@ -183,15 +184,18 @@ export function TrainingHome() {
           exercises={heroExercises}
           lastDuration={lastDuration}
           workoutOpen={resume !== undefined}
+          resuming={openOfCard !== undefined}
           resumesRun={resume === undefined && programState.paused && Boolean(next?.workoutId)}
           onStart={() =>
-            next?.workoutId && programState.run
-              ? void startSlot(next.workoutId, {
-                  runId: programState.run.id,
-                  slotId: next.id,
-                  cycle: programState.progress.cycle,
-                })
-              : void start(workoutId)
+            openOfCard
+              ? router.push({ pathname: "/session/[id]", params: { id: openOfCard.id } })
+              : next?.workoutId && programState.run
+                ? void startSlot(next.workoutId, {
+                    runId: programState.run.id,
+                    slotId: next.id,
+                    cycle: programState.progress.cycle,
+                  })
+                : void start(workoutId)
           }
           onStartEmpty={() => void start(null)}
         />

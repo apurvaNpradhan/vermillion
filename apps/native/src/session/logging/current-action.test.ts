@@ -6,6 +6,7 @@ import { cellOrder } from "./keypad-entry";
 import { restAfterTick } from "../rest/rest-rules";
 import {
   currentAction,
+  workingPosition,
   orderedSets,
   valueParts,
   valuesText,
@@ -225,6 +226,7 @@ describe("currentAction: next", () => {
     expect(currentAction({ session: s, ghostsFor: noGhosts, now: T0 }).next).toEqual({
       kind: "set",
       number: 2,
+      setKind: "working",
     });
   });
 
@@ -241,7 +243,33 @@ describe("currentAction: next", () => {
     expect(currentAction({ session: s, ghostsFor: noGhosts, now: T0 + 5000 }).next).toEqual({
       kind: "set",
       number: 3,
+      setKind: "working",
     });
+  });
+
+  it("numbers working sets as the rows show them, warm-ups having none", () => {
+    const s = session([
+      exercise("a", [
+        set("w1", { kind: "warmup" }),
+        set("w2", { kind: "warmup" }),
+        set("a1"),
+        set("a2"),
+      ]),
+    ]);
+    const first = currentAction({ session: s, ghostsFor: noGhosts, now: T0 });
+    expect(first.current).toMatchObject({ index: 0, position: null });
+    expect(first.next).toEqual({ kind: "set", number: null, setKind: "warmup" });
+    const later = session([
+      exercise("a", [
+        set("w1", { kind: "warmup", completedAt: at(1) }),
+        set("w2", { kind: "warmup", completedAt: at(2) }),
+        set("a1"),
+        set("a2"),
+      ]),
+    ]);
+    const action = currentAction({ session: later, ghostsFor: noGhosts, now: T0 + 5000 });
+    expect(action.current).toMatchObject({ index: 2, position: { number: 1, total: 2 } });
+    expect(action.next).toEqual({ kind: "set", number: 2, setKind: "working" });
   });
 });
 
@@ -379,5 +407,24 @@ describe("valueParts", () => {
       { field: "weight", text: "80 kg" },
       { field: "duration", text: "0:30" },
     ]);
+  });
+});
+
+describe("workingPosition", () => {
+  const kinds = ["warmup", "warmup", "working", "working", "drop", "working"] as const;
+
+  it("numbers working sets as the row shows them, skipping warm-ups and other kinds", () => {
+    expect(workingPosition(kinds, 2)).toEqual({ number: 1, total: 3 });
+    expect(workingPosition(kinds, 3)).toEqual({ number: 2, total: 3 });
+    expect(workingPosition(kinds, 5)).toEqual({ number: 3, total: 3 });
+  });
+
+  it("has no number for a set that shows a letter", () => {
+    expect(workingPosition(kinds, 0)).toBeNull();
+    expect(workingPosition(kinds, 4)).toBeNull();
+  });
+
+  it("has no number for an index outside the sets", () => {
+    expect(workingPosition(kinds, 9)).toBeNull();
   });
 });

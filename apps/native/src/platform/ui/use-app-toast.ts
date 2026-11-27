@@ -1,7 +1,7 @@
 import { useToast, type ToastShowOptions } from "heroui-native";
 import { useMemo } from "react";
 
-import { createToastGate } from "./toast-gate";
+import { createToastGate, toastDuration } from "./toast-gate";
 
 /** A toast with a label, as every toast in the app is (no custom component). */
 export type AppToastOptions = Exclude<ToastShowOptions, { component: unknown }> & {
@@ -28,8 +28,10 @@ export function useAppToast() {
           counter += 1;
           const id = `app-toast-${counter}`;
           gate.shown(id, config.label);
+          const duration = toastDuration(config);
           return toast.show({
             ...config,
+            ...(duration === undefined ? {} : { duration }),
             id,
             onHide: () => {
               gate.hidden(id);

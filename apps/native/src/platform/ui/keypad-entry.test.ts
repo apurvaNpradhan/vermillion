@@ -1,4 +1,10 @@
-import { formatWeight, parseWeight, resolveExerciseUnit, type WeightUnit } from "@workspace/shared";
+import {
+  MAX_WEIGHT_KG,
+  formatWeight,
+  parseWeight,
+  resolveExerciseUnit,
+  type WeightUnit,
+} from "@workspace/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -7,6 +13,7 @@ import {
   displayOfText,
   durationFromDigits,
   stepOf,
+  stepDoesNothing,
   stepLabel,
   stepValue,
   textOfValue,
@@ -150,6 +157,15 @@ describe("steps", () => {
       expect(stepLabel("weight", current, null, 1, context)).toBe(plus);
     },
   );
+
+  it("labels a step that cannot move the value as one to switch off", () => {
+    const bar = { unit: "kg", equipment: "barbell", incrementKg: null } as const;
+    const label = stepLabel("weight", MAX_WEIGHT_KG, null, 1, bar);
+    expect(label).toBe("0");
+    expect(stepDoesNothing(label)).toBe(true);
+    expect(stepDoesNothing(stepLabel("weight", 100, null, 1, bar))).toBe(false);
+    expect(stepDoesNothing("")).toBe(false);
+  });
 
   it("keeps reps, duration and the rest in their ranges", () => {
     const any = { unit: "kg", equipment: "machine", incrementKg: null } as const;

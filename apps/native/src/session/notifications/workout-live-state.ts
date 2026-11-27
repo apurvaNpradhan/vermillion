@@ -1,6 +1,7 @@
 import {
   DEFAULT_PREVIOUS_SOURCE,
   PREVIOUS_SOURCES,
+  SET_KIND_KEYS,
   WEIGHT_UNITS,
   lighterPeriodSchema,
   sessionActiveSeconds,
@@ -74,7 +75,9 @@ export function workoutLiveState(input: {
   const exercise = session.exercises.find((entry) => entry.id === current?.exerciseRowId);
   const unit = resolveExerciseUnit(input.unit, exercise?.unit);
   const set = current
-    ? t("session__live_set", { index: current.index + 1, total: current.total })
+    ? current.position
+      ? t("session__live_set", { index: current.position.number, total: current.position.total })
+      : t(SET_KIND_KEYS[current.kind])
     : t("session__live_all_done");
   const paused = session.pausedAt !== null;
   const rest = action.phase === "rest" && !paused;
@@ -105,7 +108,9 @@ export function workoutLiveState(input: {
           next:
             action.next.kind === "exercise"
               ? action.next.title
-              : t("session__live_set_number", { index: action.next.number }),
+              : action.next.number === null
+                ? t(SET_KIND_KEYS[action.next.setKind])
+                : t("session__live_set_number", { index: action.next.number }),
         })
       : "",
     restOver: current ? t("session__live_rest_over", { set }) : t("session__live_rest_over_last"),

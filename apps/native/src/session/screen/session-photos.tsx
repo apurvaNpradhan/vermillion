@@ -33,7 +33,9 @@ export function SessionPhotos({
         <Button.Label>{t("training__retry")}</Button.Label>
       </Button>
     );
-  if (state.loading) return null;
+  // Reserve the add tile's height while the photos load (milliseconds): a sheet that sizes itself
+  // to its content opens too short if this row only appears after it measured (the Finish sheet).
+  if (state.loading) return readOnly ? null : <View className="h-28" />;
   return (
     <View className="gap-2">
       {state.photos.length ? (

@@ -47,7 +47,7 @@ import { cellOrder, nextCell, type CellRef } from "./keypad-entry";
 import type { PreviousSets } from "./use-previous-sets";
 import type { useOptimisticSession } from "./use-optimistic-session";
 import { dueTimers, timerTarget, timerView } from "@/session/timer/duration-timer";
-import { hasRequiredSetValues, historySettled } from "./history-gate";
+import { hasRequiredSetValues, historySettled, reviewsEditedSet } from "./history-gate";
 import { usePrescriptionRevisions } from "./use-prescription-revisions";
 import { useEntryGuard } from "./use-entry-guard";
 import { previewTick, savedSession, settleTick } from "./optimistic";
@@ -336,8 +336,8 @@ export function useLoggingState({
     return () => subscription.remove();
   }, [flush]);
 
-  // "Check this set". A live Session asks when a set is ticked; a finished one saves each edit as
-  // it is typed, so leaving the cell is when the edit is looked at.
+  // "Check this set". A live Session asks when a set is ticked; an edit to a ticked set, or in a
+  // finished Session, is saved as it is typed, so leaving the cell is when the edit is looked at.
   const sessionId = useStore(store, (state) => state.session.id);
   const guard = useEntryGuard(previous, unit, sessionId);
   const askGuard = guard.ask;
@@ -357,18 +357,20 @@ export function useLoggingState({
     (proceed: () => void = () => undefined) => {
       const state = store.getState();
       const { cell, fresh, draftValue } = state;
-      if (
-        state.session.finishedAt === null ||
-        !cell ||
-        fresh ||
-        draftValue === initialCellValue.current
-      )
-        return false;
+      if (!cell || fresh || draftValue === initialCellValue.current) return false;
       const { setId, field } = cell;
       if (field !== "weight" && field !== "reps") return false;
       const at = state.found.get(setId);
+      if (
+        !at ||
+        !reviewsEditedSet({
+          sessionFinished: state.session.finishedAt !== null,
+          setTicked: at.set.completedAt !== null,
+        })
+      )
+        return false;
       const manual = manualValues.current.get(setId);
-      if (!at || !manual || manual[field] !== draftValue) return false;
+      if (!manual || manual[field] !== draftValue) return false;
       return askGuard({
         setId,
         exercise: at.exercise,

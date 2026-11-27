@@ -71,7 +71,6 @@ export type RowView = {
   previous: LoggedSet | null;
   ghosts: Ghosts;
   badge: string;
-  number: number;
   canRemove: boolean;
   canCopyPrevious: boolean;
   canFillRemaining: boolean;
@@ -92,6 +91,11 @@ export type ExerciseView = {
   capKg: number | null;
   /** Previous values of the exercise have loaded, or their lookup failed. */
   historyReady: boolean;
+  /**
+   * Previous itself has been read (or its lookup failed). A stored prescription makes the set
+   * tickable before this, so the Previous column waits on it, not on `historyReady`.
+   */
+  previousReady: boolean;
   setIds: readonly string[];
   rows: ReadonlyMap<string, RowView>;
 };
@@ -167,7 +171,6 @@ function buildView(
       previous,
       ghosts: saved && locked ? saved.ghosts : capGhostWeight(saved?.ghosts ?? ghosts, capKg),
       badge: badges[index] ?? String(index + 1),
-      number: index + 1,
       canRemove: exercise.sets.length > 1,
       canCopyPrevious: copySetUpdates(exercise, set.id, "previous", previous).length > 0,
       canFillRemaining:
@@ -207,6 +210,7 @@ function buildView(
       inputs.display,
     ),
     historyReady,
+    previousReady: loaded || inputs.historyFailed,
     setIds: sameIds(setIds, before?.setIds) ? (before?.setIds ?? setIds) : setIds,
     rows,
   };
@@ -225,6 +229,7 @@ function sameView(a: ExerciseView, b: ExerciseView): boolean {
     a.progress === b.progress &&
     a.summary === b.summary &&
     a.historyReady === b.historyReady &&
+    a.previousReady === b.previousReady &&
     a.setIds === b.setIds &&
     a.rows.size === b.rows.size &&
     b.setIds.every((id) => a.rows.get(id) === b.rows.get(id))
