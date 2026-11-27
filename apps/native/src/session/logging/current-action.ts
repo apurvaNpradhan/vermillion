@@ -9,7 +9,6 @@ import {
 import type { SessionDetail, SessionExerciseDetail, SessionSetDetail } from "@workspace/sync";
 
 import { blocksOf, roundsOf } from "./blocks";
-import { workingPosition } from "./set-position";
 import { timerTarget } from "../timer/duration-timer";
 import { restView, type RestView } from "../rest/rest-rules";
 import { formatCell, valueOfSet } from "./set-values";
@@ -220,4 +219,17 @@ export function valuesText(
       return before ? `${partSeparator(before, part)} ${part.text}` : part.text;
     })
     .join(" ");
+}
+
+/**
+ * The number a working set's row shows ("1", "2"…) and how many working sets the exercise has.
+ * Warm-ups and the other kinds show a letter, not a number, so they have none (null).
+ */
+export function workingPosition(
+  kinds: readonly SetKind[],
+  index: number,
+): { number: number; total: number } | null {
+  if (kinds[index] !== "working") return null;
+  const total = kinds.filter((kind) => kind === "working").length;
+  return { number: kinds.slice(0, index + 1).filter((kind) => kind === "working").length, total };
 }
