@@ -42,7 +42,8 @@ export function SyncBanner() {
           <View className="mt-2 flex-row">
             <Button
               size="sm"
-              onPress={() => router.push({ pathname: "/", params: { sheet: "email" } })}
+              // "/" alone resolves to Home: a device that holds data keeps both groups open.
+              onPress={() => router.push({ pathname: "/(auth)", params: { sheet: "email" } })}
             >
               <Button.Label>{t("sync__sign_in")}</Button.Label>
             </Button>
