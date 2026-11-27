@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ModalPresence } from "@/platform/ui/modal-state";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { SyncBanner } from "@/sync";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -270,21 +270,20 @@ export function WeightScreen() {
         />
       ) : null}
       <BottomSheet isOpen={info} onOpenChange={setInfo}>
-        <BottomSheet.Portal>
+        <SheetPortal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
             animationConfigs={SHEET_SPRING}
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-4 p-5"
           >
-            <ModalPresence />
             <BottomSheet.Title>{t("body__info")}</BottomSheet.Title>
             <Text className="font-normal text-body text-muted">{t("body__explanation")}</Text>
             <Button onPress={() => setInfo(false)}>
               <Button.Label>{t("session__done")}</Button.Label>
             </Button>
           </BottomSheet.Content>
-        </BottomSheet.Portal>
+        </SheetPortal>
       </BottomSheet>
     </View>
   );

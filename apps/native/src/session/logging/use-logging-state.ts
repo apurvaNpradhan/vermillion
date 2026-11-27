@@ -385,7 +385,8 @@ export function useLoggingState({
           reps: field === "reps" ? draftValue : manual.reps === at.set.reps ? at.set.reps : null,
         },
         editedField: field,
-        suggestedKg: null,
+        suggestedKg:
+          state.session.finishedAt === null ? (lookupGhosts(setId).weight ?? null) : null,
         proceed,
         change: (changed) => openCellRef.current(setId, changed),
         swap: async (weightKg, reps) => {
@@ -393,7 +394,7 @@ export function useLoggingState({
         },
       });
     },
-    [store, askGuard, applySwap],
+    [store, askGuard, applySwap, lookupGhosts],
   );
 
   const openCell = useCallback(
@@ -401,8 +402,12 @@ export function useLoggingState({
       if (readOnly) return;
       const cell = store.getState().cell;
       if (cell?.setId === setId && cell.field === field) return;
-      reviewLeft();
+      const asked = reviewLeft(() => openCellRef.current(setId, field));
       flush();
+      if (asked) {
+        setEntry(null);
+        return;
+      }
       const at = store.getState().found.get(setId);
       if (!at) return;
       initialCellValue.current = valueOfSet(at.set, field);
@@ -805,29 +810,42 @@ export function useLoggingState({
       const state = store.getState();
       const at = state.found.get(setId);
       if (!at || state.session.finishedAt !== null || at.set.completedAt !== null) return;
+      const run = async () => {
+        const current = store.getState();
+        const set = current.found.get(setId)?.set;
+        if (
+          !set ||
+          current.session.finishedAt !== null ||
+          set.completedAt !== null ||
+          set.timerStartedAt !== at.set.timerStartedAt
+        )
+          return;
+        if (set.timerStartedAt === null) {
+          await actions.updateValues(setId, { timer_started_at: new Date().toISOString() });
+        } else if (timerTarget(set) !== null) {
+          // A countdown that is stopped early is cancelled, not logged.
+          await actions.updateValues(setId, { timer_started_at: null });
+        } else {
+          // A stopwatch logs what it counted.
+          const pausedAt = current.session.pausedAt;
+          const elapsed = timerView(
+            set.timerStartedAt,
+            null,
+            pausedAt === null ? Date.now() : Date.parse(pausedAt),
+          ).elapsed;
+          await tickWith(
+            setId,
+            { ...lookupGhosts(setId), duration: Math.max(1, elapsed) },
+            undefined,
+            savingEdits,
+          );
+        }
+      };
+      const asked = reviewLeft(() => void run());
       setEntry(null);
-      if (at.set.timerStartedAt === null) {
-        await actions.updateValues(setId, { timer_started_at: new Date().toISOString() });
-      } else if (timerTarget(at.set) !== null) {
-        // A countdown that is stopped early is cancelled, not logged.
-        await actions.updateValues(setId, { timer_started_at: null });
-      } else {
-        // A stopwatch logs what it counted.
-        const pausedAt = state.session.pausedAt;
-        const elapsed = timerView(
-          at.set.timerStartedAt,
-          null,
-          pausedAt === null ? Date.now() : Date.parse(pausedAt),
-        ).elapsed;
-        await tickWith(
-          setId,
-          { ...lookupGhosts(setId), duration: Math.max(1, elapsed) },
-          undefined,
-          savingEdits,
-        );
-      }
+      if (!asked) await run();
     },
-    [store, readOnly, flush, actions, tickWith, lookupGhosts, setEntry],
+    [store, readOnly, flush, actions, tickWith, lookupGhosts, reviewLeft, setEntry],
   );
 
   // A countdown that reaches zero ticks its set by itself, also when the app was in the background

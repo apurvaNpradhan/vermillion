@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import {
   CUSTOM_GOAL_MAX,
   GOAL_LEVELS,
@@ -89,7 +90,7 @@ export function MuscleGoalSheet({
         if (!open) onClose();
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent>
           {sheet.probe}
@@ -195,7 +196,7 @@ export function MuscleGoalSheet({
             ) : null}
           </View>
         </ScrollableSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

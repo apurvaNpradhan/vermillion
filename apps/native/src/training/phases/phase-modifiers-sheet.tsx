@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { PHASE_PRESETS, type Phase, type PhaseModifiers, type TestTop } from "@workspace/shared";
 import { BottomSheet, Switch } from "heroui-native";
 import { Text, View } from "react-native";
@@ -54,7 +55,7 @@ export function PhaseModifiersSheet({
         if (!open) onClose();
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent
           footer={
@@ -129,7 +130,7 @@ export function PhaseModifiersSheet({
             <Button.Label>{t("phase__reset")}</Button.Label>
           </Button>
         </ScrollableSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

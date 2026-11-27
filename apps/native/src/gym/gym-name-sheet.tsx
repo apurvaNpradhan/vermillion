@@ -1,5 +1,5 @@
 import { useForm } from "@tanstack/react-form";
-import { ModalPresence } from "@/platform/ui/modal-state";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { GYM_LIMITS } from "@workspace/shared";
 import { BottomSheet } from "heroui-native";
 import { useEffect } from "react";
@@ -55,7 +55,7 @@ function GymNameSheetBody({
         onOpenChange(open);
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
           bottomInset={keyboardHeight}
@@ -68,7 +68,6 @@ function GymNameSheetBody({
           contentContainerClassName="gap-4 px-4 pt-2"
           contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
         >
-          <ModalPresence />
           <View className="gap-1">
             <BottomSheet.Title className="font-semibold text-title-lg">{title}</BottomSheet.Title>
             {description ? (
@@ -102,7 +101,7 @@ function GymNameSheetBody({
             )}
           </form.Subscribe>
         </BottomSheet.Content>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

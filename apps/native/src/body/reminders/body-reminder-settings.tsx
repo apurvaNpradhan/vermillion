@@ -1,5 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
-import { ModalPresence } from "@/platform/ui/modal-state";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import type { UiPreferences } from "@workspace/shared";
 import { BottomSheet, useThemeColor } from "heroui-native";
 import { Bell, Minus, Plus } from "phosphor-react-native";
@@ -74,14 +74,13 @@ function ReminderEditor({
           if (!open && !busy) onClose();
         }}
       >
-        <BottomSheet.Portal>
+        <SheetPortal>
           <BottomSheet.Overlay />
           <BottomSheet.Content
             animationConfigs={SHEET_SPRING}
             backgroundClassName="bg-overlay"
             contentContainerClassName="gap-4 px-4 pb-8"
           >
-            <ModalPresence />
             {sheet.probe}
             <BottomSheet.Title>
               {t(
@@ -220,7 +219,7 @@ function ReminderEditor({
               </>
             )}
           </BottomSheet.Content>
-        </BottomSheet.Portal>
+        </SheetPortal>
       </BottomSheet>
       {kind === "checkInReminder" && sheet.isOpen ? (
         <OptionSheet

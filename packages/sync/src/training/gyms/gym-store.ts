@@ -239,8 +239,8 @@ export async function deleteGym(
 }
 
 /**
- * Sets the gym a Session was trained at (null for any gym). It stays a plain reference, so a
- * gym id that is not on this device yet is kept.
+ * Sets the gym of an unfinished Session owned by this install (null for any gym).
+ * It stays a plain reference, so a gym id that is not on this device yet is kept.
  */
 export async function setSessionGym(
   database: TrainingDatabase,
@@ -253,7 +253,9 @@ export async function setSessionGym(
     const [current] = await tx
       .select({ gym_id: session.gym_id })
       .from(session)
-      .where(eq(session.id, sessionId))
+      .where(
+        and(eq(session.id, sessionId), isNull(session.finished_at), eq(session.device_id, scope)),
+      )
       .limit(1);
     if (!current) return false;
     if (current.gym_id !== parsed)

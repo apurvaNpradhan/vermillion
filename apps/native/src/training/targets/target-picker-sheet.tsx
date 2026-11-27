@@ -1,5 +1,5 @@
 import { BottomSheet } from "heroui-native";
-import { ModalPresence } from "@/platform/ui/modal-state";
+import { SheetPortal } from "@/platform/ui/modal-state";
 import type { ReactNode } from "react";
 import { Keyboard, View } from "react-native";
 import { useKeyboardState } from "react-native-keyboard-controller";
@@ -39,7 +39,7 @@ export function TargetPickerSheet({
         onOpenChange(open);
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <BottomSheet.Content
           bottomInset={keyboardHeight}
@@ -52,7 +52,6 @@ export function TargetPickerSheet({
           contentContainerClassName="gap-4 px-4 pt-2"
           contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
         >
-          <ModalPresence />
           <View className="gap-1">
             <BottomSheet.Title className="font-semibold text-title-lg">{title}</BottomSheet.Title>
             <BottomSheet.Description className="text-body text-muted">
@@ -71,7 +70,7 @@ export function TargetPickerSheet({
             <Button.Label>{t("training__effort_done")}</Button.Label>
           </Button>
         </BottomSheet.Content>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

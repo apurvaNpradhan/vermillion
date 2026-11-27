@@ -20,6 +20,7 @@ import { ConfirmationDialog } from "@/platform/ui/confirmation-dialog";
 import { useTrainingWrite } from "@/training";
 
 import { StartConflictSheet } from "./start-conflict-sheet";
+import { openSessionOf } from "./open-session-of";
 
 /** What a new Session is made from: a Workout (or nothing), or a finished Session to repeat. */
 type Pending = { source: BeginSource; active: ActiveSession[] };
@@ -34,7 +35,7 @@ type Repeat = { source: BeginSource; title: string };
  * `sheet` next to the screen that starts. A start is idempotent: it has one id, so a double tap
  * or a retry opens the same Session.
  */
-export function useStartSession() {
+export function useStartSession({ resumeSameWorkout = false } = {}) {
   const { t } = useTranslation();
   const router = useRouter();
   const { write, writeScope, undoToast } = useTrainingWrite();
@@ -104,11 +105,16 @@ export function useStartSession() {
           null,
         );
         if (!active) return;
+        const workoutId = "workoutId" in source ? source.workoutId : null;
+        const matching = resumeSameWorkout ? openSessionOf(active, workoutId) : undefined;
+        if (matching) {
+          open(matching.id);
+          return;
+        }
         if (active.length > 0) {
           setPending({ source, active });
           return;
         }
-        const workoutId = "workoutId" in source ? source.workoutId : null;
         if (workoutId && !confirmedRepeat) {
           const now = new Date();
           const done = await write(
@@ -130,7 +136,7 @@ export function useStartSession() {
         checking.current = false;
       }
     },
-    [write, timeZone, begin],
+    [write, resumeSameWorkout, open, timeZone, begin],
   );
   const start = useCallback((workoutId: string | null) => startFrom({ workoutId }), [startFrom]);
   const startSlot = useCallback(

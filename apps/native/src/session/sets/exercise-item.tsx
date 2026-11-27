@@ -1,4 +1,5 @@
 import {
+  SET_KIND_KEYS,
   SESSION_LIMITS,
   latestAdjustment,
   suggestionLedger,
@@ -71,6 +72,7 @@ export const ExerciseItem = memo(function ExerciseItem({
   isInViewport: (exerciseId: string, offset: number, height: number) => boolean;
 }) {
   "use no memo"; // The viewport test samples the list's current scroll position.
+  const { t } = useTranslation();
   const data = useSessionStore(
     useShallow((state) => {
       const view = state.views.get(exerciseId);
@@ -126,11 +128,14 @@ export const ExerciseItem = memo(function ExerciseItem({
     [exercise, data.activeSessionId],
   );
   const adjustment = latestAdjustment(exercise?.prescription);
-  // The label the row shows, not its place among all sets: warm-ups do not count.
-  const adjustedNumber = adjustment
-    ? (data.rows?.get(adjustment.setId)?.badge ??
-      String((exercise?.sets.findIndex(({ id }) => id === adjustment.setId) ?? 0) + 1))
-    : "";
+  const adjustedSet = adjustment && exercise?.sets.find(({ id }) => id === adjustment.setId);
+  const adjustedBadge = adjustedSet && data.rows?.get(adjustedSet.id)?.badge;
+  const adjustedLabel =
+    adjustedSet && adjustedBadge
+      ? adjustedSet.kind === "working"
+        ? t("session__set_number", { number: adjustedBadge })
+        : t(SET_KIND_KEYS[adjustedSet.kind])
+      : null;
   // Once this row has been seen closed, opening it fades its body in. A row that mounts open (the
   // screen opening, or the list mounting it while scrolling) shows it at once.
   const [seenClosed, setSeenClosed] = useState(false);
@@ -203,10 +208,10 @@ export const ExerciseItem = memo(function ExerciseItem({
                   }
                 />
               ) : null}
-              {adjustment && !data.done ? (
+              {adjustment && adjustedLabel && !data.done ? (
                 <AdjustmentNote
                   adjustment={adjustment}
-                  setNumber={adjustedNumber}
+                  setLabel={adjustedLabel}
                   onUndo={readOnly ? undefined : () => handlers.onUndoAdjustment(exerciseId)}
                 />
               ) : null}

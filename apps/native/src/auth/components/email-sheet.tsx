@@ -1,3 +1,4 @@
+import { SheetPortal } from "@/platform/ui/modal-state";
 import { useForm } from "@tanstack/react-form";
 import { BottomSheet, Spinner } from "heroui-native";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -71,7 +72,7 @@ export function EmailSheet({
         onOpenChange(open);
       }}
     >
-      <BottomSheet.Portal>
+      <SheetPortal>
         <BottomSheet.Overlay />
         <ScrollableSheetContent
           onChange={focusAtDetent}
@@ -134,7 +135,7 @@ export function EmailSheet({
           </form.Field>
           <NeedsConnection />
         </ScrollableSheetContent>
-      </BottomSheet.Portal>
+      </SheetPortal>
     </BottomSheet>
   );
 }

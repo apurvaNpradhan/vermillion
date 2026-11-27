@@ -11,15 +11,15 @@ import { useTranslation } from "@/platform/i18n";
  */
 export function AdjustmentNote({
   adjustment,
-  setNumber,
+  setLabel,
   onUndo,
 }: {
   adjustment: Adjustment;
-  setNumber: string;
+  setLabel: string;
   onUndo?: () => void;
 }) {
   const { t } = useTranslation();
-  const params = { set: setNumber, count: adjustment.reps };
+  const params = { set: setLabel, count: adjustment.reps };
   const text =
     adjustment.reason === "reps_short"
       ? t("session__adjust_reps_short", params)

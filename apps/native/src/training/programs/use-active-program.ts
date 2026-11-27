@@ -142,7 +142,8 @@ export function useActiveProgram() {
         duration: UNDO_MS,
         onActionPress: ({ hide }) => {
           hide();
-          void unskip(day);
+          // A press on an offered action still applies if a later Cycle just synced.
+          void write((db) => unskipSlot(db, day, writeScope), false);
         },
         onHide: () => {
           if (undoOffer.current?.day === day) undoOffer.current = null;
@@ -150,7 +151,7 @@ export function useActiveProgram() {
       });
       if (toastId !== null) undoOffer.current = { id: toastId, day };
     },
-    [write, writeScope, t, toast, unskip],
+    [write, writeScope, t, toast],
   );
   const now = new Date();
   const week = runWeek(run?.started_at ?? null, now, timeZone, run?.pauses);
