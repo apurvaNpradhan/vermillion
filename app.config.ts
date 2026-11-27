@@ -28,7 +28,7 @@ export const appConfig = {
   supportEmail: "apurvanarayanpradhan@gmail.com",
   /** Who runs the service, named on the legal pages. */
   operator: { name: "Apurva Pradhan", country: "India" },
-  version: "0.1.0",
+  version: "0.1.1",
   /** Base domain of every public host. */
   domain,
   urls: {
