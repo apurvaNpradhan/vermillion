@@ -165,6 +165,32 @@ Findings fixed before release (each with a test where it is logic):
 `pnpm db:start`, lint, typecheck, knip, i18n:check and `pnpm test --concurrency=2 --continue`
 (21/21 tasks) all pass on the final `feat/redesign` head.
 
+## Phone pass (2026-11-27)
+
+Run on a Motorola Edge 60 Pro with the dev client, stopped early when the phone was needed
+([report](phone-qa-2026-11-27.md); its "Resume later" section lists what is left). Fixed since:
+
+- Sign in on the "session expired" banner did nothing (it opened Home); it opens sign-in now.
+- Switching the gym chip in a live workout also makes it the active gym.
+- "Check this set" now also runs when you edit a set that is already ticked.
+- Set numbers in messages and screen-reader labels match the row you see; warm-ups read as
+  "Warm-up".
+- Home's card says "Resume" for the workout already open, not "Start workout".
+- The Previous column waits for its data instead of showing "–"; the Finish sheet opens at full
+  height; the keypad step key is disabled at the cap; Undo toasts stay up at least 5 s and a
+  shown skip Undo always works.
+- Warm-up rep buttons fit the screen; phase effects read "sets halved · −2 RPE · −10% load";
+  paused programs say "Paused"; deload dialog wording; import preview layout.
+- Screen readers: icons are no longer announced as code names (Phosphor patch), open sheets and
+  dialogs hide the screen behind them (and only while open), bottom sheets no longer announce
+  "seekbar", duplicate labels removed.
+- README and website rewritten around what the app does today, with new screenshots (11 of 15;
+  exercise detail, history and muscles still use older shots, body weight is not shot yet).
+
+Still open, needs the phone: the empty workout screen for 3–4 s after "Discard and start"
+(suspect the last-notes query), one unrepeatable "typing went into the previous set", TalkBack
+focus order, and the remaining checklist items (deletes, two devices, History).
+
 ## Check on the phone
 
 No agent could run the app this round. Check, in this order:
