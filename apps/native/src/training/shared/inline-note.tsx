@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type Ref } from "react";
 import { TextInput } from "react-native";
 
 /**
@@ -8,6 +8,7 @@ import { TextInput } from "react-native";
  */
 export function InlineNote({
   value,
+  inputRef,
   onText,
   placeholder,
   label,
@@ -16,6 +17,7 @@ export function InlineNote({
   autoFocus = false,
 }: {
   value: string | null;
+  inputRef?: Ref<TextInput>;
   onText: (text: string | null) => void;
   placeholder: string;
   label: string;
@@ -32,6 +34,7 @@ export function InlineNote({
   }, [value, focused]);
   return (
     <TextInput
+      ref={inputRef}
       value={text}
       multiline
       autoFocus={autoFocus}

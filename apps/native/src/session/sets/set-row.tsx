@@ -36,6 +36,7 @@ import { useNow } from "@/session/shared/use-now";
 import { useSessionStore } from "@/session/store/session-store-context";
 import { RecordChip } from "./record-chip";
 import { SetCell } from "./set-cell";
+import { effortCellOf } from "./effort-cell";
 import { setCapLabel } from "./set-cap-label";
 import { TICK_MS } from "@/session/shared/motion";
 import { DONE_TINT_ALPHA, withAlpha } from "./row-tint";
@@ -255,9 +256,18 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
     );
   };
 
-  const rpeText = (rpe: number) => formatEffortRange(rpe, rpe, effortScale);
-  const effortValue = set.rpe === null ? null : rpeText(set.rpe);
-  const effortGhost = ghosts.rpe ?? null;
+  const effortCell = effortCellOf({
+    logged: set.rpe,
+    target: ghosts.rpe === undefined ? (set.target?.effort_min ?? null) : ghosts.rpe,
+    ticked,
+    current: props.current,
+  });
+  const effortText =
+    effortCell.kind === "logged" || effortCell.kind === "target"
+      ? formatEffortRange(effortCell.value, effortCell.value, effortScale)
+      : effortCell.kind === "dash"
+        ? "–"
+        : "";
 
   const row = (a11y?: SwipeA11yProps) => (
     <Animated.View
@@ -342,19 +352,25 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
       {hasEffortColumn && set.kind !== "warmup" ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t("session__effort_cell_label", {
-            set: setLabel,
-            value: effortValue ?? t("training__effort_none"),
-          })}
+          accessibilityLabel={t(
+            effortCell.kind === "target"
+              ? "session__effort_target_label"
+              : "session__effort_cell_label",
+            {
+              set: setLabel,
+              value:
+                effortText === "" || effortText === "–" ? t("training__effort_none") : effortText,
+            },
+          )}
           disabled={readOnly}
           onPress={() => props.onEffort(set.id)}
           className="h-10 w-11 items-center justify-center rounded-lg active:bg-default"
         >
           <Text
-            className={`font-normal text-body ${effortValue === null ? "text-muted" : "text-foreground"}`}
+            className={`font-normal text-body ${effortCell.kind === "logged" ? "text-foreground" : "text-muted"}`}
             style={{ fontVariant: ["tabular-nums"] }}
           >
-            {effortValue ?? (effortGhost === null ? "–" : rpeText(effortGhost))}
+            {effortText}
           </Text>
         </Pressable>
       ) : null}

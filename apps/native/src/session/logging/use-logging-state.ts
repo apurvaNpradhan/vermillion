@@ -18,7 +18,7 @@ import {
 import type { SessionExerciseDetail, SetPatch } from "@workspace/sync";
 import { useIsFocused } from "expo-router";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { AppState } from "react-native";
+import { AppState, Keyboard } from "react-native";
 import { useStore } from "zustand";
 
 import { stallMemory, useStallVersion } from "@/exercise";
@@ -410,6 +410,7 @@ export function useLoggingState({
       }
       const at = store.getState().found.get(setId);
       if (!at) return;
+      Keyboard.dismiss();
       initialCellValue.current = valueOfSet(at.set, field);
       setEntry({
         cell: { setId, field },
@@ -960,6 +961,7 @@ export function useLoggingState({
   const stableOnKindSelected = useStableHandler(onKindSelected);
   const stableAddSet = useStableHandler(addSet);
   const stableCloseKeypad = useStableHandler(closeKeypad);
+  const stableReviewBeforeLeaving = useStableHandler(reviewBeforeLeaving);
   const stableOnKey = useStableHandler(onKey);
   const stableOnStep = useStableHandler(onStep);
   const stablePutValue = useStableHandler(putValue);
@@ -1004,7 +1006,7 @@ export function useLoggingState({
     flushWrites,
     /** The "Check this set" dialog; the screen renders it once. */
     guardDialog: guard.dialog,
-    reviewBeforeLeaving,
+    reviewBeforeLeaving: stableReviewBeforeLeaving,
     /** Whether typed values still wait to be written (the keypad coalesces them). */
     editsPending: writer.busy,
   };
