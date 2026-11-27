@@ -1,4 +1,4 @@
-import { SLOT_STATE_KEYS, stripState } from "@/training/train/strip-state";
+import { SLOT_STATE_KEYS, slotLabel, stripState } from "@/training/train/strip-state";
 import { Check, Repeat } from "phosphor-react-native";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
@@ -54,11 +54,11 @@ export function ActiveProgramCard({
             <View
               key={slot.id}
               accessible
-              accessibilityLabel={t("run__slot_state", {
-                day: index + 1,
-                title: state === "rest" ? t("training__rest_day") : slotTitle(slot, t),
-                state: t(SLOT_STATE_KEYS[state]),
-              })}
+              accessibilityLabel={slotLabel(
+                t,
+                { day: index + 1, state, title: slotTitle(slot, t) },
+                t(SLOT_STATE_KEYS[state]),
+              )}
               className="h-11 w-11 items-center justify-center gap-1"
             >
               <DayMark state={state} />

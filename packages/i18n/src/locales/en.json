@@ -1167,6 +1167,7 @@
   "workout__exercise_count_other": "{{count}} exercises",
   "workout__subtitle": "{{exercises}} · {{last}}",
   "run__slot_state": "Day {{day}}, {{title}}, {{state}}",
+  "run__slot_rest": "Day {{day}}, rest day",
   "run__trained": "Trained",
   "run__skipped": "Skipped",
   "run__skip_cycle": "Skip this time",
