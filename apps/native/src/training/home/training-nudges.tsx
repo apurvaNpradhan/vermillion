@@ -56,7 +56,7 @@ export function TrainingNudges({
     () => state.finished?.map((session) => session.started_at),
     [state.finished],
   );
-  const deload = useDeloadWeek({ run, sessionStarts });
+  const deload = useDeloadWeek({ run, sessionStarts, hasPlan: program.program?.phasePlan != null });
   const week = weekRange(now, state.timezone, state.weekStart);
   const { start: weekStartMs, end: weekEndMs } = week;
   const thisWeek = useMemo(
