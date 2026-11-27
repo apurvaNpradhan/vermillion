@@ -80,13 +80,17 @@ export const ACTIVE_SESSIONS_SQL = `SELECT s.id AS id, s.workout_id AS workout_i
     s.title_derived AS title_derived, s.started_at AS started_at, s.device_id AS device_id,
     s.rest_set_id AS rest_set_id, s.rest_started_at AS rest_started_at, s.rest_ends_at AS rest_ends_at,
     s.paused_at AS paused_at, s.paused_ms AS paused_ms,
-    COUNT(DISTINCT se.id) AS exercise_count, COUNT(ss.id) AS total_sets,
-    COUNT(ss.completed_at) AS ticked_sets, MAX(ss.completed_at) AS last_ticked_at
+    (SELECT COUNT(*) FROM session_exercise se WHERE se.session_id = s.id) AS exercise_count,
+    (SELECT COUNT(*) FROM session_exercise se JOIN session_set ss ON ss.session_exercise_id = se.id
+      WHERE se.session_id = s.id) AS total_sets,
+    (SELECT COUNT(ss.completed_at) FROM session_exercise se
+      JOIN session_set ss ON ss.session_exercise_id = se.id
+      WHERE se.session_id = s.id) AS ticked_sets,
+    (SELECT MAX(ss.completed_at) FROM session_exercise se
+      JOIN session_set ss ON ss.session_exercise_id = se.id
+      WHERE se.session_id = s.id) AS last_ticked_at
   FROM training_session s
-  LEFT JOIN session_exercise se ON se.session_id = s.id
-  LEFT JOIN session_set ss ON ss.session_exercise_id = se.id
   WHERE s.finished_at IS NULL
-  GROUP BY s.id
   ORDER BY s.started_at DESC, s.id DESC
   LIMIT ${ACTIVE_LIMIT}`;
 
@@ -254,11 +258,17 @@ export type SessionDetail = {
 };
 
 /**
- * One Session with its exercises and sets. The exercise's setting is one join (the setting with
+ * One Session with its exercises and sets. The Session's exercises and sets are read first, by
+ * index, into two small materialized tables (see "LEFT JOIN on a view" in `.agents/sync.md`).
+ * The exercise's setting is one join (the setting with
  * the lowest id per exercise, as before) rather than a subquery per column per set row; the
  * "last time" note is its own query, {@link SESSION_LAST_NOTES_SQL}, merged by `parseSessionDetail`.
  */
 export const SESSION_DETAIL_SQL = `WITH params AS (SELECT ? AS session_id),
+  session_exercises AS MATERIALIZED (
+    SELECT * FROM session_exercise WHERE session_id = (SELECT session_id FROM params)),
+  session_sets AS MATERIALIZED (
+    SELECT * FROM session_set WHERE session_exercise_id IN (SELECT id FROM session_exercises)),
   first_setting AS (
     SELECT exercise_id, MIN(id) AS id FROM exercise_setting
     WHERE exercise_id IN (SELECT exercise_id FROM session_exercise WHERE session_id = (SELECT session_id FROM params))
@@ -288,11 +298,11 @@ export const SESSION_DETAIL_SQL = `WITH params AS (SELECT ? AS session_id),
     ss.timer_started_at AS timer_started_at, ss.target AS target,
     ss.generated_warmup AS generated_warmup
   FROM training_session s
-  LEFT JOIN session_exercise se ON se.session_id = s.id
+  LEFT JOIN session_exercises se ON se.session_id = s.id
   LEFT JOIN exercise e ON e.id = se.exercise_id
   LEFT JOIN first_setting fs ON fs.exercise_id = se.exercise_id
   LEFT JOIN exercise_setting es ON es.id = fs.id
-  LEFT JOIN session_set ss ON ss.session_exercise_id = se.id
+  LEFT JOIN session_sets ss ON ss.session_exercise_id = se.id
   WHERE s.id = (SELECT session_id FROM params)
   ORDER BY se.position, se.id, ss.position, ss.id
   LIMIT ${DETAIL_ROW_LIMIT}`;
@@ -313,6 +323,21 @@ export const SESSION_LAST_NOTES_SQL = `SELECT x.exercise_id AS exercise_id,
   GROUP BY x.exercise_id`;
 
 const lastNoteRowSchema = z.object({ exercise_id: z.string(), last_note: z.string().nullable() });
+
+/** The rows of {@link SESSION_LAST_NOTES_SQL} as each exercise's last note, by exercise id. */
+export function parseLastNotes(rows: readonly object[]): Map<string, string | null> {
+  return new Map(
+    z
+      .array(lastNoteRowSchema)
+      .parse(rows)
+      .map((row) => [row.exercise_id, row.last_note]),
+  );
+}
+
+/** The notes that exist, in a form two reads can be compared by. */
+export function lastNotesKey(rows: readonly object[]): string {
+  return JSON.stringify([...parseLastNotes(rows)].filter(([, note]) => note !== null));
+}
 
 const detailRowSchema = z.object({
   id: z.string(),
@@ -394,12 +419,7 @@ export function parseSessionDetail(
   lastNoteRows: readonly object[] = [],
 ): SessionDetail | null {
   const parsed = z.array(detailRowSchema).parse(rows);
-  const lastNotes = new Map(
-    z
-      .array(lastNoteRowSchema)
-      .parse(lastNoteRows)
-      .map((row) => [row.exercise_id, row.last_note]),
-  );
+  const lastNotes = parseLastNotes(lastNoteRows);
   const first = parsed[0];
   if (first === undefined) return null;
   const exercises: SessionExerciseDetail[] = [];
@@ -526,6 +546,18 @@ const SET_COLUMNS = `s.id AS session_id, s.title AS title, s.started_at AS start
 const SET_ORDER = "ORDER BY s.started_at DESC, s.id DESC, se.position, se.id, ss.position, ss.id";
 
 /**
+ * The exercises and ticked sets of the Sessions in a `picked` table (a CTE of Session ids), each
+ * read by index into a small materialized table. The queries below join these instead of the
+ * session tables: a LEFT JOIN straight onto a view cannot use the local indexes and scans the
+ * whole history for every row, which made these reads grow with the square of it.
+ */
+const PICKED_ROWS = `picked_exercises AS MATERIALIZED (
+    SELECT * FROM session_exercise WHERE session_id IN (SELECT id FROM picked)),
+  picked_sets AS MATERIALIZED (
+    SELECT * FROM session_set
+    WHERE session_exercise_id IN (SELECT id FROM picked_exercises) AND completed_at IS NOT NULL)`;
+
+/**
  * The finished Sessions containing an exercise, newest first, each with that exercise's ticked
  * sets (warm-ups and counted). Reads at most {@link SESSION_READ_LIMIT} Sessions.
  */
@@ -581,14 +613,16 @@ export function parseExerciseHistories(rows: readonly object[]): Map<string, Fin
  * The finished Sessions that started in `[from, to)`, newest first, each with all of its ticked
  * sets. Reads at most {@link SESSION_READ_LIMIT} Sessions; one with no ticked set has no sets.
  */
-export const SESSIONS_BETWEEN_SQL = `SELECT ${SET_COLUMNS}
-  FROM training_session s
-  LEFT JOIN session_exercise se ON se.session_id = s.id
-  LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
-  WHERE s.id IN (
-    SELECT s2.id FROM training_session s2
+export const SESSIONS_BETWEEN_SQL = `WITH picked AS MATERIALIZED (
+    SELECT s2.id AS id FROM training_session s2
     WHERE s2.finished_at IS NOT NULL AND s2.started_at >= ? AND s2.started_at < ?
-    ORDER BY s2.started_at DESC, s2.id DESC LIMIT ${SESSION_READ_LIMIT})
+    ORDER BY s2.started_at DESC, s2.id DESC LIMIT ${SESSION_READ_LIMIT}),
+  ${PICKED_ROWS}
+  SELECT ${SET_COLUMNS}
+  FROM training_session s
+  LEFT JOIN picked_exercises se ON se.session_id = s.id
+  LEFT JOIN picked_sets ss ON ss.session_exercise_id = se.id
+  WHERE s.id IN (SELECT id FROM picked)
   ${SET_ORDER}`;
 
 /** A half-open `[from, to)` range of Session start times (ISO). */
@@ -723,43 +757,56 @@ export function readHistoryOverviewPages(read: Reader, range?: HistoryRange) {
 const BEFORE_SESSION = "AND (s.started_at < ? OR (s.started_at = ? AND s.id < ?))";
 
 /**
- * Compare the ordered values used by the finished-session view. SQLite builds one value per
- * Session in a single pass instead of recursively hashing each chunk of every set.
+ * Compare the ordered values used by the finished-session view: one row per Session with a
+ * signature of everything the finished view shows. Each Session's exercises and sets are
+ * read by correlated subqueries (an index lookup each), not by joins onto the views, so the read
+ * grows with the history, not with its square. With `exerciseCount` it keeps the Sessions
+ * before a cutoff that hold those exercises. Parameters: the exercise ids, then the range
+ * (`bounded`), then, with exercises, the cutoff's start twice and its id.
  */
 export function finishedFingerprintSql(bounded = false, exerciseCount = 0): string {
-  const exerciseFilter = exerciseCount
-    ? `AND se.exercise_id IN (${Array.from({ length: exerciseCount }, () => "?").join(", ")}) ${BEFORE_SESSION}`
-    : "";
-  return `SELECT id,
-      json_array(title, started_at, finished_at, duration_s, paused_ms, workout_id,
-        json_group_array(json(payload))) AS signature
+  const filtered = exerciseCount > 0;
+  const ids = Array.from({ length: exerciseCount }, () => "?").join(", ");
+  const entries = `(SELECT json_group_array(json(entry)) FROM (
+        SELECT json_array(se.exercise_id, se.exercise_type, se.exercise_title, se.stall_deload,
+          (SELECT json_group_array(json(ticked)) FROM (
+            SELECT json_array(ss.id, ss.kind,
+              CASE WHEN ss.weight_kg IS NOT NULL THEN printf('%!.26g', ss.weight_kg) END,
+              ss.reps, ss.duration_s,
+              CASE WHEN ss.distance_m IS NOT NULL THEN printf('%!.26g', ss.distance_m) END,
+              ss.floors, ss.steps,
+              CASE WHEN ss.rpe IS NOT NULL THEN printf('%!.26g', ss.rpe) END, ss.target,
+              ss.completed_at) AS ticked
+            FROM session_set ss
+            WHERE ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
+            ORDER BY ss.position, ss.id))) AS entry
+        FROM session_exercise se
+        WHERE se.session_id = s.id${filtered ? ` AND se.exercise_id IN (${ids})` : ""}
+        ORDER BY se.position, se.id))`;
+  return `SELECT id, json_array(title, started_at, finished_at, duration_s, paused_ms, workout_id,
+        json(entries)) AS signature
     FROM (
-      SELECT s.id, s.title, s.started_at, s.finished_at, s.duration_s, s.paused_ms, s.workout_id,
-        json_array(se.exercise_id, se.exercise_type, se.exercise_title, se.stall_deload, ss.id, ss.kind,
-          CASE WHEN ss.weight_kg IS NOT NULL THEN printf('%!.26g', ss.weight_kg) END,
-          ss.reps, ss.duration_s,
-          CASE WHEN ss.distance_m IS NOT NULL THEN printf('%!.26g', ss.distance_m) END,
-          ss.floors, ss.steps,
-          CASE WHEN ss.rpe IS NOT NULL THEN printf('%!.26g', ss.rpe) END, ss.target, ss.completed_at) AS payload
+      SELECT s.id AS id, s.title AS title, s.started_at AS started_at, s.finished_at AS finished_at,
+        s.duration_s AS duration_s, s.paused_ms AS paused_ms, s.workout_id AS workout_id,
+        ${entries} AS entries
       FROM training_session s
-      LEFT JOIN session_exercise se ON se.session_id = s.id
-      LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
       WHERE s.finished_at IS NOT NULL${bounded ? " AND s.started_at >= ? AND s.started_at < ?" : ""}
-        ${exerciseFilter}
-      ORDER BY s.id, se.position, se.id, ss.position, ss.id
-    )
-    GROUP BY id
+        ${filtered ? BEFORE_SESSION : ""}
+    )${filtered ? "\n    WHERE json_array_length(entries) > 0" : ""}
     ORDER BY id`;
 }
 
 /** The finished Sessions with these ids (at most {@link IDS_PER_READ}), with their ticked sets. */
 export function finishedByIdsSql(count: number): string {
   const ids = Array.from({ length: Math.max(1, count) }, () => "?").join(", ");
-  return `SELECT ${SET_COLUMNS}
+  return `WITH picked AS MATERIALIZED (
+      SELECT id FROM training_session WHERE finished_at IS NOT NULL AND id IN (${ids})),
+    ${PICKED_ROWS}
+    SELECT ${SET_COLUMNS}
     FROM training_session s
-    LEFT JOIN session_exercise se ON se.session_id = s.id
-    LEFT JOIN session_set ss ON ss.session_exercise_id = se.id AND ss.completed_at IS NOT NULL
-    WHERE s.finished_at IS NOT NULL AND s.id IN (${ids})
+    LEFT JOIN picked_exercises se ON se.session_id = s.id
+    LEFT JOIN picked_sets ss ON ss.session_exercise_id = se.id
+    WHERE s.id IN (SELECT id FROM picked)
     ${SET_ORDER}`;
 }
 

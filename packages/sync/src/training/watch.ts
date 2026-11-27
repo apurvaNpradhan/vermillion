@@ -36,6 +36,7 @@ import {
   SESSIONS_BETWEEN_SQL,
   SESSION_DETAIL_SQL,
   SESSION_LAST_NOTES_SQL,
+  lastNotesKey,
   SESSION_SET_COUNTS_SQL,
   parseSessionSetCounts,
   parseActiveSessions,
@@ -750,8 +751,9 @@ export function watchActiveSessions(
 
 /**
  * Watches one Session with its exercises and sets in order; `null` when it is gone. Two queries
- * feed it: the Session's rows, and the "last time" notes (which scan finished history and do not
- * change when a set is written). The Session is passed once both have answered.
+ * feed it: the Session's rows, and the "last time" notes (which read finished history and do not
+ * change when a set is written). The Session is passed as soon as its rows have answered, with
+ * no notes yet; it is passed again when the notes arrive.
  */
 export function watchSession(
   database: TrainingDatabase,
@@ -762,10 +764,12 @@ export function watchSession(
   let notes: QueryResult["array"] | null = null;
   let stopped = false;
   const emit = () => {
-    if (stopped || rows === null || notes === null) return;
+    // The "last time" notes are an extra: the Session draws as soon as its own rows are in, and
+    // the notes join it when their query answers, so a slow history read never holds the screen.
+    if (stopped || rows === null) return;
     let session: SessionDetail | null;
     try {
-      session = parseSessionDetail(rows, notes);
+      session = parseSessionDetail(rows, notes ?? []);
     } catch {
       handlers.onError(new Error("Unreadable Session rows"));
       return;
@@ -792,8 +796,15 @@ export function watchSession(
     [id],
     ["training_session", "session_exercise"],
     (next) => {
+      // Notes that add nothing to what was already passed (the usual case) pass nothing again.
+      let unchanged = false;
+      try {
+        unchanged = rows !== null && lastNotesKey(next) === lastNotesKey(notes ?? []);
+      } catch {
+        // Unreadable rows: `emit` reports them.
+      }
       notes = next;
-      emit();
+      if (!unchanged) emit();
     },
     (error) => {
       notes = null;
