@@ -53,3 +53,4 @@ minimumReleaseAgeExclude:
 patchedDependencies:
   "@better-auth/expo@1.7.18": patches/@better-auth__expo@1.7.18.patch
   "@gorhom/bottom-sheet@5.2.14": patches/@gorhom__bottom-sheet@5.2.14.patch
+  phosphor-react-native@3.0.6: patches/phosphor-react-native@3.0.6.patch
