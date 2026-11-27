@@ -1,4 +1,5 @@
 import { BottomSheet, Switch } from "heroui-native";
+import { ModalPresence } from "@/platform/ui/modal-state";
 import { useForm } from "@tanstack/react-form";
 import { gymEquipmentInput, type GymEquipmentInput, type WeightUnit } from "@workspace/shared";
 import type { EquipmentRow } from "@workspace/sync";
@@ -199,6 +200,7 @@ function CustomEquipmentSheet({
           contentContainerClassName="gap-4 px-4 pt-2"
           contentContainerProps={{ style: { paddingBottom: bottom + 16 } }}
         >
+          <ModalPresence />
           {target ? (
             <CustomEquipmentForm
               key={target.opening}

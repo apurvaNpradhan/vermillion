@@ -2,6 +2,7 @@ import { Dialog } from "heroui-native";
 import { View } from "react-native";
 
 import { Button } from "./button";
+import { ModalPresence } from "./modal-state";
 import { useDialogMotion } from "@/platform/ui/sheet-motion";
 
 export type DialogChoice = {
@@ -48,6 +49,7 @@ export function ChoiceDialog({
           isSwipeable={false}
           className="w-full max-w-sm self-center gap-6 rounded-2xl bg-overlay p-6"
         >
+          <ModalPresence />
           <View className="gap-3">
             <Dialog.Title className="font-semibold text-title-lg text-foreground">
               {title}

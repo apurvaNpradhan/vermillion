@@ -1,4 +1,5 @@
 import { weekDays } from "@workspace/shared";
+import { ModalPresence } from "@/platform/ui/modal-state";
 import { BottomSheet } from "heroui-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -50,6 +51,7 @@ export function PhotoDatePicker({
           backgroundClassName="bg-overlay"
           contentContainerClassName="gap-3 p-4"
         >
+          <ModalPresence />
           {sheet.probe}
           <BottomSheet.Title>{title}</BottomSheet.Title>
           <View className="flex-row items-center justify-between gap-2">
