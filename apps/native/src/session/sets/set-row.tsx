@@ -56,6 +56,8 @@ export type Refusal = { setId: string; fields: readonly SetField[] };
 
 export type SetRowProps = {
   historyReady: boolean;
+  /** Previous has been read; until then its column is blank, not "–". */
+  previousReady: boolean;
   editingFinished: boolean;
   /** The Inline timer preference: a running timer still shows, but none can be started. */
   set: SessionSetDetail;
@@ -319,7 +321,7 @@ export const SetRowView = memo(function SetRowView(props: SetRowProps) {
         }}
         className="h-10 min-w-0 flex-[1.3] items-center justify-center rounded-lg px-1 active:bg-default"
       >
-        {!props.historyReady ? (
+        {!props.previousReady ? (
           <View className="h-3 w-10" />
         ) : (
           <Text

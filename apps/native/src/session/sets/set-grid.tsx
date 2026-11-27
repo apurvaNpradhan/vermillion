@@ -84,6 +84,7 @@ const SetRowItem = memo(function SetRowItem({
         type: exercise?.type,
         logEffort: exercise?.logEffort ?? false,
         historyReady: view?.historyReady ?? false,
+        previousReady: view?.previousReady ?? false,
         current: state.currentSetId === setId,
         record: showsRecord(state, setId) ? (state.setsById.get(setId)?.completedAt ?? null) : null,
         refusal: state.refusal?.setId === setId ? state.refusal : null,
@@ -123,6 +124,7 @@ const SetRowItem = memo(function SetRowItem({
         row={row}
         logEffort={data.logEffort}
         historyReady={data.historyReady}
+        previousReady={data.previousReady}
         unit={data.unit}
         display={data.display}
         effortScale={data.effortScale}
