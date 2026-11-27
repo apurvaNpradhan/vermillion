@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useState } from "react";
-import { InteractionManager, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { appConfig } from "@/platform/app-config";
@@ -19,6 +19,8 @@ import { EmailSheet } from "./email-sheet";
 import { GoogleButton } from "./google-button";
 import { LiveLogVignette } from "./live-log-vignette";
 
+/** How long a pushed screen takes to slide in before a sheet can open on it. */
+const PUSH_SETTLE_MS = 400;
 const LEGAL_PATHS = { terms: "/terms", privacy: "/privacy" } as const;
 
 /**
@@ -52,11 +54,11 @@ export function WelcomeScreen() {
   // opened while the screen is still sliding in stays at height 0.
   useEffect(() => {
     if (sheet !== "email") return;
-    const task = InteractionManager.runAfterInteractions(() => {
+    const timer = setTimeout(() => {
       router.setParams({ sheet: undefined });
       openEmail();
-    });
-    return () => task.cancel();
+    }, PUSH_SETTLE_MS);
+    return () => clearTimeout(timer);
   }, [openEmail, router, sheet]);
 
   const legal = splitLegal(t("auth__legal", { terms: "{terms}", privacy: "{privacy}" }));
