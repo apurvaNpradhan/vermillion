@@ -22,14 +22,14 @@ const email = site.supportEmail;
  */
 export const privacy: LegalDocument = {
   title: "Privacy policy",
-  updated: "21 November 2026",
+  updated: "27 November 2026",
   intro: `This policy covers the ${site.name} Android app and this website. ${site.name} is run by ${appConfig.operator.name}, an individual developer in ${appConfig.operator.country} ("we"), who decides how your data is used. It explains what data we collect, how we use it and how to request deletion.`,
   sections: [
     {
       title: "What we collect",
       items: [
         "Your account includes your email address, display name and any profile picture you add. If you use Google or another available sign-in provider, we store your linked provider account ID and may receive profile details and store sign-in tokens from that provider.",
-        "Training data includes programs, workouts, sessions, sets, notes, custom exercises, imported history and preferences.",
+        "Training data includes programs, workouts, sessions, sets, notes, custom exercises, gyms and their equipment, imported history and preferences.",
         "Body data includes weight, measurements and any progress photos you add. You can also attach photos to sessions.",
         "We record sign-in details such as the time, IP address, user agent and sign-in method. We also record your latest reported app version and when it was last seen.",
         "Our website and API receive technical request information, such as your IP address and the requested page or endpoint, to serve and protect the service.",
@@ -45,6 +45,7 @@ export const privacy: LegalDocument = {
         "Cloudflare also sits in front of our servers and this website, so your requests pass through it.",
         "If you use a third-party sign-in provider such as Google, that provider processes the sign-in under its own privacy policy.",
         "GitHub handles visits to our release page and any Android downloads from GitHub Releases.",
+        "Training reminders, rest-timer alerts and the live workout notification are scheduled and shown by your phone. They do not go through our servers.",
         "Authorized administrators can see account details, sign-in information, the last reported app version, account restrictions and record counts in their account view.",
       ],
     },
@@ -76,7 +77,7 @@ export const privacy: LegalDocument = {
     {
       title: "Your choices",
       items: [
-        "Export your finished workouts as a CSV file in Settings, under Export data.",
+        "Export your data in Settings, under Your record: everything stored on your phone as a JSON file (photos are not included), weigh-ins and measurements as CSV files, and finished workouts as a CSV file in Strong's format.",
         "Delete your account and all your data from the app: Settings, Account, Delete account. See the delete account page.",
         "Turn off crash reports in Settings.",
         `To ask about accessing, correcting or deleting your data, email ${email}.`,
@@ -107,13 +108,13 @@ export const privacy: LegalDocument = {
 
 export const terms: LegalDocument = {
   title: "Terms of use",
-  updated: "21 November 2026",
+  updated: "27 November 2026",
   intro: `These terms cover the ${site.name} beta, run by ${appConfig.operator.name} in ${appConfig.operator.country}. You must be 16 or older to use it.`,
   sections: [
     {
       title: "The beta",
       paragraphs: [
-        `${site.name} is in development. Features can change and the service can be unavailable. You can export finished workouts as a CSV file in Settings.`,
+        `${site.name} is in development. Features can change and the service can be unavailable. You can export your data in Settings, under Your record.`,
       ],
     },
     {
